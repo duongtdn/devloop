@@ -1,0 +1,8 @@
+{
+  "name": "devloop",
+  "description": "Sprint lifecycle automation: plan, execute, review, and close sprints with TDD workflows and human-gated decisions.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Duong Nguyen"
+  }
+}
