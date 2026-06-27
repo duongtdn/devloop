@@ -10,50 +10,17 @@ User may have passed a focus hint via `$ARGUMENTS` (text typed after `/devloop:b
 
 ## Step 0 — Detect repo
 
-Run:
+If the GitHub repo (`owner/repo`) is not known from context, ask:
 
-```bash
-git remote -v 2>/dev/null | grep -i github.com | head -5
-```
+> Which GitHub repo should I use? (format: `owner/repo`):
 
-Parse each line for SSH form `git@github.com:owner/repo.git` or HTTPS form `https://github.com/owner/repo.git`. Prefer `origin` if it appears; otherwise use the first GitHub remote found. Strip the `.git` suffix and extract `owner/repo`.
+**Validate** any entered value: must contain exactly one `/`, both parts non-empty, must not start with `http`/`git@` or contain `.git`. If invalid, ask again.
 
-**If a GitHub remote is found**, present it for confirmation:
+**Reachability check.** Verify the repo exists via GitHub MCP. If it fails:
 
-> Repo detected as **owner/repo** (from remote `[remote-name]`) — confirm or enter the correct value (format: `owner/repo`):
+> Could not reach `owner/repo` — [error]. Check the repo name and your GitHub token, then try again:
 
-**If no GitHub remote is found**, check whether any remotes exist at all:
-
-```bash
-git remote -v 2>/dev/null | head -5
-```
-
-- If remotes exist but none point to GitHub:
-
-  > No GitHub remote detected — found remotes pointing to `[other host]`. This plugin requires a GitHub repo.
-  >
-  > If your GitHub repo is at a different remote, enter it now (format: `owner/repo`), or press enter to exit:
-
-  If the user presses enter with no input, stop.
-
-- If no remotes exist at all:
-
-  > No git remotes found. Enter the GitHub repo to use (format: `owner/repo`), or press enter to exit:
-
-  If the user presses enter with no input, stop.
-
-**Validate manual input.** If the user enters a value (from any path above), verify it matches `owner/repo` format exactly:
-- Must contain exactly one `/`
-- Both `owner` and `repo` parts must be non-empty
-- Must not start with `http`, `git@`, or contain `.git`
-
-If invalid, say so and ask again. Repeat until valid or the user presses enter to exit.
-
-**Reachability check.** Once `$REPO` is confirmed, verify the repo exists and is accessible via GitHub MCP (fetch repo metadata). If it fails:
-
-> Could not reach `owner/repo` on GitHub — got: [error]. Check the repo name and your GitHub token, then try again (or enter a different repo):
-
-Wait for correction. Repeat the reachability check. Do not proceed until confirmed reachable.
+Repeat until confirmed reachable. Do not proceed until confirmed reachable.
 
 Ensure the `type:backlog` label exists in `$REPO` — fetch the label via GitHub MCP. If it does not exist, create it now (color `#e4e669`, no description needed) without asking. Report:
 

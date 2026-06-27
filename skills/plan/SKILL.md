@@ -10,60 +10,17 @@ User may have passed arguments via `$ARGUMENTS` (text typed after `/devloop:plan
 
 ## Step 0 — Detect repo
 
-Run:
+If the GitHub repo (`owner/repo`) is not known from context, ask:
 
-```bash
-git remote -v 2>/dev/null | grep -i github.com | head -5
-```
+> Which GitHub repo should I use? (format: `owner/repo`):
 
-This lists all remotes that reference `github.com`. From the output:
+**Validate** any entered value: must contain exactly one `/`, both parts non-empty, must not start with `http`/`git@` or contain `.git`. If invalid, ask again.
 
-- Parse each line for SSH form `git@github.com:owner/repo.git` or HTTPS form `https://github.com/owner/repo.git`
-- Prefer `origin` if it appears; otherwise use the first GitHub remote found
-- Strip the `.git` suffix and extract `owner/repo`
+**Reachability check.** Verify the repo exists via GitHub MCP. If it fails:
 
-**If a GitHub remote is found**, present it for confirmation:
+> Could not reach `owner/repo` — [error]. Check the repo name and your GitHub token, then try again:
 
-> Repo detected as **owner/repo** (from remote `[remote-name]`) — confirm or enter the correct value (format: `owner/repo`):
-
-**If no GitHub remote is found**, check whether any remotes exist at all:
-
-```bash
-git remote -v 2>/dev/null | head -5
-```
-
-- If remotes exist but none point to GitHub:
-
-  > No GitHub remote detected — found remotes pointing to `[other host]`. This plugin requires a GitHub repo.
-  >
-  > If your GitHub repo is at a different remote, enter it now (format: `owner/repo`), or press enter to exit:
-
-  If the user presses enter with no input, stop.
-
-- If no remotes exist at all:
-
-  > No git remotes found. Enter the GitHub repo to use (format: `owner/repo`), or press enter to exit:
-
-  If the user presses enter with no input, stop.
-
-**Validate manual input.** If the user enters a value (from any path above), verify it matches `owner/repo` format exactly:
-- Must contain exactly one `/`
-- Both `owner` and `repo` parts must be non-empty
-- Must not start with `http`, `git@`, or contain `.git`
-
-If the format is invalid, say so and ask again:
-
-> That doesn't look right — expected format is `owner/repo` (e.g. `acme/backend`). Try again, or press enter to exit:
-
-If the user presses enter with no input, stop. Otherwise repeat until a valid format is entered.
-
-**Reachability check.** Once `$REPO` is confirmed, make a lightweight GitHub API call to verify the repo exists and is accessible (e.g. fetch repo metadata via GitHub MCP). If it fails:
-
-> Could not reach `owner/repo` on GitHub — got: [error]. Check the repo name and your GitHub token, then try again (or enter a different repo):
-
-Wait for the user to correct it. Repeat the reachability check. Do not proceed until the repo is confirmed reachable.
-
-Use the confirmed, reachable value as `$REPO` for all GitHub API calls in this session.
+Repeat until confirmed reachable. Use the confirmed value as `$REPO` for all GitHub API calls in this session.
 
 ---
 
