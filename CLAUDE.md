@@ -14,6 +14,8 @@ devloop/
 ├── bin/                         # Executables added to PATH when plugin is active
 │   └── github-milestones        # Bundled Node.js MCP server for milestone operations
 ├── skills/
+│   ├── backlog/
+│   │   └── SKILL.md             # /devloop:backlog [topic] — distill conversation into type:backlog GitHub issues
 │   ├── plan/
 │   │   └── SKILL.md             # /devloop:plan — prepare sprint: backlog triage, issue selection, milestone
 │   ├── run/
@@ -77,7 +79,7 @@ The bundled MCP is declared in `.mcp.json` at the plugin root and starts automat
 
 - **Skill frontmatter**: every `SKILL.md` must have a `description:` field. Use `$ARGUMENTS` for user input after the skill name.
 - **Agent frontmatter**: `name`, `description`, `model`, `tools` (allowlist), `disallowedTools`. Agents cannot declare `mcpServers` or `hooks` — plugin-level MCP covers that.
-- **Conversational skills** (`plan`, `review`, `abort`): pause at every human gate with explicit confirmation before any destructive action.
+- **Conversational skills** (`backlog`, `plan`, `review`, `abort`): pause at every human gate with explicit confirmation before any destructive action.
 - **State machine** (`run`): reads `context/sprints/state/issue-{N}.md` to resume from the last recorded step. Never re-runs a completed step on resume.
 - **Lock discipline**: `run` writes `.lock` on start, deletes it on clean exit. Stale lock (dead PID) is auto-cleared with a warning.
 
