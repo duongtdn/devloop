@@ -28,79 +28,28 @@ Repeat until confirmed reachable. Use the confirmed value as `$REPO` for all Git
 
 ### Master plan format
 
-`context/sprints/master-plan.md` is a structured Markdown file with this layout:
+`context/sprints/master-plan.md` is owned and formatted by `/devloop:roadmap` — see that skill for the full spec. What matters here:
+
+Each sprint entry in the Sprint Map looks like:
 
 ```markdown
-# [Project Name] — Master Plan
-
-## Vision
-[1–3 sentences: what this product does, who it's for, and what problem it solves]
-
-## Sprint Map
-
-### Sprint 1 — [Theme]
-- **Goal:** [one sentence: what a user could demo at the end]
+### Sprint N — [Theme]
+- **Goal:** [one sentence]
 - **Status:** planned | active | completed
-- **Sprint file:** `context/sprints/sprint-1.md`  ← added by plan when sprint file is written
-
-### Sprint 2 — [Theme]
-- **Goal:** ...
-- **Status:** planned
+- **Sprint file:** `context/sprints/sprint-N.md`  ← written by this skill
 ```
 
-The sprint map is append-only — `plan` adds entries, `review` updates `Status` to `completed`. The sprint number in the file is the source of truth for sprint sequencing.
+This skill writes `Status: active` and the `Sprint file:` line. It may also update `Goal:` if the confirmed sprint goal differs from the draft in the master plan. It never changes `Status: completed` entries or removes sprint entries.
 
 ### If master-plan.md does not exist
 
-This is likely the first sprint. Before asking anything, reason over what is already known from the current conversation session.
+The master plan must exist before planning a sprint — it defines the project vision and sprint themes that drive goal confirmation and issue triage.
 
-**Two pieces of information are needed to write the master plan:**
-
-1. **Project identity and vision** — what the product does, who it is for, and what problem it solves. A sentence or two is enough. It does not need to be formal.
-2. **Rough sprint map** — a sequence of sprint themes that describe how the work will be delivered iteratively (e.g. "Foundation → Auth → Core Feature"). Themes can be vague; they are refined per sprint. At minimum, one theme for the first sprint is enough to proceed.
-
-Reason over these criteria against the conversation so far:
-- If both are clear enough to make a confident proposal, draft the master plan content and present it to the user for confirmation — do not ask questions you already know the answers to.
-- If one piece is missing or too vague, ask only for that piece. State what you already understand and ask only what you need.
-- If both are missing, ask for them together in a single open prompt — not as a rigid numbered list. Let the user answer in whatever way feels natural.
-
-Once you have enough to write — either from prior conversation or after clarification — present a draft and ask for confirmation:
-
-> `context/sprints/master-plan.md` not found. Here's what I'll use to create it:
+> `context/sprints/master-plan.md` not found.
 >
-> **Project:** [name if known, otherwise omit]
-> **Vision:** [one or two sentences]
-> **Sprint map:**
-> - Sprint 1 — [Theme]: [brief scope]
-> - Sprint 2 — [Theme]: [brief scope]
-> - ...
->
-> Does this look right? Adjust anything before I write the file.
+> Run `/devloop:roadmap` first to establish the project vision and sprint sequence. Once the master plan is written, come back to `/devloop:plan` to start the sprint.
 
-Wait for confirmation or corrections. Apply any changes, then write the file. Create `context/sprints/` if it does not exist.
-
-**Epic label setup.** Extract the sprint theme names from the confirmed sprint map and derive a GitHub label for each: lowercase, spaces replaced with hyphens, prefixed with `epic:` (e.g. "Core Feature" → `epic:core-feature`).
-
-Present the proposed labels for approval before creating anything:
-
-> **Epic labels to create in `$REPO`:**
->
-> | Theme | Label |
-> |-------|-------|
-> | Foundation | `epic:foundation` |
-> | Auth | `epic:auth` |
-> | Core Feature | `epic:core-feature` |
->
-> These will be created as GitHub labels and used to tag issues throughout the sprint flow. Adjust any names or confirm:
-
-Wait for confirmation or name corrections. On approval, create each label via GitHub MCP. If any already exist, skip them silently.
-
-Report:
-
-> Master plan created at `context/sprints/master-plan.md`.
-> Epic labels ready: `epic:foundation`, `epic:auth`, `epic:core-feature`.
-
-Set next sprint number to **1**. Then continue to the **Orient gate** section below.
+Stop.
 
 ### If master-plan.md exists
 
@@ -457,9 +406,11 @@ Example:
 - [ ] #45 — Password reset flow (area:web, epic:auth)
 ```
 
-**Update master plan:** In `context/sprints/master-plan.md`, find the `### Sprint [N]` section (or append one if it doesn't exist) and ensure it has:
+**Update master plan:** In `context/sprints/master-plan.md`, find the `### Sprint [N]` section and ensure it has:
 - `Status: active`
 - `Sprint file: context/sprints/sprint-[N].md`
+
+If the section does not exist (e.g. roadmap was run but did not include this sprint number), append it as a minimal entry with no theme name: `### Sprint [N]`. This is a fallback — the expected path is for roadmap to have written this entry first.
 
 ---
 
