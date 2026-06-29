@@ -57,9 +57,9 @@ The plugin uses the **official GitHub MCP server** for all standard operations (
 | List/create/close issues, add labels | Official GitHub MCP |
 | Create/merge/update PRs | Official GitHub MCP |
 | Create/list branches | Official GitHub MCP |
-| **Create milestone** | Bundled `devloop:milestones` MCP |
-| **Assign issues to milestone** | Bundled `devloop:milestones` MCP |
-| **Close milestone** | Bundled `devloop:milestones` MCP |
+| **Create milestone** | Bundled `devloop-milestones` MCP |
+| **Assign issues to milestone** | Bundled `devloop-milestones` MCP |
+| **Close milestone** | Bundled `devloop-milestones` MCP |
 
 The bundled MCP is declared in `.mcp.json` at the plugin root and starts automatically when the plugin is active. It reads `GITHUB_TOKEN` from the environment — the same token the official MCP requires, so there is no additional auth burden on the user.
 
