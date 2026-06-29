@@ -26,7 +26,7 @@ Not every phase runs for every issue — the **workflow** (chosen from labels, c
 
 **Gates are resumable.** A gate panel is built from an agent's return message, which is not durable. So **before presenting any gate, write the structured payload that builds it to the state file's `## Pending gate` block** (the findings table, the critique scorecard, the validation results, the PR body). If a session resumes *at* a gate, rebuild the panel from that block — never re-run the agent to reconstruct it. Clear the block once the gate is resolved.
 
-**The green-check gate is "no *new* test failures," not "zero failures."** Accepted known-failing tests (in `context/devloop-baseline.md`) do not block. See [Known-failing baseline](#known-failing-baseline).
+**The green-check gate is "no *new* test failures," not "zero failures."** Accepted known-failing tests (in `.context/devloop-baseline.md`) do not block. See [Known-failing baseline](#known-failing-baseline).
 
 ---
 
@@ -34,15 +34,15 @@ Not every phase runs for every issue — the **workflow** (chosen from labels, c
 
 | Path | Scope | Writer | Purpose |
 |---|---|---|---|
-| `context/sprints/work/issue-N/context.md` | issue | `context` (Zone 1); `designer`/`planner`/`test-writer`/`coder`/`reviewer` + run append Zone 2 | retrieved facts + decision timeline |
-| `context/sprints/work/issue-N/design.md` | issue | `designer` | implementation guide / decision doc (when a design phase ran) |
-| `context/sprints/work/issue-N/plan.md` | issue | `planner` | ordered tasks + acceptance criteria per task |
-| `context/sprints/work/issue-N/test-plan.md` | issue | `planner` | unit scenarios per task + e2e scenarios |
-| `context/sprints/work/issue-N/spike/` | issue | `coder` (spike mode) | throwaway proof-of-concept; reference only, safe to delete |
-| `context/sprints/state/issue-N.md` | issue | **run only** | phase, position, branch, pr, plan, tasks, log |
-| `context/sprints/state/.lock` | global | **run only** | active issue, PID, start time |
-| `context/devloop-profile.md` | project | roadmap; **run write-back** | build/test commands + test layout |
-| `context/devloop-baseline.md` | project | **run** (on user decision) | accepted-failing tests |
+| `.context/sprints/work/issue-N/context.md` | issue | `context` (Zone 1); `designer`/`planner`/`test-writer`/`coder`/`reviewer` + run append Zone 2 | retrieved facts + decision timeline |
+| `.context/sprints/work/issue-N/design.md` | issue | `designer` | implementation guide / decision doc (when a design phase ran) |
+| `.context/sprints/work/issue-N/plan.md` | issue | `planner` | ordered tasks + acceptance criteria per task |
+| `.context/sprints/work/issue-N/test-plan.md` | issue | `planner` | unit scenarios per task + e2e scenarios |
+| `.context/sprints/work/issue-N/spike/` | issue | `coder` (spike mode) | throwaway proof-of-concept; reference only, safe to delete |
+| `.context/sprints/state/issue-N.md` | issue | **run only** | phase, position, branch, pr, plan, tasks, log |
+| `.context/sprints/state/.lock` | global | **run only** | active issue, PID, start time |
+| `.context/devloop-profile.md` | project | roadmap; **run write-back** | build/test commands + test layout |
+| `.context/devloop-baseline.md` | project | **run** (on user decision) | accepted-failing tests |
 
 `work/` and `state/` are run's working area for one issue; `profile`, `baseline`, `master-plan`, and `sprint-N` are shared project records. Whether any of these are version-controlled is the user's choice — run neither assumes nor enforces a gitignore policy.
 
@@ -108,8 +108,8 @@ Run this section on every invocation, in order.
 ### S1 — Resolve the active sprint
 
 Determine the active sprint:
-- Read `context/sprints/master-plan.md`; find the entry with `- **Status:** active`. Use its sprint number and `Sprint file:`.
-- If none is active, fall back to the highest `context/sprints/sprint-N.md` on disk.
+- Read `.context/sprints/master-plan.md`; find the entry with `- **Status:** active`. Use its sprint number and `Sprint file:`.
+- If none is active, fall back to the highest `.context/sprints/sprint-N.md` on disk.
 
 If no sprint file can be found:
 
@@ -119,7 +119,7 @@ Stop. Otherwise read the sprint file and extract `$SPRINT_N`, `$SPRINT_FILE`, `$
 
 ### S2 — Concurrency guard
 
-Read `context/sprints/state/.lock` if it exists. Determine PID liveness with `kill -0 <pid> 2>/dev/null` (exit 0 = alive).
+Read `.context/sprints/state/.lock` if it exists. Determine PID liveness with `kill -0 <pid> 2>/dev/null` (exit 0 = alive).
 
 | Lock | Action |
 |---|---|
@@ -129,13 +129,13 @@ Read `context/sprints/state/.lock` if it exists. Determine PID liveness with `ki
 
 ### S3 — Read project profile and baseline
 
-Read `context/devloop-profile.md`. If it does not exist:
+Read `.context/devloop-profile.md`. If it does not exist:
 
-> `context/devloop-profile.md` not found — run `/devloop:roadmap` to set up build/test commands first, or I'll have to ask for each command as I need it. Continue anyway? (y/n)
+> `.context/devloop-profile.md` not found — run `/devloop:roadmap` to set up build/test commands first, or I'll have to ask for each command as I need it. Continue anyway? (y/n)
 
 On **n**, exit. On **y**, proceed and ask for commands inline when a phase needs one (writing each answer back to the profile).
 
-Read `context/devloop-baseline.md` if it exists (the accepted-failing allowlist). Treat absent as empty.
+Read `.context/devloop-baseline.md` if it exists (the accepted-failing allowlist). Treat absent as empty.
 
 ### S4 — Resolve the target issue and entry point
 
@@ -168,7 +168,7 @@ Some issues don't fit a single archetype — "run the suite and review existing 
 
 ### S6 — Acquire lock and dispatch
 
-Write `context/sprints/state/.lock` with `issue: $ISSUE`, the current PID, and an ISO start time. If no state file exists yet, create `state/issue-N.md` with the schema above (`phase: context`, branch `-`).
+Write `.context/sprints/state/.lock` with `issue: $ISSUE`, the current PID, and an ISO start time. If no state file exists yet, create `state/issue-N.md` with the schema above (`phase: context`, branch `-`).
 
 Announce and dispatch:
 
@@ -191,7 +191,7 @@ Compute the relative time from scripts, not the session clock: read the build ti
 
 On **n**, keep the existing file and continue. On **y** (or on a fresh start), invoke `context`.
 
-Invoke **`context`**, passing: `$ISSUE`, `$REPO`, `$SPRINT_GOAL`, the work dir `context/sprints/work/issue-N/`, a one-line profile summary, and `$NOW` (script-derived) for its Zone 2 legend. For **scaffold**, request the light variant (issue + workspace map only). It writes `context.md` Zone 1. Record the build time (`$NOW`) in the state log so a later resume can compute the relative age.
+Invoke **`context`**, passing: `$ISSUE`, `$REPO`, `$SPRINT_GOAL`, the work dir `.context/sprints/work/issue-N/`, a one-line profile summary, and `$NOW` (script-derived) for its Zone 2 legend. For **scaffold**, request the light variant (issue + workspace map only). It writes `context.md` Zone 1. Record the build time (`$NOW`) in the state log so a later resume can compute the relative age.
 
 Record the next phase and continue: **design** workflow → `phase: design`; **feature/bugfix** → `phase: plan`; **scaffold** → jump straight to the **scaffold** section.
 
@@ -243,7 +243,7 @@ Build this panel from the agents' return summaries and **link** the document —
 > | testability | … |
 > | consistency | … |
 >
-> Full design: `context/sprints/work/issue-N/design.md`
+> Full design: `.context/sprints/work/issue-N/design.md`
 >
 > Approve the design, request changes, run another spike, or skip design and plan directly:
 
@@ -331,7 +331,7 @@ For the task at `task_index`:
 
    > The coder needs a **[check]** command, which isn't in the profile. What command runs it? (or `none` if this project has no [check]):
 
-   Write the answer back to `context/devloop-profile.md` (see [Profile write-back](#profile-write-back)) — or record `none` so it isn't asked again — then re-invoke the coder with the updated check set **and the `$ABSENT` list** (checks the user marked `none`), so the coder proceeds without re-flagging them. This is distinct from the 3-attempt escalation below, which is for tests that won't pass.
+   Write the answer back to `.context/devloop-profile.md` (see [Profile write-back](#profile-write-back)) — or record `none` so it isn't asked again — then re-invoke the coder with the updated check set **and the `$ABSENT` list** (checks the user marked `none`), so the coder proceeds without re-flagging them. This is distinct from the 3-attempt escalation below, which is for tests that won't pass.
 
 3. **Run tests.** Invoke **`test-runner`** (unit mode) with the test file, the full-suite command, and the baseline path. It returns three buckets — **new / accepted / pre-existing**. Handle them per [Known-failing baseline](#known-failing-baseline). `new` failures block; resolve before continuing.
 
@@ -483,8 +483,8 @@ If a rebase hits a conflict, surface it and stop — ask the user to resolve man
 
 **Cleanup** (runs whether we merged or detected an existing merge):
 1. Tick the issue's checkbox `[x]` in `$SPRINT_FILE`.
-2. Delete `context/sprints/state/issue-N.md`.
-3. Delete `context/sprints/state/.lock`.
+2. Delete `.context/sprints/state/issue-N.md`.
+3. Delete `.context/sprints/state/.lock`.
 4. Leave `work/issue-N/` in place (gitignored, useful for reference).
 
 > ✅ #[ISSUE] done — PR #[pr] merged, issue closed, sprint file updated.
@@ -513,7 +513,7 @@ Tick the checkbox, delete the state file and lock as in merge cleanup, then hand
 
 ## Known-failing baseline
 
-`context/devloop-baseline.md` is the committed allowlist of accepted-failing checks. The green-check gate is **no `new` failures**, not zero failures.
+`.context/devloop-baseline.md` is the committed allowlist of accepted-failing checks. The green-check gate is **no `new` failures**, not zero failures.
 
 `test-runner` reads the baseline and returns failures in three buckets:
 
@@ -530,7 +530,7 @@ Tick the checkbox, delete the state file and lock as in merge cleanup, then hand
 >
 > **fix** (keep iterating) / **accept as known-failing** (needs a tracking issue) / **abort**
 
-**Accept as known-failing** — require a tracking issue (reference an existing one or create a `type:bug` issue now), then append to `context/devloop-baseline.md`:
+**Accept as known-failing** — require a tracking issue (reference an existing one or create a `type:bug` issue now), then append to `.context/devloop-baseline.md`:
 
 ```markdown
 - check: unit | e2e
@@ -553,7 +553,7 @@ On **y**, remove the entry and close the tracking issue with a comment. Also, at
 
 ## Profile write-back
 
-`context/devloop-profile.md` is machine-maintained. run updates it in two cases:
+`.context/devloop-profile.md` is machine-maintained. run updates it in two cases:
 
 1. **Scaffold** established the project's commands → write them all.
 2. A task **filled a previously-empty field** (e.g. the first test script was added) → offer to record it.

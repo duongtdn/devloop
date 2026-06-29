@@ -67,27 +67,27 @@ The bundled MCP is declared in `.mcp.json` at the plugin root and starts automat
 
 | Path | Purpose |
 |---|---|
-| `context/devloop-profile.md` | Operational manifest: build/test commands and test layout. **Committed.** Bootstrapped by `roadmap`; read by `plan` and `run`; written back by `run` (scaffold + newly-filled fields). Holds commands only — never stack/conventions (those stay in CLAUDE.md). See `profile-spec.md`. |
-| `context/devloop-baseline.md` | Accepted-failure allowlist: checks known to fail and accepted until a real fix lands. **Committed.** Written by `run` on user decision (needs a tracking issue); read by the `test-runner` agent to classify failures as accepted vs new. Lets the green-check gate mean "no *new* failures," not zero. |
-| `context/sprints/master-plan.md` | Project sprint map: vision, sprint themes, goals, statuses. Created and updated by `roadmap`. `plan` writes `Status: active` and `Sprint file:` per sprint; `review` writes `Status: completed`. |
-| `context/sprints/sprint-N.md` | Sprint execution file. Checkbox list read/updated by `run`. |
-| `context/sprints/state/.lock` | Concurrency guard: active issue number, PID, start time. |
-| `context/sprints/state/issue-{N}.md` | Control plane for one in-progress issue: phase, position (`task_index`/`phase_step`), branch, confirmed plan, task list, log, and a pending-gate payload (lets a gate re-present on resume without re-running its agent). |
-| `context/sprints/work/issue-{N}/context.md` | Central knowledge file. Zone 1: retrieved facts (owned by `context`). Zone 2: append-only decision timeline — `planner`/`test-writer`/`coder`/`reviewer` and `run`'s gates each append a self-contained, script-timestamped entry; never edited. |
-| `context/sprints/work/issue-{N}/plan.md` | Implementation plan from the `planner` agent. |
-| `context/sprints/work/issue-{N}/test-plan.md` | Test strategy: unit scenarios per task + E2E scenarios per flow. |
-| `context/sprints/sprint-N-review.md` | Sprint retrospective from review skill. |
+| `.context/devloop-profile.md` | Operational manifest: build/test commands and test layout. **Committed.** Bootstrapped by `roadmap`; read by `plan` and `run`; written back by `run` (scaffold + newly-filled fields). Holds commands only — never stack/conventions (those stay in CLAUDE.md). See `profile-spec.md`. |
+| `.context/devloop-baseline.md` | Accepted-failure allowlist: checks known to fail and accepted until a real fix lands. **Committed.** Written by `run` on user decision (needs a tracking issue); read by the `test-runner` agent to classify failures as accepted vs new. Lets the green-check gate mean "no *new* failures," not zero. |
+| `.context/sprints/master-plan.md` | Project sprint map: vision, sprint themes, goals, statuses. Created and updated by `roadmap`. `plan` writes `Status: active` and `Sprint file:` per sprint; `review` writes `Status: completed`. |
+| `.context/sprints/sprint-N.md` | Sprint execution file. Checkbox list read/updated by `run`. |
+| `.context/sprints/state/.lock` | Concurrency guard: active issue number, PID, start time. |
+| `.context/sprints/state/issue-{N}.md` | Control plane for one in-progress issue: phase, position (`task_index`/`phase_step`), branch, confirmed plan, task list, log, and a pending-gate payload (lets a gate re-present on resume without re-running its agent). |
+| `.context/sprints/work/issue-{N}/context.md` | Central knowledge file. Zone 1: retrieved facts (owned by `context`). Zone 2: append-only decision timeline — `planner`/`test-writer`/`coder`/`reviewer` and `run`'s gates each append a self-contained, script-timestamped entry; never edited. |
+| `.context/sprints/work/issue-{N}/plan.md` | Implementation plan from the `planner` agent. |
+| `.context/sprints/work/issue-{N}/test-plan.md` | Test strategy: unit scenarios per task + E2E scenarios per flow. |
+| `.context/sprints/sprint-N-review.md` | Sprint retrospective from review skill. |
 
-`context/sprints/work/` is gitignored — persists locally only.
+`.context/sprints/work/` is gitignored — persists locally only.
 
 ## Key conventions
 
 - **Skill frontmatter**: every `SKILL.md` must have a `description:` field. Use `$ARGUMENTS` for user input after the skill name.
 - **Agent frontmatter**: `name`, `description`, `model`, `tools` (allowlist), `disallowedTools`. Agents cannot declare `mcpServers` or `hooks` — plugin-level MCP covers that.
 - **Conversational skills** (`roadmap`, `backlog`, `plan`, `review`, `abort`): pause at every human gate with explicit confirmation before any destructive action.
-- **State machine** (`run`): a resumable phase spine (`context → [design → gate-design] → plan → gate-plan → build → e2e → review → validate → gate-pr → pending-review → merge`). The active **workflow** (feature/bugfix/design/scaffold, chosen from labels and confirmed at gate-plan) selects which phases run. The optional **design** phase produces an implementation guide / decision doc (`design.md`) — always for the design workflow, and for a feature/bugfix when the planner raises `NEEDS-DESIGN`. The `designer` authors it and a fresh `designer` instance critiques it against named criteria; load-bearing assumptions can be proven with a throwaway `coder` spike before the gate. Reads `context/sprints/state/issue-{N}.md` to resume from the last recorded phase; never re-runs a completed phase. Gates are resumable too — the panel-building payload is persisted before a gate is shown, so a crash at a gate re-presents it from disk rather than re-running the agent.
-- **Project profile** (`context/devloop-profile.md`): the single source for build/test commands — `run` never guesses a command. `roadmap` bootstraps it, `run` maintains it. Commands only; stack/conventions live in CLAUDE.md (auto-loaded).
-- **Green-check gate**: "no *new* test failures," not zero failures. Accepted known-failing tests are tracked in `context/devloop-baseline.md`.
+- **State machine** (`run`): a resumable phase spine (`context → [design → gate-design] → plan → gate-plan → build → e2e → review → validate → gate-pr → pending-review → merge`). The active **workflow** (feature/bugfix/design/scaffold, chosen from labels and confirmed at gate-plan) selects which phases run. The optional **design** phase produces an implementation guide / decision doc (`design.md`) — always for the design workflow, and for a feature/bugfix when the planner raises `NEEDS-DESIGN`. The `designer` authors it and a fresh `designer` instance critiques it against named criteria; load-bearing assumptions can be proven with a throwaway `coder` spike before the gate. Reads `.context/sprints/state/issue-{N}.md` to resume from the last recorded phase; never re-runs a completed phase. Gates are resumable too — the panel-building payload is persisted before a gate is shown, so a crash at a gate re-presents it from disk rather than re-running the agent.
+- **Project profile** (`.context/devloop-profile.md`): the single source for build/test commands — `run` never guesses a command. `roadmap` bootstraps it, `run` maintains it. Commands only; stack/conventions live in CLAUDE.md (auto-loaded).
+- **Green-check gate**: "no *new* test failures," not zero failures. Accepted known-failing tests are tracked in `.context/devloop-baseline.md`.
 - **Lock discipline**: `run` writes `.lock` on start, deletes it on clean exit, at `pending-review`, and at `merge`. Stale lock (dead PID) is auto-cleared with a warning.
 
 ## Development

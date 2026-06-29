@@ -10,7 +10,7 @@ User may have passed a focus hint via `$ARGUMENTS` (text typed after `/devloop:r
 
 ## Master plan format
 
-`context/sprints/master-plan.md` is the project's single source of truth for vision and sprint sequencing. Its canonical layout is:
+`.context/sprints/master-plan.md` is the project's single source of truth for vision and sprint sequencing. Its canonical layout is:
 
 ```markdown
 # [Project Name] — Master Plan
@@ -23,7 +23,7 @@ User may have passed a focus hint via `$ARGUMENTS` (text typed after `/devloop:r
 ### Sprint 1 — [Theme]
 - **Goal:** [one sentence: what a user could demo at the end]
 - **Status:** planned | active | completed
-- **Sprint file:** `context/sprints/sprint-1.md`  ← written by /devloop:plan when the sprint starts
+- **Sprint file:** `.context/sprints/sprint-1.md`  ← written by /devloop:plan when the sprint starts
 
 ### Sprint 2 — [Theme]
 - **Goal:** ...
@@ -42,7 +42,7 @@ User may have passed a focus hint via `$ARGUMENTS` (text typed after `/devloop:r
 
 ## Step 0 — Read existing master plan
 
-Read `context/sprints/master-plan.md` if it exists.
+Read `.context/sprints/master-plan.md` if it exists.
 
 **If it exists**, extract:
 - Current Vision text
@@ -51,7 +51,7 @@ Read `context/sprints/master-plan.md` if it exists.
 
 **If it does not exist**, note that this is a first-time init and proceed.
 
-**Also read `context/devloop-profile.md`** if it exists. Set `$PROFILE_EXISTS` accordingly. This is devloop's operational manifest (build/test commands); Step 4 seeds or updates it. Reading it now lets the early-stop in Step 1 still offer to bootstrap a missing profile.
+**Also read `.context/devloop-profile.md`** if it exists. Set `$PROFILE_EXISTS` accordingly. This is devloop's operational manifest (build/test commands); Step 4 seeds or updates it. Reading it now lets the early-stop in Step 1 still offer to bootstrap a missing profile.
 
 ---
 
@@ -96,7 +96,7 @@ Continue to Step 2.
 
 If this is a first-time init:
 
-> `context/sprints/master-plan.md` not found. Here's what I'll create based on our conversation:
+> `.context/sprints/master-plan.md` not found. Here's what I'll create based on our conversation:
 >
 > **Vision:** [1–3 sentences]
 >
@@ -109,7 +109,7 @@ If this is a first-time init:
 
 If updating an existing file, show only what will change:
 
-> **Proposed changes to `context/sprints/master-plan.md`:**
+> **Proposed changes to `.context/sprints/master-plan.md`:**
 >
 > **Vision** _(updating)_
 > → [new vision text]     ← omit this block if Vision is unchanged
@@ -128,7 +128,7 @@ Wait for the user's response. Accept bulk edits ("change sprint 3 theme to 'Paym
 
 ## Step 3 — Write master plan
 
-On confirmation, write `context/sprints/master-plan.md`. Create `context/sprints/` if it does not exist.
+On confirmation, write `.context/sprints/master-plan.md`. Create `.context/sprints/` if it does not exist.
 
 **If creating from scratch:** write the full file using the confirmed content.
 
@@ -136,13 +136,13 @@ On confirmation, write `context/sprints/master-plan.md`. Create `context/sprints
 
 After writing:
 
-> Master plan written to `context/sprints/master-plan.md`.
+> Master plan written to `.context/sprints/master-plan.md`.
 
 ---
 
 ## Step 4 — Project profile
 
-`context/devloop-profile.md` is devloop's operational manifest — the build/test commands and test layout that `/devloop:plan` and `/devloop:run` execute against. It is devloop-owned and machine-maintained: as the project grows, scaffold and test-setup tasks during `run` write to it. This step seeds it.
+`.context/devloop-profile.md` is devloop's operational manifest — the build/test commands and test layout that `/devloop:plan` and `/devloop:run` execute against. It is devloop-owned and machine-maintained: as the project grows, scaffold and test-setup tasks during `run` write to it. This step seeds it.
 
 It holds **only commands and test layout** — never stack description, architecture, or conventions. Those live in the auto-loaded project instructions (CLAUDE.md / AGENTS.md) and must not be duplicated here.
 
@@ -168,7 +168,7 @@ frameworks:  <comma-separated, e.g. vitest, playwright>
 
 Summarise its current commands and ask:
 
-> Project profile exists at `context/devloop-profile.md`:
+> Project profile exists at `.context/devloop-profile.md`:
 > build=`[...]` · unit-test=`[...]` · e2e-test=`[...]` · lint=`[...]`  ← show the fields that are set
 >
 > Keep as-is, or update it? (keep/update)
@@ -194,7 +194,7 @@ If nothing is found (greenfield / not yet scaffolded):
 
 **Human gate — present the drafted profile and wait for confirmation:**
 
-> **Project profile** — `context/devloop-profile.md`
+> **Project profile** — `.context/devloop-profile.md`
 >
 > ```
 > build:      npm run build
@@ -208,9 +208,9 @@ If nothing is found (greenfield / not yet scaffolded):
 >
 > Inferred from `package.json`. Couldn't determine: `e2e-test`, `e2e-tests`. Fill these in, correct anything, or confirm:
 
-Wait for the user's response. Apply edits and re-present until confirmed. On confirmation, write `context/devloop-profile.md` using the canonical format — omit any field left blank. Report:
+Wait for the user's response. Apply edits and re-present until confirmed. On confirmation, write `.context/devloop-profile.md` using the canonical format — omit any field left blank. Report:
 
-> Project profile written to `context/devloop-profile.md`.
+> Project profile written to `.context/devloop-profile.md`.
 
 ---
 
@@ -240,12 +240,12 @@ On no, skip silently.
 
 ## Completion report
 
-> **Roadmap updated** — `context/sprints/master-plan.md`    ← omit this line if the master plan was not written (profile-only path)
+> **Roadmap updated** — `.context/sprints/master-plan.md`    ← omit this line if the master plan was not written (profile-only path)
 >
 > **Vision:** [vision text]    ← omit on the profile-only path
 >
 > **Sprint map:** [N] sprints ([X] locked · [Y] updated · [Z] new)    ← omit any count that is zero; omit the whole line on the profile-only path
 >
-> **Project profile:** `context/devloop-profile.md` — [written / updated / kept as-is]
+> **Project profile:** `.context/devloop-profile.md` — [written / updated / kept as-is]
 >
 > Run `/devloop:plan` to start or continue a sprint.

@@ -17,7 +17,7 @@ You are the **context** agent. You assemble durable, factual knowledge for one i
 - `$ISSUE` — the issue number
 - `$REPO` — `owner/repo`
 - `$SPRINT_GOAL` — the sprint goal sentence
-- `$WORK_DIR` — `context/sprints/work/issue-N/` (where `context.md` goes)
+- `$WORK_DIR` — `.context/sprints/work/issue-N/` (where `context.md` goes)
 - `$PROFILE` — one-line summary of build/test commands (for reference only)
 - `$MODE` — `full` (default) or `light` (scaffold: issue + workspace map only)
 

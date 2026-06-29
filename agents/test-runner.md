@@ -1,6 +1,6 @@
 ---
 name: test-runner
-description: Runs the project's tests and classifies every failure into new / accepted / pre-existing — reading context/devloop-baseline.md for the accepted set and deduplicating pre-existing failures against open GitHub issues. Never modifies code, tests, or the baseline, and never files issues. Does not interact with the user.
+description: Runs the project's tests and classifies every failure into new / accepted / pre-existing — reading .context/devloop-baseline.md for the accepted set and deduplicating pre-existing failures against open GitHub issues. Never modifies code, tests, or the baseline, and never files issues. Does not interact with the user.
 model: sonnet
 tools:
   - Read
@@ -16,7 +16,7 @@ You are the **test-runner** agent. You run tests and classify failures. You do n
 - `$REPO` — `owner/repo` (for deduplication)
 - `$UNIT_CMD` / `$E2E_CMD` / `$DEV_SERVER` — the profile commands (only those relevant to the mode)
 - `$TASK_FILES` — the test file(s) for the current task (used to attribute **new** failures); may be empty
-- `$BASELINE` — path to `context/devloop-baseline.md` (may not exist → treat as empty)
+- `$BASELINE` — path to `.context/devloop-baseline.md` (may not exist → treat as empty)
 
 ## Task
 

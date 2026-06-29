@@ -15,10 +15,10 @@ User may have passed a sprint identifier via `$ARGUMENTS` (e.g. `sprint-3`, `3`,
 If `$ARGUMENTS` is non-empty and contains a number, parse it as `$SPRINT_N`.
 
 If `$ARGUMENTS` is empty (or unrecognised per the note above):
-- Read `context/sprints/master-plan.md` if it exists.
+- Read `.context/sprints/master-plan.md` if it exists.
 - Find the sprint entry that contains `- **Status:** active` (the exact bold-formatted list item written by `/devloop:plan`). Use its sprint number as `$SPRINT_N`. If multiple entries match, use the one with the highest sprint number and emit: `Multiple active sprints found in master plan — using Sprint [N].`
 - If no sprint is active, use the highest sprint number present in the Sprint Map.
-- If `context/sprints/master-plan.md` does not exist, scan `context/sprints/` for files matching `sprint-N.md` and use the highest N found.
+- If `.context/sprints/master-plan.md` does not exist, scan `.context/sprints/` for files matching `sprint-N.md` and use the highest N found.
 
 If no sprint can be resolved:
 
@@ -32,13 +32,13 @@ Stop.
 
 Read these files for Sprint `$SPRINT_N`:
 
-1. **Sprint file:** `context/sprints/sprint-[N].md` — issue list and checkboxes, goal, milestone number, repo, created date.
-2. **Lock file:** `context/sprints/state/.lock` — if it exists, read the active issue number, PID, and start time.
-3. **Issue state files:** `context/sprints/state/issue-*.md` — for each file present whose issue number is in the sprint file, read: current step name, branch name, task checklist (done vs total), last log entry.
+1. **Sprint file:** `.context/sprints/sprint-[N].md` — issue list and checkboxes, goal, milestone number, repo, created date.
+2. **Lock file:** `.context/sprints/state/.lock` — if it exists, read the active issue number, PID, and start time.
+3. **Issue state files:** `.context/sprints/state/issue-*.md` — for each file present whose issue number is in the sprint file, read: current step name, branch name, task checklist (done vs total), last log entry.
 
 If the sprint file does not exist:
 
-> Sprint [N] file not found at `context/sprints/sprint-[N].md`. If this sprint was planned, the file may have been moved or deleted.
+> Sprint [N] file not found at `.context/sprints/sprint-[N].md`. If this sprint was planned, the file may have been moved or deleted.
 
 Stop.
 

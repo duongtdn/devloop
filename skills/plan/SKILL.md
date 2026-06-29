@@ -28,7 +28,7 @@ Repeat until confirmed reachable. Use the confirmed value as `$REPO` for all Git
 
 ### Master plan format
 
-`context/sprints/master-plan.md` is owned and formatted by `/devloop:roadmap` — see that skill for the full spec. What matters here:
+`.context/sprints/master-plan.md` is owned and formatted by `/devloop:roadmap` — see that skill for the full spec. What matters here:
 
 Each sprint entry in the Sprint Map looks like:
 
@@ -36,7 +36,7 @@ Each sprint entry in the Sprint Map looks like:
 ### Sprint N — [Theme]
 - **Goal:** [one sentence]
 - **Status:** planned | active | completed
-- **Sprint file:** `context/sprints/sprint-N.md`  ← written by this skill
+- **Sprint file:** `.context/sprints/sprint-N.md`  ← written by this skill
 ```
 
 This skill writes `Status: active` and the `Sprint file:` line. It may also update `Goal:` if the confirmed sprint goal differs from the draft in the master plan. It never changes `Status: completed` entries or removes sprint entries.
@@ -45,7 +45,7 @@ This skill writes `Status: active` and the `Sprint file:` line. It may also upda
 
 The master plan must exist before planning a sprint — it defines the project vision and sprint themes that drive goal confirmation and issue triage.
 
-> `context/sprints/master-plan.md` not found.
+> `.context/sprints/master-plan.md` not found.
 >
 > Run `/devloop:roadmap` first to establish the project vision and sprint sequence. Once the master plan is written, come back to `/devloop:plan` to start the sprint.
 
@@ -53,7 +53,7 @@ Stop.
 
 ### If master-plan.md exists
 
-Read `context/sprints/master-plan.md`.
+Read `.context/sprints/master-plan.md`.
 
 **Check for an active sprint.** Scan the Sprint Map for any entry with `Status: active`.
 
@@ -70,7 +70,7 @@ Wait for response. On **stop**, exit. On **continue**, proceed.
 **Determine the next sprint number** using two independent methods:
 
 - **Method A (master plan):** find the highest sprint number in the Sprint Map whose `Status` is `completed` or `active`. Next = that number + 1. If no entries have either status, next = 1.
-- **Method B (sprint files):** scan `context/sprints/` for files matching `sprint-N.md`. Next = highest N found + 1. If none exist, next = 1.
+- **Method B (sprint files):** scan `.context/sprints/` for files matching `sprint-N.md`. Next = highest N found + 1. If none exist, next = 1.
 
 If both methods agree, use that number.
 
@@ -105,7 +105,7 @@ Accept a plain "yes" / "y" to proceed with Sprint [N], or a number to override. 
 
 ### Read project profile
 
-Read `context/devloop-profile.md` — devloop's operational manifest (build/test commands and test layout). For this skill, the only thing that matters is **whether the project has tests**, because that shapes the acceptance criteria and Definition of Done written into issues.
+Read `.context/devloop-profile.md` — devloop's operational manifest (build/test commands and test layout). For this skill, the only thing that matters is **whether the project has tests**, because that shapes the acceptance criteria and Definition of Done written into issues.
 
 This file is the single source for project commands. Do not read commands from anywhere else or guess them. Stack, architecture, and conventions come from the auto-loaded project instructions (CLAUDE.md) already in context — this skill does not duplicate them.
 
@@ -115,7 +115,7 @@ This file is the single source for project commands. Do not read commands from a
 
 **If it does not exist**, warn:
 
-> `context/devloop-profile.md` not found — it's normally created by `/devloop:roadmap`. Without it, the acceptance criteria and Definition of Done written into issues will be generic (no project-specific test steps).
+> `.context/devloop-profile.md` not found — it's normally created by `/devloop:roadmap`. Without it, the acceptance criteria and Definition of Done written into issues will be generic (no project-specific test steps).
 >
 > Continue without it? (y/n) — or run `/devloop:roadmap` first to set up the profile.
 
@@ -163,7 +163,7 @@ Wait for the user to confirm or adjust. Once confirmed:
 
 Store this as `$SPRINT_GOAL`. It will become the GitHub milestone description and is printed at the top of the sprint file.
 
-**Update master plan.** In `context/sprints/master-plan.md`, find the `### Sprint [N]` section and set its `Goal:` line to `$SPRINT_GOAL`. If the section does not exist, append it to the Sprint Map. Do this whether the line was missing, a placeholder, or an older draft — the confirmed goal always wins.
+**Update master plan.** In `.context/sprints/master-plan.md`, find the `### Sprint [N]` section and set its `Goal:` line to `$SPRINT_GOAL`. If the section does not exist, append it to the Sprint Map. Do this whether the line was missing, a placeholder, or an older draft — the confirmed goal always wins.
 
 Report:
 
@@ -462,7 +462,7 @@ If any assignments fail:
 
 Wait for response. On yes, retry the failed assignments. On no, continue and mark them as unassigned in the sprint file with a `⚠ unassigned` note.
 
-**Write sprint file:** Create `context/sprints/` if it does not exist. Write `context/sprints/sprint-[N].md`:
+**Write sprint file:** Create `.context/sprints/` if it does not exist. Write `.context/sprints/sprint-[N].md`:
 
 ```
 # Sprint [N]
@@ -498,9 +498,9 @@ Example:
 - [ ] #45 — Password reset flow (area:web, epic:auth)
 ```
 
-**Update master plan:** In `context/sprints/master-plan.md`, find the `### Sprint [N]` section and ensure it has:
+**Update master plan:** In `.context/sprints/master-plan.md`, find the `### Sprint [N]` section and ensure it has:
 - `Status: active`
-- `Sprint file: context/sprints/sprint-[N].md`
+- `Sprint file: .context/sprints/sprint-[N].md`
 
 If the section does not exist (e.g. roadmap was run but did not include this sprint number), append it as a minimal entry with no theme name: `### Sprint [N]`. This is a fallback — the expected path is for roadmap to have written this entry first.
 
@@ -513,7 +513,7 @@ When done, report:
 > **Sprint [N] ready**
 >
 > Goal: _"[SPRINT_GOAL]"_
-> Milestone: Sprint [N] (#[milestone_number]) · Sprint file: `context/sprints/sprint-[N].md`
+> Milestone: Sprint [N] (#[milestone_number]) · Sprint file: `.context/sprints/sprint-[N].md`
 >
 > **Backlog** _(omit this section entirely if Step 3 was skipped)_
 > [N] resolved · [N] deferred · [N] closed · [N] auto-deferred _(omit any counts that are zero)_
