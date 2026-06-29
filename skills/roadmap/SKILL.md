@@ -1,5 +1,5 @@
 ---
-description: Init or update the project master plan from the current conversation. Reviews what was discussed about the project vision and sprint themes, proposes master-plan.md content, lets the user confirm or edit, then writes the file. Conversational — pauses at every step for user confirmation.
+description: Init or update the project master plan from the current conversation. Reviews what was discussed about the project vision and sprint themes, proposes master-plan.md content, lets the user confirm or edit, then writes the file. Also bootstraps the devloop project profile (build/test commands) so plan and run know how to operate. Conversational — pauses at every step for user confirmation.
 ---
 
 You are running **devloop:roadmap**. This skill is fully conversational — pause at every human gate and wait for explicit confirmation before moving to the next step.
@@ -51,6 +51,8 @@ Read `context/sprints/master-plan.md` if it exists.
 
 **If it does not exist**, note that this is a first-time init and proceed.
 
+**Also read `context/devloop-profile.md`** if it exists. Set `$PROFILE_EXISTS` accordingly. This is devloop's operational manifest (build/test commands); Step 4 seeds or updates it. Reading it now lets the early-stop in Step 1 still offer to bootstrap a missing profile.
+
 ---
 
 ## Step 1 — Extract roadmap content from conversation
@@ -72,9 +74,13 @@ If `$ARGUMENTS` is non-empty, apply it as a filter: only surface roadmap content
 
 If the conversation contains no roadmap-relevant content (no vision, no sprint themes):
 
-> No roadmap content found in this conversation — nothing to update.
+> No roadmap content found in this conversation — nothing to update on the master plan.
 
-Stop.
+If `$PROFILE_EXISTS` is false, do not stop — the project still needs an operational profile:
+
+> However, no project profile exists yet — let's set that up so `/devloop:plan` and `/devloop:run` know how to build and test this project.
+
+Skip directly to **Step 4** (the master plan write in Step 3 is skipped — there is nothing to write). If `$PROFILE_EXISTS` is true, stop here.
 
 If a Vision was found but no sprint themes were discussed, note this before proceeding to Step 2:
 
@@ -134,7 +140,81 @@ After writing:
 
 ---
 
-## Step 4 — Epic label sync (optional)
+## Step 4 — Project profile
+
+`context/devloop-profile.md` is devloop's operational manifest — the build/test commands and test layout that `/devloop:plan` and `/devloop:run` execute against. It is devloop-owned and machine-maintained: as the project grows, scaffold and test-setup tasks during `run` write to it. This step seeds it.
+
+It holds **only commands and test layout** — never stack description, architecture, or conventions. Those live in the auto-loaded project instructions (CLAUDE.md / AGENTS.md) and must not be duplicated here.
+
+**Canonical format** (omit any field that does not apply to this project):
+
+```markdown
+# devloop operational profile
+# Machine-maintained. Commands devloop runs against this project.
+
+build:      <command>
+unit-test:  <command>
+e2e-test:   <command>
+typecheck:  <command>
+lint:       <command>
+dev-server: <command>
+
+unit-tests:  <glob for unit test files>
+e2e-tests:   <glob for e2e test files>
+frameworks:  <comma-separated, e.g. vitest, playwright>
+```
+
+### If the profile already exists (`$PROFILE_EXISTS` is true)
+
+Summarise its current commands and ask:
+
+> Project profile exists at `context/devloop-profile.md`:
+> build=`[...]` · unit-test=`[...]` · e2e-test=`[...]` · lint=`[...]`  ← show the fields that are set
+>
+> Keep as-is, or update it? (keep/update)
+
+On **keep**, skip to Step 5. On **update**, run the scan below and re-present. Never silently overwrite — the profile may carry values written by earlier `run` tasks.
+
+### If the profile does not exist
+
+Scan the working directory for build/test tooling and infer commands. Do not guess — only fill a field when a concrete signal supports it; leave the rest blank for the user.
+
+| Signal file | Infer from |
+|---|---|
+| `package.json` | `scripts` (build, test, lint, typecheck, dev/start); frameworks from dependencies (vitest, jest, mocha, playwright, cypress) |
+| `pyproject.toml` / `setup.cfg` / `tox.ini` | pytest, ruff/flake8, mypy, build backend |
+| `Cargo.toml` | `cargo build` / `cargo test` / `cargo clippy` |
+| `go.mod` | `go build ./...` / `go test ./...` / `go vet ./...` |
+| `Makefile` / `Taskfile.yml` | named targets that map to build/test/lint |
+| other (`Gemfile`, `composer.json`, `pom.xml`, `build.gradle`, …) | infer analogously |
+
+If nothing is found (greenfield / not yet scaffolded):
+
+> No build or test tooling found in the working directory — the project may not be scaffolded yet. I'll create a profile stub; scaffold tasks in `/devloop:run` will fill it in as the stack gets set up. Or, if you already know the commands, tell me now.
+
+**Human gate — present the drafted profile and wait for confirmation:**
+
+> **Project profile** — `context/devloop-profile.md`
+>
+> ```
+> build:      npm run build
+> unit-test:  npm test
+> typecheck:  npm run typecheck
+> lint:       npm run lint
+> dev-server: npm run dev
+> unit-tests: src/**/*.test.ts
+> frameworks: vitest
+> ```
+>
+> Inferred from `package.json`. Couldn't determine: `e2e-test`, `e2e-tests`. Fill these in, correct anything, or confirm:
+
+Wait for the user's response. Apply edits and re-present until confirmed. On confirmation, write `context/devloop-profile.md` using the canonical format — omit any field left blank. Report:
+
+> Project profile written to `context/devloop-profile.md`.
+
+---
+
+## Step 5 — Epic label sync (optional)
 
 If no repo was established from context, skip this step silently.
 
@@ -160,10 +240,12 @@ On no, skip silently.
 
 ## Completion report
 
-> **Roadmap updated** — `context/sprints/master-plan.md`
+> **Roadmap updated** — `context/sprints/master-plan.md`    ← omit this line if the master plan was not written (profile-only path)
 >
-> **Vision:** [vision text]
+> **Vision:** [vision text]    ← omit on the profile-only path
 >
-> **Sprint map:** [N] sprints ([X] locked · [Y] updated · [Z] new)    ← omit any count that is zero
+> **Sprint map:** [N] sprints ([X] locked · [Y] updated · [Z] new)    ← omit any count that is zero; omit the whole line on the profile-only path
+>
+> **Project profile:** `context/devloop-profile.md` — [written / updated / kept as-is]
 >
 > Run `/devloop:plan` to start or continue a sprint.

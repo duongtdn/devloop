@@ -1,5 +1,5 @@
 ---
-description: Prepare a sprint iteration. Establishes the sprint goal through conversation, triages backlog issues, selects sprint-ready issues, creates a GitHub milestone, determines execution order, and writes the sprint file. Conversational — pauses at every step for user confirmation.
+description: Prepare a sprint iteration. Establishes the sprint goal through conversation, triages backlog issues, selects sprint-ready issues, ensures every issue has acceptance criteria and a Definition of Done, creates a GitHub milestone, determines execution order, and writes the sprint file. Conversational — pauses at every step for user confirmation.
 ---
 
 You are running **devloop:plan**. This skill is fully conversational — pause at every human gate and wait for explicit confirmation before moving to the next step. Never batch steps together.
@@ -102,6 +102,24 @@ Derive scope context for Sprint `$SPRINT_N`:
 Accept a plain "yes" / "y" to proceed with Sprint [N], or a number to override. Update `$SPRINT_N` if overridden.
 
 `$SPRINT_N` is the sprint number for this session. All occurrences of `[N]` throughout the rest of this skill refer to `$SPRINT_N`.
+
+### Read project profile
+
+Read `context/devloop-profile.md` — devloop's operational manifest (build/test commands and test layout). For this skill, the only thing that matters is **whether the project has tests**, because that shapes the acceptance criteria and Definition of Done written into issues.
+
+This file is the single source for project commands. Do not read commands from anywhere else or guess them. Stack, architecture, and conventions come from the auto-loaded project instructions (CLAUDE.md) already in context — this skill does not duplicate them.
+
+**If the profile exists**, extract:
+- `$HAS_UNIT_TESTS` — true if a `unit-test:` command is present
+- `$HAS_E2E` — true if an `e2e-test:` command is present
+
+**If it does not exist**, warn:
+
+> `context/devloop-profile.md` not found — it's normally created by `/devloop:roadmap`. Without it, the acceptance criteria and Definition of Done written into issues will be generic (no project-specific test steps).
+>
+> Continue without it? (y/n) — or run `/devloop:roadmap` first to set up the profile.
+
+On **y**, set both `$HAS_UNIT_TESTS` and `$HAS_E2E` to `unknown` and proceed; the Definition of Done will omit test-specific lines. On **n**, exit so the user can run roadmap.
 
 ---
 
@@ -225,6 +243,34 @@ Suggest labels for each proposed issue:
 - `epic:` — if the item belongs to a recognisable theme
 - `area:` — if the item has a clear technical layer (`area:infra`, `area:api`, `area:web`, etc.)
 
+**Draft acceptance criteria** for each proposed issue from the backlog body. Acceptance criteria are the contract `run` reads to plan and validate the work, so they must be concrete and verifiable:
+- Each criterion is a single user-visible or testable outcome, phrased as a checklist item.
+- Aim for 2–5 per issue. Cover the happy path and the obvious failure/edge cases implied by the backlog item.
+- Do not invent scope the backlog item does not imply. If the item is too vague to derive criteria, say so and ask the user rather than padding.
+
+### Issue body template
+
+Every issue this skill creates uses this body. The Definition of Done is generated from the project profile flags read in Step 1 — include only the lines that apply.
+
+```markdown
+## What
+[2–3 sentences: what this issue delivers, in plain language]
+
+## Acceptance Criteria
+- [ ] [concrete, verifiable outcome]
+- [ ] [concrete, verifiable outcome]
+
+## Definition of Done
+- [ ] Unit tests pass            ← include only if $HAS_UNIT_TESTS is true
+- [ ] E2E scenario passes        ← include only if $HAS_E2E is true
+- [ ] Code reviewed
+- [ ] PR merged to main
+
+Derived from #[backlog-N]
+```
+
+If both test flags are `unknown` (no profile), include only the `Code reviewed` and `PR merged to main` lines in the Definition of Done.
+
 **Human gate — present reasoning and proposal, wait for approval:**
 
 > **Resolve #[N] ([X of Y]): [title]**
@@ -238,7 +284,20 @@ Suggest labels for each proposed issue:
 > | 1 | Add login page | feature | auth | web |
 > | 2 | Add JWT middleware | feature | auth | api |
 >
-> Approve to create, or tell me what to change:
+> Acceptance criteria:
+>
+> **1. Add login page**
+> - [ ] User can enter email + password and submit
+> - [ ] Invalid credentials show an inline error
+> - [ ] Successful login redirects to the dashboard
+>
+> **2. Add JWT middleware**
+> - [ ] Requests without a valid token receive 401
+> - [ ] A valid token resolves the authenticated user
+>
+> Definition of Done (applied to each): [list the DoD lines that apply given the profile]
+>
+> Approve to create, or tell me what to change — titles, labels, or criteria:
 
 Wait for the user's response:
 - **Approved** — proceed to create.
@@ -248,7 +307,7 @@ Wait for the user's response:
 
 > Creating new label `epic:auth` in `$REPO`.
 
-Then create each issue via GitHub MCP with the confirmed title, labels, and a body that includes `Derived from #[backlog-N]`. Then close the backlog item with a comment: `Resolved into: #[child1], #[child2], ...`
+Then create each issue via GitHub MCP with the confirmed title, labels, and a body following the **issue body template** above — the approved `## What`, `## Acceptance Criteria`, the profile-derived `## Definition of Done`, and the `Derived from #[backlog-N]` line. Then close the backlog item with a comment: `Resolved into: #[child1], #[child2], ...`
 
 If this is not the last resolve item, announce and continue:
 
@@ -358,7 +417,40 @@ Wait for confirmation or adjustment. Apply any reordering the user provides. If 
 
 ---
 
-## Step 7 — Assign issues and write sprint file
+## Step 7 — Validate acceptance criteria
+
+Every selected issue must carry acceptance criteria before `run` executes it — they are the contract `run` reads to plan and validate the work. Issues created during Step 3 already have them. Pre-existing sprint-ready issues selected in Step 4 may not.
+
+You already fetched the full body of each selected issue in Step 6. For each, check whether the body contains an `## Acceptance Criteria` section with at least one checklist item.
+
+If every selected issue has acceptance criteria, report and continue:
+
+> All selected issues have acceptance criteria.
+
+Otherwise, list the gaps:
+
+> These issues have no acceptance criteria:
+>
+> - #42 — Add login page
+> - #45 — Password reset flow
+>
+> `run` needs these to plan and validate the work. Draft them now? (y/n — or `skip #N` to leave specific ones)
+
+On **n** or `skip`, leave the issue untouched and note it; `run` will prompt for criteria when it reaches the issue.
+
+For each issue to draft, work one at a time: read its current body, then propose the missing sections following the **issue body template** in Step 3 (informed by `$HAS_UNIT_TESTS` / `$HAS_E2E`).
+
+> **#42 — Add login page**
+>
+> [draft ## What + ## Acceptance Criteria + ## Definition of Done]
+>
+> Approve to update the issue, or adjust:
+
+On approval, update the GitHub issue body via GitHub MCP — preserve any existing content and append the missing sections. Do not overwrite a body that already has a `## What` or description.
+
+---
+
+## Step 8 — Assign issues and write sprint file
 
 **Assign issues to milestone:** For each selected issue, call the **devloop milestones MCP** to assign it to `$MILESTONE_NUMBER` in `$REPO`.
 
