@@ -1,6 +1,13 @@
 {
   "mcpServers": {
-    "devloop-milestones": {
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer ${GITHUB_TOKEN}"
+      }
+    },
+    "milestones": {
       "command": "node",
       "args": ["${CLAUDE_PLUGIN_ROOT}/bin/github-milestones.js"]
     }

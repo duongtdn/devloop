@@ -228,7 +228,7 @@ function handleMessage(message) {
     respond(id, {
       protocolVersion: PROTOCOL_VERSION,
       capabilities: { tools: {} },
-      serverInfo: { name: 'devloop-milestones', version: '0.1.0' },
+      serverInfo: { name: 'milestones', version: '0.1.0' },
     });
     return;
   }

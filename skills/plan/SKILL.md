@@ -377,7 +377,7 @@ If the user changes the selection, show the updated list before proceeding:
 
 ## Step 5 — Create milestone
 
-First, check whether a milestone named `Sprint [N]` already exists in `$REPO` using the **devloop milestones MCP**.
+First, check whether a milestone named `Sprint [N]` already exists in `$REPO` using the **milestones MCP**.
 
 If it exists:
 
@@ -465,7 +465,7 @@ On approval, update the GitHub issue body via GitHub MCP — preserve any existi
 
 ## Step 8 — Assign issues and write sprint file
 
-**Assign issues to milestone:** For each selected issue, call the **devloop milestones MCP** to assign it to `$MILESTONE_NUMBER` in `$REPO`.
+**Assign issues to milestone:** For each selected issue, call the **milestones MCP** to assign it to `$MILESTONE_NUMBER` in `$REPO`.
 
 If any assignments fail:
 

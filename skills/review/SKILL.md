@@ -232,7 +232,7 @@ The sealing actions. Re-confirm before the milestone close, since it's the irrev
 
 On **n**, stop here — the retro and tag are already saved; the sprint stays open. On **y**:
 
-1. **Close the milestone** via the **devloop milestones MCP** `close_milestone` (`owner`, `repo`, `milestone_number`). Skip if `$GITHUB_UNAVAILABLE` or the milestone is already closed (note it). If it fails:
+1. **Close the milestone** via the **milestones MCP** `close_milestone` (`owner`, `repo`, `milestone_number`). Skip if `$GITHUB_UNAVAILABLE` or the milestone is already closed (note it). If it fails:
 
    > Failed to close milestone #[milestone_number]: [error]. Retry? (y/n) — if no, the master plan is still updated and you can close the milestone on GitHub manually.
 
