@@ -467,7 +467,7 @@ Stop.
 
 **Active in:** feature, bugfix. Reached on resume when `phase: pending-review` (or directly from Startup S4 when the PR is already merged / issue closed).
 
-Re-check the PR state via GitHub MCP:
+Re-check the PR state via GitHub MCP. **"Approved"** means a formal GitHub approval **or** the `status:reviewed` label is present with no open `REQUEST_CHANGES` review — the label is how a solo developer's `pr-review` signs off, since GitHub forbids approving your own PR.
 
 | PR state | Action |
 |---|---|
