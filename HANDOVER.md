@@ -6,9 +6,9 @@ built and validates. This captures the conventions and decisions established whi
 
 ## State of the plugin
 
-- **Built skills:** `roadmap`, `backlog`, `plan`, `status`, `run`, `abort`, `pr-review`.
+- **Built skills:** `roadmap`, `backlog`, `plan`, `status`, `run`, `abort`, `pr-review`, `pr-fix`.
 - **Built agents (11):** `backlog-triage`, `issue-selector`, `context`, `planner`, `designer`, `test-writer`, `coder`, `test-runner`, `pr-triage`, `reviewer`, `scaffolder`.
-- **Remaining skills:** `review` (sprint ceremony), `pr-fix`.
+- **Remaining skills:** `review` (sprint ceremony).
 - **Read first:** `ai-agent-workflow.md` (full spec incl. step-by-step for the 4 remaining skills), `CLAUDE.md` (structure + conventions), `profile-spec.md` (profile + per-agent contract).
 
 ## Conventions every skill must follow (the non-obvious ones)
@@ -45,7 +45,14 @@ built and validates. This captures the conventions and decisions established whi
   - **Solo-author approval:** GitHub forbids self-`APPROVE`. When author == authed user and verdict is clean, post a `COMMENT` review + set the **`status:reviewed`** label. `run`'s merge gate now treats formal approval OR that label (no open REQUEST_CHANGES) as "approved." (Edit already applied to run's merge gate.)
   - **Nothing posts before the human gate.** Findings → Zone 2 with ids + `file:line` (+ posted comment ids) = the channel `pr-fix` reads.
   - Does **not** rebase/push the PR — staleness/conflicts are reported as a finding, not fixed (that's the author's job).
-- **`pr-fix`** — invokes `coder` (`mode: fix`, no new tests) + `test-runner` + `reviewer` re-review (`mode: pr-review`, reasoning-only — push replies via the skill, not the agent). Same work-dir resolution + `context` `pr` mode as `pr-review`; merge GitHub inline comments with Zone 2 findings by (file,line) + id; triage gate; fix loop; e2e if present; push + reply to threads. Honors profile commands, baseline buckets, `design.md` conformance, `$NOW`, Zone 2 appends. Uses `git` + `mcp__github`, no `gh`.
+- **`pr-fix`** *(BUILT)* — phases `intake → sync → context → findings → triage (gate) → fix loop → verify → [e2e] → re-review → push+reply (gate)`. Invokes `coder` (`mode: fix`, no new tests) + `test-runner` + `reviewer` re-review (`mode: pr-review`, reasoning-only — push replies via the skill, not the agent). Same work-dir resolution + `context` `pr` mode as `pr-review`; merges GitHub inline comments with Zone 2 findings (posted-comment-id first, then `(file,line)`); honors profile commands, baseline buckets, `design.md` conformance, `$NOW`, Zone 2 appends; `git` + `mcp__github`, no `gh`. Decisions made while building:
+  - **It mutates the working tree** — unlike `pr-review`. Checks out the PR branch in the **main workspace** (so fixes build/test against installed deps), gated by a clean-tree check that offers **stash + restore on exit**; remembers `$PRIOR_BRANCH`. No worktree (deps would be missing → `test-runner` fails).
+  - **Takes the `.lock`, no state file.** Shares the main tree, so a live `run` for another issue blocks it; otherwise it acquires the lock for the duration. No `issue-N.md` — each fix is its own commit, so progress persists in git; a re-invoke re-reads findings and continues. **`teardown`** is conditional (checkout only if branch switched, pop only if stashed, release only if lock acquired) and **every exit routes through it**.
+  - **Two human gates:** triage (which findings to fix/skip) and push+reply (outward-facing — confirm before push + thread replies). Re-review is reasoning-only; fix-induced new blockers → **bounded 2-round** gate.
+  - **Replies:** fixed findings with a GitHub thread → reply (`Fixed in <sha>`) + resolve; **skipped** findings also get a reply explaining the skip; Zone 2-only findings (no thread) recorded in Zone 2 only.
+  - **Stale-review invariant:** pushing new commits invalidates a prior clean review, so if `status:reviewed` is present `pr-fix` **removes it** (else `run`'s merge gate would treat it as approval) and directs the user to re-run `pr-review`. Does **not** dismiss the reviewer's `CHANGES_REQUESTED`.
+  - **`test-runner` runs once** (the `verify` phase), not per-fix — the coder already runs `unit-test` before each commit, so per-fix green is guaranteed; the single pass adds baseline classification + cross-fix regression detection. Pre-existing failures are **report-count-only** (filing/baselining is `run`'s job).
+  - **`coder` fix-mode contract widened:** `coder.md` step 1 now states `$TASK` may be an inline finding and `plan.md` may be absent (the `pr-fix` case) — work from the finding + `context.md`. `coder` auto-discovers `design.md` in `$WORK_DIR`, so the skill does **not** pass `$DESIGN` to it (only `reviewer` takes `$DESIGN`).
 - **`review`** (sprint ceremony) — conversational: load sprint file + milestone, completion summary gate, handle unfinished issues (carry-over/close/keep), retro draft, demo tags, close milestone (milestones MCP). Writes `sprint-N-review.md`; sets master-plan `Status: completed`.
 - **`abort`** — conversational: read `state/issue-N.md` (or `.lock`), branch decision (delete/keep/draft-PR), issue decision (backlog/keep), cleanup, **release the lock**. Does *not* close the issue or tick the sprint checkbox.
 

@@ -25,7 +25,7 @@ In `spike` mode, ignore the Task section below and follow **Mode: spike** instea
 
 ## Task (`implement` / `fix`)
 
-**1. Read the task.** From `$WORK_DIR/plan.md` take `$TASK`'s description, acceptance, and touched files. Read `context.md` Zone 1 for patterns and constraints. **If `design.md` exists, read it** — it is the approved approach; implement to its interfaces, data model, and module boundaries (the reviewer will check conformance, so build to it directly). In `implement` mode there are already failing tests for this task — make them pass.
+**1. Read the task.** In `implement` mode `$TASK` names an entry in `$WORK_DIR/plan.md` — take its description, acceptance, and touched files from there, and make its already-failing tests pass. In `fix` mode `$TASK` may instead be a **review finding passed inline** (explanation + `file:line` + suggested fix) rather than a `plan.md` entry, and `plan.md` may be absent altogether (e.g. when `pr-fix` invokes you) — work from the finding text and `context.md`. Either way, read `context.md` Zone 1 for patterns and constraints. **If `design.md` exists, read it** — it is the approved approach; implement to its interfaces, data model, and module boundaries (the reviewer will check conformance, so build to it directly).
 
 **2. Implement.** Write the minimum production code that satisfies the task's acceptance and makes its tests pass. Follow the existing conventions cited in context and the approved `design.md` when present. Reuse existing utilities rather than duplicating.
 
