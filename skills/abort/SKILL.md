@@ -44,9 +44,17 @@ If nothing resolves to a target (no state file **and** no lock):
 
 Stop.
 
-**Lock without a state file.** If a `.lock` exists for `$ISSUE` but its `state/issue-N.md` is missing (corrupted or partially cleaned), there's nothing to summarize and no branch decision to make — skip Steps 2–3, report that only a lock was found, and go straight to Step 4 to release it.
+**pr-fix lock guard.** Before anything else, if a `.lock` exists read its `holder` field (a missing field predates it — treat as `run`). If `holder` is `pr-fix`, this lock belongs to a `/devloop:pr-fix` session, not a run — abort is the wrong tool for it. Check its PID with `kill -0 <pid>`:
 
-**Live-PID warning.** If a `.lock` exists, read its issue number `$LOCK_ISSUE` and PID `$LOCK_PID`, and check liveness with `kill -0 $LOCK_PID 2>/dev/null` (exit 0 = alive). If the PID is **alive**, warn before doing anything:
+> The lock is held by **pr-fix** (PR #[pr]), not a run.
+> - **alive:** `⚠ pr-fix is active on PR #[pr] — let it finish, or stop that session; it releases its own lock on exit. abort won't touch it.` → exit.
+> - **stale:** `Found a stale pr-fix lock (PR #[pr]). Clear it? (y/n)` → on y, delete `.lock` and exit; on n, exit.
+
+abort never tears down a live pr-fix session. Only proceed into the run-teardown flow below when the holder is `run`.
+
+**Lock without a state file.** If a `run` `.lock` exists for `$ISSUE` but its `state/issue-N.md` is missing (corrupted or partially cleaned), there's nothing to summarize and no branch decision to make — skip Steps 2–3, report that only a lock was found, and go straight to Step 4 to release it.
+
+**Live-PID warning.** If a `run` `.lock` exists, read its issue number `$LOCK_ISSUE` (from `issue:`) and PID `$LOCK_PID`, and check liveness with `kill -0 $LOCK_PID 2>/dev/null` (exit 0 = alive). If the PID is **alive**, warn before doing anything:
 
 > ⚠ A `run` process holding the lock for #[LOCK_ISSUE] appears to be **alive** (PID [pid]). Aborting now tears down its files underneath it. Make sure that run is stopped (it's likely in another terminal) before continuing.
 >

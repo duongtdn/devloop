@@ -34,7 +34,7 @@ Read these files for Sprint `$SPRINT_N`:
 
 1. **Sprint file:** `.context/sprints/sprint-[N].md` — issue list and checkboxes, goal, milestone number, repo, created date.
 2. **Lock file:** `.context/sprints/state/.lock` — if it exists, read the active issue number, PID, and start time.
-3. **Issue state files:** `.context/sprints/state/issue-*.md` — for each file present whose issue number is in the sprint file, read: current step name, branch name, task checklist (done vs total), last log entry.
+3. **Issue state files:** `.context/sprints/state/issue-*.md` — for each file present whose issue number is in the sprint file, read: `workflow`, current step name, branch name, task checklist (done vs total), last log entry. Some workflows have no build tasks (a `manual` or `design` issue) and no branch (`branch: -`) — note when the task list is empty or absent and when `branch` is `-`.
 
 If the sprint file does not exist:
 
@@ -50,7 +50,7 @@ Extract from the sprint file:
 - Issue list — all `- [ ]` and `- [x]` lines, in order. Before extracting the issue number, title, and labels from each line, strip any trailing `⚠ unassigned` annotation.
 
 **Lock detection.** If `.lock` exists:
-- Read `$LOCKED_ISSUE` (issue number), `$LOCK_PID` (PID), and `$LOCK_START` (start time).
+- Read `$LOCK_HOLDER` (`run` or `pr-fix`; a missing field predates the `holder` field — treat as `run`), `$LOCK_PID` (PID), and `$LOCK_START` (start time). When `$LOCK_HOLDER` is `run`, read `$LOCKED_ISSUE` from `issue:`; when it is `pr-fix`, read `$LOCKED_PR` from `pr:` and leave `$LOCKED_ISSUE` unset (a pr-fix lock holds the tree but is not a sprint run).
 - Determine PID liveness by running `kill -0 $LOCK_PID 2>/dev/null`. Exit code 0 means the process is alive; non-zero means it is gone. If the shell call cannot be made, treat the lock as live (safe default).
 - Set `$LOCK_STATE`:
   - `live` — lock file exists and process is running
@@ -65,9 +65,9 @@ Extract from the sprint file:
 
 If GitHub MCP calls fail (token missing, network error, or repo not found), proceed without live GitHub data and set `$GITHUB_UNAVAILABLE = true`.
 
-**Open PRs.** Call the GitHub MCP to list open pull requests in `$REPO` with `perPage: 100`. If exactly 100 results are returned, paginate until fewer than 100 are returned in one page. For each sprint issue number N, check whether any open PR matches either of these anchored patterns:
-- Branch name starts with `issue-N/` (trailing slash is the anchor — prevents `issue-4/` matching `issue-42/...`)
-- Title contains `#N` immediately followed by a non-digit character or end of string (prevents `#4` matching inside `#42`)
+**Open PRs.** Call the GitHub MCP to list open pull requests in `$REPO` with `perPage: 100`. If exactly 100 results are returned, paginate until fewer than 100 are returned in one page. For each sprint issue number N, check whether any open PR matches either of these anchored patterns (these mirror what `/devloop:run` actually creates — head branch `feat/issue-N-<slug>` or `fix/issue-N-<slug>`, body `Closes #N`):
+- Head branch matches `feat/issue-N-` or `fix/issue-N-`, with N immediately followed by `-` (the anchor prevents `issue-4-` matching `issue-42-...`)
+- Body contains a `Closes #N` or `Fixes #N` keyword, with N immediately followed by a non-digit character or end of string (prevents `#4` matching inside `#42`)
 
 Record as `$PR_MAP[N] = PR_number` (first match per issue). If the PR list call fails, skip silently.
 
@@ -122,15 +122,17 @@ If the master plan shows this sprint with `- **Status:** completed`:
 > Sprint [N] is marked completed.
 ```
 
-**Lock banner** — select exactly one based on `$LOCK_STATE`, whether `$LOCKED_ISSUE` is in the sprint's issue list, and `$CLOSED_WHILE_LOCKED`:
+**Lock banner** — select exactly one based on `$LOCK_HOLDER`, `$LOCK_STATE`, whether `$LOCKED_ISSUE` is in the sprint's issue list, and `$CLOSED_WHILE_LOCKED`. A `pr-fix` holder is checked first — it holds the tree but is not a sprint run, so the issue-based rows do not apply:
 
-| `$LOCK_STATE` | `$LOCKED_ISSUE` in this sprint | `$CLOSED_WHILE_LOCKED` | Banner |
-|---------------|-------------------------------|------------------------|--------|
-| `live` | yes | false | `⚙ In progress: #[N] — [title] (since [start time])` |
-| `live` | yes | true | `⚙ #[N] was closed on GitHub while run is still active — it may be wrapping up.` |
-| `live` | no | — | `⚙ run is active on #[N] (a different sprint) — this snapshot is for Sprint [current sprint].` |
-| `stale` | yes or no | — | `⚠ Stale lock for #[N] — run exited uncleanly. The next /devloop:run will auto-clear this.` |
-| `absent` | — | — | _(no banner)_ |
+| `$LOCK_HOLDER` | `$LOCK_STATE` | `$LOCKED_ISSUE` in this sprint | `$CLOSED_WHILE_LOCKED` | Banner |
+|---|---------------|-------------------------------|------------------------|--------|
+| `pr-fix` | `live` | — | — | `⚙ pr-fix is working PR #[LOCKED_PR] on the working tree (not a sprint run).` |
+| `pr-fix` | `stale` | — | — | `⚠ Stale pr-fix lock (PR #[LOCKED_PR]) — exited uncleanly. The next /devloop:run or /devloop:pr-fix will clear it.` |
+| `run` | `live` | yes | false | `⚙ In progress: #[N] — [title] (since [start time])` |
+| `run` | `live` | yes | true | `⚙ #[N] was closed on GitHub while run is still active — it may be wrapping up.` |
+| `run` | `live` | no | — | `⚙ run is active on #[N] (a different sprint) — this snapshot is for Sprint [current sprint].` |
+| `run` | `stale` | yes or no | — | `⚠ Stale lock for #[N] — run exited uncleanly. The next /devloop:run will auto-clear this.` |
+| any | `absent` | — | — | _(no banner)_ |
 
 **Issue table**
 
@@ -162,8 +164,14 @@ If any issue has status `stale`, add a footnote:
 **In-progress detail** — if a state file exists for any `in progress` issue, add one detail line per such issue immediately below the table and footnotes:
 
 ```
-  #[N]: step "[current step name]"  ·  tasks [X done]/[Y total]  ·  branch [branch name]
+  #[N]: [workflow] · step "[current step name]"  ·  tasks [X done]/[Y total]  ·  branch [branch name]
 ```
+
+Include each segment only when it carries meaning, so a task-less or branch-less workflow doesn't render filler:
+- **tasks** — include only when the state file has a non-empty task list (a TDD `build` loop). Omit it entirely for a `manual`/`design` issue or before any tasks exist, rather than showing `0/0`.
+- **branch** — include only when `branch` is set (not `-`). Omit for a workflow that creates no branch.
+
+So a manual issue at its gate renders simply `#[N]: manual · step "gate-manual"`.
 
 **Summary line**
 

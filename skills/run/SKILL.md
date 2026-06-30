@@ -1,5 +1,5 @@
 ---
-description: Execute and resume sprint work for a single issue. Builds context, plans, and drives a TDD loop (or a scaffold/design flow) through to a merged PR. A resumable phase-based state machine — reads the issue's state file to continue from the last completed phase, pauses at human gates declared up front, and never re-runs a completed phase. Routes the issue to the right workflow from its labels and the user-approved execution plan.
+description: Execute and resume sprint work for a single issue. Builds context, plans, and drives a TDD loop (or a scaffold/design/manual flow) through to a merged PR — or, for a manual issue, a confirmation gate with no PR. A resumable phase-based state machine — reads the issue's state file to continue from the last completed phase, pauses at human gates declared up front, and never re-runs a completed phase. Routes the issue to the right workflow from its labels and the user-approved execution plan.
 ---
 
 You are running **devloop:run**. This is the execution engine: a resumable, phase-based state machine that takes one issue from raw ticket to merged PR.
@@ -14,13 +14,14 @@ User may have passed an issue number via `$ARGUMENTS` (e.g. `42`, `#42`). Parse 
 
 ```
 startup → context → [design → gate-design] → plan → gate-plan → build → e2e → review → validate → gate-pr → pending-review → merge
+                                                  ↘ MANUAL → gate-manual → done
 ```
 
-Not every phase runs for every issue — the **workflow** (chosen from labels, confirmed at gate-plan) selects which phases are active. The **design** phase is optional: it always runs for the design workflow (and ends there), and runs for a feature/bugfix only when the planner asks for it (a `NEEDS-DESIGN` detour from the plan phase, confirmed at gate-design).
+Not every phase runs for every issue — the **workflow** (chosen from labels, confirmed at gate-plan) selects which phases are active. The **design** phase is optional: it always runs for the design workflow (and ends there), and runs for a feature/bugfix only when the planner asks for it (a `NEEDS-DESIGN` detour from the plan phase, confirmed at gate-design). The **manual** workflow is reached the same way — when the planner judges an issue has no code to build it returns `MANUAL`, and run carries the issue to done through a single confirmation gate (`gate-manual`) with no branch, tests, or PR.
 
 **Resume.** On every invocation, run **Startup** first. Startup either starts fresh from the workflow's entry phase, or — if a state file exists — jumps directly to the recorded phase and continues. **Never re-run a completed phase on resume.** When jumping, go straight to that phase's section.
 
-**Agents communicate only through artifacts.** Agents are stateless specialists. They share nothing in memory — only files (durable) and their final return message (the immediate decision payload run parses). run is the sole writer of the control-plane files (`state/issue-N.md`, `.lock`). The durable cross-agent channel for decisions is `context.md` Zone 2 — an append-only timeline (see [Reference](#contextmd-zone-2--the-shared-timeline)).
+**Agents communicate only through artifacts.** Agents are stateless specialists. They share nothing in memory — only files (durable) and their final return message (the immediate decision payload run parses). run is the sole writer of `state/issue-N.md`, and the writer of `.lock` for a run (the short-lived `pr-fix` skill also takes `.lock`, tagged `holder: pr-fix`). The durable cross-agent channel for decisions is `context.md` Zone 2 — an append-only timeline (see [Reference](#contextmd-zone-2--the-shared-timeline)).
 
 **Human gates are declared up front.** At gate-plan the user sees every gate that will fire for this issue. Gates beyond gate-plan only appear if the execution plan includes them.
 
@@ -40,7 +41,7 @@ Not every phase runs for every issue — the **workflow** (chosen from labels, c
 | `.context/sprints/work/issue-N/test-plan.md` | issue | `planner` | unit scenarios per task + e2e scenarios |
 | `.context/sprints/work/issue-N/spike/` | issue | `coder` (spike mode) | throwaway proof-of-concept; reference only, safe to delete |
 | `.context/sprints/state/issue-N.md` | issue | **run only** | phase, position, branch, pr, plan, tasks, log |
-| `.context/sprints/state/.lock` | global | **run only** | active issue, PID, start time |
+| `.context/sprints/state/.lock` | global | **run** + `pr-fix` | `holder` (`run`/`pr-fix`), issue or PR number, PID, start time |
 | `.context/devloop-profile.md` | project | roadmap; **run write-back** | build/test commands + test layout |
 | `.context/devloop-baseline.md` | project | **run** (on user decision) | accepted-failing tests |
 
@@ -71,7 +72,7 @@ Node is always available (the bundled milestone MCP requires it); the trailing `
 # Issue N — run state
 
 issue: N
-workflow: feature | bugfix | design | scaffold
+workflow: feature | bugfix | design | scaffold | manual
 phase: <phase name>
 phase_step: -        # multi-pass phases (design/review/validate) only; '-' otherwise
 task_index: -        # build-loop position, 0-based; '-' otherwise
@@ -123,8 +124,9 @@ Read `.context/sprints/state/.lock` if it exists. Determine PID liveness with `k
 
 | Lock | Action |
 |---|---|
-| live PID | `⚙ run is already in progress for #M (PID alive). Finish or /devloop:abort it first.` → **exit**. (A live process owns the run regardless of `$ISSUE`.) |
-| dead PID | `⚠ Found a stale lock from a previous session — clearing it.` → delete `.lock`, proceed. |
+| live PID, `holder: run` | `⚙ run is already in progress for #M (PID alive). Finish or /devloop:abort it first.` → **exit**. (A live process owns the run regardless of `$ISSUE`.) |
+| live PID, `holder: pr-fix` | `⚙ pr-fix is working the tree on PR #[pr] (PID alive). Let it finish before starting a run.` → **exit**. |
+| dead PID | `⚠ Found a stale lock from a previous session — clearing it.` → delete `.lock`, proceed. (Read `holder` if present; a missing `holder` predates the field — treat as `run`.) |
 | absent | proceed |
 
 ### S3 — Read project profile and baseline
@@ -164,11 +166,13 @@ Fetch `$ISSUE`'s labels via GitHub MCP (skip if resuming — `workflow` is alrea
 | `type:question` or `type:decision` | **design** | context |
 | all other cases | **feature** | context |
 
+A non-structural `type:chore` starts as **feature** here, but may turn out to have no code to build (configure DNS, obtain a sign-off, a manual QA pass). run does not decide this at startup — the **planner** does, returning `MANUAL` from the plan phase, which routes the issue to the **manual** workflow (a single confirmation gate, no branch/tests/PR). The user can also force it at gate-plan ("this is a manual task").
+
 Some issues don't fit a single archetype — "run the suite and review existing code," a spike/investigation, a docs-only chore, or a task that mixes design and build. In those cases pick the nearest template and let the planner propose a **custom phase set** drawn from the named phases; the user shapes the final list at gate-plan. The archetype only decides where to *start*; the actual phases run executes are always the ones confirmed there. (On resume, the confirmed phase list in the state file governs — S5 does not re-run.)
 
 ### S6 — Acquire lock and dispatch
 
-Write `.context/sprints/state/.lock` with `issue: $ISSUE`, the current PID, and an ISO start time. If no state file exists yet, create `state/issue-N.md` with the schema above (`phase: context`, branch `-`).
+Write `.context/sprints/state/.lock` with `holder: run`, `issue: $ISSUE`, the current PID (`pid:`), and an ISO `start:` time. The `holder` field distinguishes this from a `pr-fix` lock (`holder: pr-fix`, `pr: N`) on the same file — every reader keys mutual exclusion off the PID, and uses `holder` only to label who holds the tree. If no state file exists yet, create `state/issue-N.md` with the schema above (`phase: context`, branch `-`).
 
 Announce and dispatch:
 
@@ -248,7 +252,7 @@ Build this panel from the agents' return summaries and **link** the document —
 > Approve the design, request changes, run another spike, or skip design and plan directly:
 
 - **Approve** → append a Zone 2 entry (`$NOW`) recording the approved approach and key interfaces (so the planner, coder, and reviewer build to it).
-  - **design workflow:** offer to create the proposed follow-up story issues (with `type:feature`/labels), then complete the issue — no branch, no PR: tick its checkbox in `$SPRINT_FILE`, offer to close the GitHub issue (a decision issue has no PR to auto-close it), delete the state file and lock, then go to "Move to next issue?".
+  - **design workflow:** offer to create the proposed follow-up story issues (with `type:feature`/labels), then complete the issue — no branch, no PR — via [Issue-complete cleanup](#issue-complete-cleanup) (no-PR variant), with the ✅ report `✅ #[ISSUE] — design recorded[; [k] follow-up issue(s) created]`.
   - **feature/bugfix:** record `phase: plan` and continue — the planner will now plan against the approved `design.md`.
 - **Request changes** → re-invoke `designer` (`mode: design`) with the feedback, re-critique, re-present.
 - **Run another spike** → the user (or an open `concern` on the testability criterion) can request a spike on a specific question; run the spike loop (step 2 above), fold the finding in, re-critique, re-present.
@@ -263,6 +267,8 @@ Build this panel from the agents' return summaries and **link** the document —
 Invoke **`planner`**, passing `context.md`, the issue's acceptance criteria and Definition of Done, the profile flags (`$HAS_UNIT_TESTS`, `$HAS_E2E`), `$NOW`, and the `design.md` path **if a design phase ran**. It writes `plan.md` (ordered tasks + per-task acceptance) and `test-plan.md` (unit scenarios per task, e2e per flow; bugfix is root-cause first). If a design guide was provided, the tasks realise that approved approach.
 
 **Design detour.** The decision to design is the **planner's**, not run's: if it judges it cannot responsibly break the work into tasks without an architecture/approach decision first, it returns `NEEDS-DESIGN: [why]` instead of a plan. run does not assess this itself — it simply reacts to the signal: activate the **design** phase above (draft → [spike] → critique → gate-design), and after approval return here and re-invoke the planner with the approved `design.md`. If the user declines at gate-design ("skip design"), run re-invokes with `$DESIGN_DECLINED: true` — the planner then plans best-effort and must not return `NEEDS-DESIGN` again (no loop).
+
+**Manual detour.** Likewise the planner decides an issue has no code to build: it returns `MANUAL: [why]` instead of a plan. run reacts by switching the workflow to **manual** (`workflow: manual` in the state file), recording `phase: gate-manual`, and jumping there — it does **not** write a plan, create a branch, or run any build/test/review/PR phase. (This bypasses gate-plan entirely; the only gate for a manual issue is gate-manual.) Continue to [gate-manual](#gate-gate-manual).
 
 Record `phase: gate-plan`. Continue.
 
@@ -311,9 +317,37 @@ Apply any reshaping the user asks for (drop/add a stage, switch workflow). Re-pr
 2. Write the confirmed `phases:` and `gates:` lines to the state file; mark `gate-plan ✓`.
 3. Record `phase:` = first active execution phase (`build`, or `validate`/`gate-pr` if build was dropped).
 
-(The design workflow does not reach this gate — it ends at [gate-design](#gate-gate-design). Reshaping a feature to "this is a design task" here switches it to the design workflow and routes it through the design phase.)
+(The design workflow does not reach this gate — it ends at [gate-design](#gate-gate-design). Reshaping a feature to "this is a design task" here switches it to the design workflow and routes it through the design phase. Reshaping to "this is a manual task" switches it to the **manual** workflow and routes it to [gate-manual](#gate-gate-manual) — no branch is created.)
 
 Continue to the first active execution phase.
+
+---
+
+## Gate: gate-manual
+
+**Active in:** the **manual** workflow. *(Human gate.)* The terminal gate for an issue with no code to build — the human completes the work outside the repo and confirms the acceptance criteria here. No branch, no plan, no tests, no PR.
+
+This gate is resumable like every other: before presenting it, write the checklist payload (the issue's acceptance criteria, plus the planner's one-line reason) to the state file's `## Pending gate` block, so a resumed session re-presents it without re-invoking the planner.
+
+The acceptance criteria come straight from the issue body fetched at startup — run does not write a `plan.md` for a manual issue. Present:
+
+> **Manual task — #[ISSUE]: [title]**
+>
+> The planner judged this has no code to build: [planner's MANUAL reason].
+> Complete these yourself, then confirm each:
+>
+> - [ ] [acceptance criterion from the issue body]
+> - [ ] [acceptance criterion]
+>
+> Confirm all done (y / list the ones still blocked):
+
+Wait for the user's response.
+
+- **All confirmed (y)** → the issue is done:
+  1. Append a Zone 2 entry (`$NOW`) recording manual completion — which criteria the user confirmed.
+  2. Run [Issue-complete cleanup](#issue-complete-cleanup) (no-PR variant), with the ✅ report `✅ #[ISSUE] done — manual task completed, sprint file updated.`
+
+- **Some blocked** → the work can't be finished now. Record the blockers in a Zone 2 entry and ask how to proceed: **leave open** (exit, lock released, issue stays in-progress for a later `run`) / **abort** (`/devloop:abort` for a clean teardown and issue decision). Do not tick the checkbox or close the issue while any criterion is unmet.
 
 ---
 
@@ -481,17 +515,19 @@ Re-check the PR state via GitHub MCP. **"Approved"** means a formal GitHub appro
 
 If a rebase hits a conflict, surface it and stop — ask the user to resolve manually or `/devloop:abort`.
 
-**Cleanup** (runs whether we merged or detected an existing merge):
-1. Tick the issue's checkbox `[x]` in `$SPRINT_FILE`.
-2. Delete `.context/sprints/state/issue-N.md`.
-3. Delete `.context/sprints/state/.lock`.
+### Issue-complete cleanup
+
+The terminal cleanup every workflow ends with — referenced by the design terminal, gate-manual, and scaffold so the steps stay identical:
+
+1. **No-PR variant only** (design, manual, scaffold — workflows that produced no PR): **offer to close the GitHub issue** first, since no merged PR auto-closes it (`Close #[ISSUE] on GitHub? (y/n)`; on **y**, close via GitHub MCP with a comment noting how it was completed). The **merge** path skips this — the PR already closed the issue via its `Closes #` keyword.
+2. Tick the issue's checkbox `[x]` in `$SPRINT_FILE`.
+3. Delete `.context/sprints/state/issue-N.md` and `.context/sprints/state/.lock`.
 4. Leave `work/issue-N/` in place (gitignored, useful for reference).
+5. Print the terminal's one-line ✅ report (each terminal supplies its own wording), then ask **"Move to the next issue? (y/n)"** — on **y**, return to **Startup S4** as the no-arg case (pick the next unchecked issue); on **n**, exit cleanly.
+
+For the **merge** path, the ✅ report is:
 
 > ✅ #[ISSUE] done — PR #[pr] merged, issue closed, sprint file updated.
->
-> Move to the next issue? (y/n)
-
-On **y**, return to **Startup S4** as the no-arg case (pick the next unchecked issue). On **n**, exit cleanly.
 
 ---
 
@@ -503,11 +539,9 @@ After the light context phase, invoke **`scaffolder`** with the issue, `$REPO`, 
 
 Then capture what the scaffold established — build/test/lint commands, test layout, frameworks — and run [Profile write-back](#profile-write-back) so later issues inherit them.
 
-> ✅ Scaffold complete for #[ISSUE]. Project profile updated with the new commands.
->
-> Move to the next issue? (y/n)
+Then run [Issue-complete cleanup](#issue-complete-cleanup) (no-PR variant), with the ✅ report:
 
-Tick the checkbox, delete the state file and lock as in merge cleanup, then handle the next-issue prompt.
+> ✅ Scaffold complete for #[ISSUE]. Project profile updated with the new commands.
 
 ---
 
