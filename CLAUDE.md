@@ -35,13 +35,14 @@ devloop/
 ├── agents/
 │   ├── backlog-triage.md        # Fetches type:backlog issues, classifies against sprint goal, returns table
 │   ├── issue-selector.md        # Fetches sprint-ready issues, suggests include/consider/skip per sprint goal, returns table
-│   ├── context.md               # Assembles context.md from GitHub issues, docs, codebase patterns
+│   ├── context.md               # Assembles context.md from GitHub issues, docs, codebase patterns. Modes: full/light/pr (diff-anchored)
 │   ├── planner.md               # Reads context.md (+ design.md) → plan.md + test-plan.md; may raise NEEDS-DESIGN
 │   ├── designer.md              # Design specialist. Modes: design (design.md, flags needs-proof) + critique (score vs criteria)
 │   ├── test-writer.md           # Reads test-plan.md → writes failing tests (unit + E2E)
 │   ├── coder.md                 # Makes failing tests pass; commits when green. Mode: spike (throwaway PoC, commits nothing)
 │   ├── test-runner.md           # Runs tests, classifies failures: new / accepted (baselined) / pre-existing
-│   ├── reviewer.md              # Reviews diff: correctness, DRY, reuse, consistency, design-conformance. Modes: review/critique/pr-review
+│   ├── pr-triage.md             # Classifies a PR's review intensity (light/full) from the nature of the diff. Haiku
+│   ├── reviewer.md              # Reviews diff (reasoning only, never posts). Modes: review (run), pr-review (broader rubric), critique
 │   └── scaffolder.md            # Creates repos, bootstraps project structure, commits to main
 └── CLAUDE.md
 ```
@@ -76,6 +77,7 @@ The bundled MCP is declared in `.mcp.json` at the plugin root and starts automat
 | `.context/sprints/work/issue-{N}/context.md` | Central knowledge file. Zone 1: retrieved facts (owned by `context`). Zone 2: append-only decision timeline — `planner`/`test-writer`/`coder`/`reviewer` and `run`'s gates each append a self-contained, script-timestamped entry; never edited. |
 | `.context/sprints/work/issue-{N}/plan.md` | Implementation plan from the `planner` agent. |
 | `.context/sprints/work/issue-{N}/test-plan.md` | Test strategy: unit scenarios per task + E2E scenarios per flow. |
+| `.context/sprints/work/pr-{repo}-{N}/context.md` | Standalone PR work dir (full-tier `pr-review`/`pr-fix` on a PR with no usable issue work dir). Built by `context` (`pr` mode). Gitignored like the rest of `work/`. |
 | `.context/sprints/sprint-N-review.md` | Sprint retrospective from review skill. |
 
 `.context/sprints/work/` is gitignored — persists locally only.
