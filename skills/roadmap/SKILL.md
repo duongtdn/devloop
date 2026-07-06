@@ -21,18 +21,22 @@ User may have passed a focus hint via `$ARGUMENTS` (text typed after `/devloop:r
 ## Sprint Map
 
 ### Sprint 1 — [Theme]
-- **Goal:** [one sentence: what a user could demo at the end]
+- **Goal:** [one sentence: the outcome]
+- **Demo:** [what you can watch at sprint end — the product increment; note if dev/CI-facing]
 - **Status:** planned | active | completed
 - **Sprint file:** `.context/sprints/sprint-1.md`  ← written by /devloop:plan when the sprint starts
 
 ### Sprint 2 — [Theme]
 - **Goal:** ...
+- **Demo:** ...
 - **Status:** planned
 ```
 
+The **Demo** line is the concrete, watchable product increment at the end of that sprint — what a person can actually see or do (the observable proof of the Goal), **not** a restatement of the Goal. An early sprint's demo may be developer/CI-facing (no UI yet, e.g. "a passing CI pipeline builds the container and runs the smoke test") — when so, say so explicitly. Stating the tangible increment per sprint makes the product's shape predictable slice by slice: pivots and progress become visible sprint by sprint rather than only at the end.
+
 **Ownership rules:**
-- `roadmap` writes and updates: Vision, sprint themes, `Goal:` lines, `Status: planned`, new sprint entries
-- `plan` writes: `Status: active`, `Sprint file:` lines; may update `Goal:` to the confirmed sprint goal
+- `roadmap` writes and updates: Vision, sprint themes, `Goal:` lines, `Demo:` lines, `Status: planned`, new sprint entries
+- `plan` writes: `Status: active`, `Sprint file:` lines; may update `Goal:` to the confirmed sprint goal and `Demo:` to the confirmed sprint demo
 - `review` writes: `Status: completed`
 - The Sprint Map is append-only for ordering — never remove or renumber existing sprints. Future sprints may be reordered if not yet started.
 
@@ -46,7 +50,7 @@ Read `.context/sprints/master-plan.md` if it exists.
 
 **If it exists**, extract:
 - Current Vision text
-- All sprint entries: number, theme, Goal, Status, Sprint file (if present)
+- All sprint entries: number, theme, Goal, Demo, Status, Sprint file (if present)
 - Note which sprints are `active` or `completed` — these are locked (roadmap must not change their theme, status, or sprint file)
 
 **If it does not exist**, note that this is a first-time init and proceed.
@@ -63,13 +67,13 @@ Review the entire conversation that preceded this skill invocation. Your goal is
 
 1. **Vision** — what the product does, who it is for, and what problem it solves. Distill to 1–3 sentences. If already in the master plan, check whether the conversation revised it.
 
-2. **Sprint sequence** — the themes and rough goals for each sprint. A theme is a short label (e.g. "Foundation", "Auth", "Core Feature"). A goal is one sentence describing what a user could demo at the end.
+2. **Sprint sequence** — the theme, goal, **and end-of-sprint demo** for each sprint. A theme is a short label (e.g. "Foundation", "Auth", "Core Feature"). A goal is one sentence describing the outcome. A demo is the concrete product increment observable at that sprint's end — what would actually be demoed, reviewed, or tested when the sprint closes (the watchable proof of the goal, not a restatement of it). Extract the demo the conversation described for each sprint. If the conversation didn't specify one, draft a plausible demo from the goal and flag it for confirmation. Remember an early sprint's demo may be developer/CI-facing (no UI yet) — say so when that's the case.
 
 If `$ARGUMENTS` is non-empty, apply it as a filter: only surface roadmap content relevant to the specified topic or area.
 
 **Preservation rules:**
-- Sprints with `Status: active` or `Status: completed` — preserve theme, Goal, Status, and Sprint file exactly. Do not propose changes to them.
-- Sprints with `Status: planned` — may be updated with new theme or refined goal from the conversation.
+- Sprints with `Status: active` or `Status: completed` — preserve theme, Goal, Demo, Status, and Sprint file exactly. Do not propose changes to them.
+- Sprints with `Status: planned` — may be updated with new theme, refined goal, or refined demo from the conversation.
 - New sprints — append after existing entries.
 
 If the conversation contains no roadmap-relevant content (no vision, no sprint themes):
@@ -101,8 +105,12 @@ If this is a first-time init:
 > **Vision:** [1–3 sentences]
 >
 > **Sprint map:**      ← omit this section entirely if no sprint themes were extracted
-> - Sprint 1 — [Theme]: [brief goal]
-> - Sprint 2 — [Theme]: [brief goal]
+> - Sprint 1 — [Theme]
+>   - Goal: [brief goal]
+>   - Demo: [end-of-sprint increment; mark ⚑ if drafted from the goal, "(dev/CI-facing)" if no UI yet]
+> - Sprint 2 — [Theme]
+>   - Goal: [brief goal]
+>   - Demo: [end-of-sprint increment]
 > - ...
 >
 > Adjust anything or confirm:
@@ -115,8 +123,8 @@ If updating an existing file, show only what will change:
 > → [new vision text]     ← omit this block if Vision is unchanged
 >
 > **Sprint map changes:**
-> - Sprint 2 — [Theme]: goal updated to "[new goal]"    ← for planned sprints with updated goal
-> - Sprint 3 — [New Theme]: adding as `planned` with goal "[goal]"    ← for new sprints
+> - Sprint 2 — [Theme]: goal → "[new goal]", demo → "[new demo]"    ← for planned sprints with updated goal/demo
+> - Sprint 3 — [New Theme]: adding as `planned` — goal "[goal]", demo "[demo]"    ← for new sprints
 >
 > Locked (active/completed — not changing): Sprint 1    ← list any locked sprints
 >

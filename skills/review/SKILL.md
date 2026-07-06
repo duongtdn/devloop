@@ -30,7 +30,7 @@ Stop.
 
 > Sprint [N] file not found at `.context/sprints/sprint-[N].md`. Nothing to review — check the sprint number.
 
-Stop. Extract `$SPRINT_GOAL`, `$MILESTONE_NUMBER`, `$REPO`, `$CREATED`, and the ordered issue checklist (strip any trailing `⚠ unassigned`).
+Stop. Extract `$SPRINT_GOAL`, `$SPRINT_DEMO` (the `**Demo:**` line, if present), `$MILESTONE_NUMBER`, `$REPO`, `$CREATED`, and the ordered issue checklist (strip any trailing `⚠ unassigned`).
 
 **Already completed?** If the master plan marks this sprint `- **Status:** completed`:
 
@@ -157,10 +157,15 @@ Use it as `$CLOSED_DATE`. Build the draft from observable data — shipped issue
 # Sprint [N] Review
 
 **Goal:** [SPRINT_GOAL]
+**Demo:** [SPRINT_DEMO]      ← omit this line if the sprint file had no Demo
 **Milestone:** #[milestone_number]
 **Repo:** [owner/repo]
 **Period:** [CREATED] → [CLOSED_DATE]
 **Outcome:** [K] of [T] issues shipped
+
+## Increment delivered      ← omit this whole section if the sprint file had no Demo
+**Promised:** [SPRINT_DEMO]
+**Delivered:** [yes — the increment is demoable as promised / partially — what's watchable vs. what slipped / no — why not]
 
 ## Shipped
 - #[N] — [title] (PR #[pr])      ← one line per shipped issue; "(no PR)" for design/scaffold/manual closes
@@ -192,7 +197,7 @@ Present the draft and invite edits:
 >
 > [render the draft]
 >
-> The **Shipped / Carried over / Known-failing** sections are filled from the data. Add or refine the **What went well / improve / Notes** — what should the next sprint carry forward? Confirm to write, or tell me what to change:
+> The **Shipped / Carried over / Known-failing** sections are filled from the data. Confirm the **Increment delivered** line — did the sprint produce the demo it promised? — and add or refine the **What went well / improve / Notes**: what should the next sprint carry forward? Confirm to write, or tell me what to change:
 
 Wait for the response. Apply edits, re-present if substantially changed, then write `.context/sprints/sprint-[N]-review.md` on confirmation:
 
@@ -232,13 +237,13 @@ The sealing actions. Re-confirm before the milestone close, since it's the irrev
 
 On **n**, stop here — the retro and tag are already saved; the sprint stays open. On **y**:
 
-1. **Close the milestone** via the **milestones MCP** `close_milestone` (`owner`, `repo`, `milestone_number`). Skip if `$GITHUB_UNAVAILABLE` or the milestone is already closed (note it). If it fails:
+1. **Close the milestone** via the **`github-extras` MCP** `close_milestone` (`owner`, `repo`, `milestone_number`). Skip if `$GITHUB_UNAVAILABLE` or the milestone is already closed (note it). If it fails:
 
    > Failed to close milestone #[milestone_number]: [error]. Retry? (y/n) — if no, the master plan is still updated and you can close the milestone on GitHub manually.
 
    Retry once on **y**.
 
-2. **Mark the master plan completed.** In `.context/sprints/master-plan.md`, find the `### Sprint [N]` entry and set its `- **Status:** completed`. Preserve the theme, `Goal:`, and `Sprint file:` lines verbatim. If the entry is missing (master plan drifted), append a minimal `### Sprint [N]` entry with `Status: completed` and the `Sprint file:` line.
+2. **Mark the master plan completed.** In `.context/sprints/master-plan.md`, find the `### Sprint [N]` entry and set its `- **Status:** completed`. Preserve the theme, `Goal:`, `Demo:`, and `Sprint file:` lines verbatim. If the entry is missing (master plan drifted), append a minimal `### Sprint [N]` entry with `Status: completed` and the `Sprint file:` line.
 
 3. **Auto-clean resolved baseline.** For any `.context/devloop-baseline.md` entry whose `tracking:` issue is now **closed**, offer to remove it:
 

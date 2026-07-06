@@ -1,5 +1,5 @@
 ---
-description: Prepare a sprint iteration. Establishes the sprint goal through conversation, triages backlog issues, selects sprint-ready issues, ensures every issue has acceptance criteria and a Definition of Done, creates a GitHub milestone, determines execution order, and writes the sprint file. Conversational — pauses at every step for user confirmation.
+description: Prepare a sprint iteration. Establishes the sprint goal and end-of-sprint demo through conversation, triages backlog issues, selects sprint-ready issues, ensures every issue has acceptance criteria and a Definition of Done, creates a GitHub milestone, determines execution order, and writes the sprint file. Conversational — pauses at every step for user confirmation.
 ---
 
 You are running **devloop:plan**. This skill is fully conversational — pause at every human gate and wait for explicit confirmation before moving to the next step. Never batch steps together.
@@ -35,11 +35,12 @@ Each sprint entry in the Sprint Map looks like:
 ```markdown
 ### Sprint N — [Theme]
 - **Goal:** [one sentence]
+- **Demo:** [the watchable product increment at sprint end — the observable proof of the Goal; may be dev/CI-facing for early sprints]
 - **Status:** planned | active | completed
 - **Sprint file:** `.context/sprints/sprint-N.md`  ← written by this skill
 ```
 
-This skill writes `Status: active` and the `Sprint file:` line. It may also update `Goal:` if the confirmed sprint goal differs from the draft in the master plan. It never changes `Status: completed` entries or removes sprint entries.
+This skill writes `Status: active` and the `Sprint file:` line. It may also update `Goal:` if the confirmed sprint goal differs from the draft, and `Demo:` if the confirmed sprint demo differs from the draft. It never changes `Status: completed` entries or removes sprint entries.
 
 ### If master-plan.md does not exist
 
@@ -123,9 +124,9 @@ On **y**, set both `$HAS_UNIT_TESTS` and `$HAS_E2E` to `unknown` and proceed; th
 
 ---
 
-## Step 2 — Sprint goal
+## Step 2 — Sprint goal and demo
 
-The sprint goal is the anchor for all decisions in this session — triage outcomes, issue selection, and milestone description all flow from it. Establish it now, before touching any issues.
+The sprint goal is the anchor for all decisions in this session — triage outcomes, issue selection, and milestone description all flow from it. Establish it now, before touching any issues. Alongside the goal, confirm the **sprint demo** — the concrete, watchable product increment at the end of this sprint (the observable proof of the goal, not a restatement of it; it may be developer/CI-facing for an early sprint).
 
 **Gather context using this priority order** — higher sources override lower ones:
 
@@ -163,11 +164,31 @@ Wait for the user to confirm or adjust. Once confirmed:
 
 Store this as `$SPRINT_GOAL`. It will become the GitHub milestone description and is printed at the top of the sprint file.
 
-**Update master plan.** In `.context/sprints/master-plan.md`, find the `### Sprint [N]` section and set its `Goal:` line to `$SPRINT_GOAL`. If the section does not exist, append it to the Sprint Map. Do this whether the line was missing, a placeholder, or an older draft — the confirmed goal always wins.
+**Confirm the sprint demo.** With the goal settled, refine the demo the same way. Source a draft, highest priority first:
+
+1. **Prior conversation** — if the discussion described what would be demoed, reviewed, or tested at this sprint's end, use that.
+2. **Master plan `Demo:`** — if the Sprint [N] entry has a non-placeholder demo line, surface it.
+3. **Draft from the goal** — otherwise, draft a plausible demo: the observable increment that would prove `$SPRINT_GOAL` is met. If the goal is early-stage with no user-facing surface yet, make it developer/CI-facing and say so.
+
+Present it and invite refinement:
+
+> **Sprint [N] demo** — what you'll be able to watch at sprint end:
+>
+> _"[proposed demo — the concrete increment; note "(dev/CI-facing)" if there's no UI yet]"_
+>
+> This is the observable proof of the goal, not a restatement of it. Refine it or confirm as-is:
+
+**Demo quality check.** Reject a demo that merely echoes the goal or names no watchable artifact. If it does, propose a sharper version tied to a concrete thing a person could see or run. Once confirmed:
+
+> Demo confirmed: _"[demo]"_
+
+Store this as `$SPRINT_DEMO`.
+
+**Update master plan.** In `.context/sprints/master-plan.md`, find the `### Sprint [N]` section and set its `Goal:` line to `$SPRINT_GOAL` and its `Demo:` line to `$SPRINT_DEMO` (immediately under `Goal:`). If the section does not exist, append it to the Sprint Map; if the `Demo:` line is missing, add it. Do this whether a line was missing, a placeholder, or an older draft — the confirmed values always win.
 
 Report:
 
-> Master plan updated with sprint goal.
+> Master plan updated with sprint goal and demo.
 
 ---
 
@@ -377,7 +398,7 @@ If the user changes the selection, show the updated list before proceeding:
 
 ## Step 5 — Create milestone
 
-First, check whether a milestone named `Sprint [N]` already exists in `$REPO` using the **milestones MCP**.
+First, check whether a milestone named `Sprint [N]` already exists in `$REPO` using the **`github-extras` MCP**.
 
 If it exists:
 
@@ -465,7 +486,7 @@ On approval, update the GitHub issue body via GitHub MCP — preserve any existi
 
 ## Step 8 — Assign issues and write sprint file
 
-**Assign issues to milestone:** For each selected issue, call the **milestones MCP** to assign it to `$MILESTONE_NUMBER` in `$REPO`.
+**Assign issues to milestone:** For each selected issue, call the **`github-extras` MCP** to assign it to `$MILESTONE_NUMBER` in `$REPO`.
 
 If any assignments fail:
 
@@ -481,6 +502,7 @@ Wait for response. On yes, retry the failed assignments. On no, continue and mar
 # Sprint [N]
 
 **Goal:** [sprint goal]
+**Demo:** [sprint demo — the watchable increment at sprint end; note if dev/CI-facing]
 **Milestone:** #[milestone_number]
 **Repo:** [owner/repo]
 **Created:** [ISO8601 date, date only]
@@ -498,6 +520,7 @@ Example:
 # Sprint 3
 
 **Goal:** Ship the authentication flow end to end
+**Demo:** Log in through the browser with email + password and land on the dashboard; a bad password shows an inline error
 **Milestone:** #5
 **Repo:** acme/backend
 **Created:** 2026-06-26
@@ -526,6 +549,7 @@ When done, report:
 > **Sprint [N] ready**
 >
 > Goal: _"[SPRINT_GOAL]"_
+> Demo: _"[SPRINT_DEMO]"_
 > Milestone: Sprint [N] (#[milestone_number]) · Sprint file: `.context/sprints/sprint-[N].md`
 >
 > **Backlog** _(omit this section entirely if Step 3 was skipped)_
