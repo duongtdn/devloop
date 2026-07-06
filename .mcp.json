@@ -7,9 +7,9 @@
         "Authorization": "Bearer ${GITHUB_TOKEN}"
       }
     },
-    "milestones": {
+    "github-extras": {
       "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/bin/github-milestones.js"]
+      "args": ["${CLAUDE_PLUGIN_ROOT}/bin/github-extras.js"]
     }
   }
 }

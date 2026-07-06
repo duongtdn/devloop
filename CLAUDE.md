@@ -10,9 +10,9 @@ This is a Claude Code plugin — **not** an npm package. The entry point is `.cl
 devloop/
 ├── .claude-plugin/
 │   └── plugin.json              # Plugin manifest — name "devloop" sets the /devloop: namespace
-├── .mcp.json                    # Bundled MCP server declarations (GitHub milestone gap-fill)
+├── .mcp.json                    # Bundled MCP server declarations (GitHub milestone + label gap-fill)
 ├── bin/                         # Executables added to PATH when plugin is active
-│   └── github-milestones        # Bundled Node.js MCP server for milestone operations
+│   └── github-extras.js         # Bundled Node.js MCP server for milestone + label operations
 ├── skills/
 │   ├── roadmap/
 │   │   └── SKILL.md             # /devloop:roadmap [topic] — init or update master plan from conversation
@@ -51,18 +51,23 @@ Skills live in `skills/<name>/SKILL.md`. Agents live in `agents/<name>.md`. The 
 
 ## GitHub integration strategy
 
-The plugin uses the **official GitHub MCP server** for all standard operations (issues, PRs, branches, labels) plus a **bundled milestone MCP** (`bin/github-milestones`) for the three operations the official server does not cover:
+The plugin uses the **official GitHub MCP server** for all standard operations (issues, PRs, branches, adding labels to issues) plus a **bundled `github-extras` MCP** (`bin/github-extras.js`) for the operations the official server does not cover — milestones and repository label management:
 
 | Operation | Tool source |
 |---|---|
-| List/create/close issues, add labels | Official GitHub MCP |
+| List/create/close issues, add labels to issues | Official GitHub MCP |
 | Create/merge/update PRs | Official GitHub MCP |
 | Create/list branches | Official GitHub MCP |
-| **Create milestone** | Bundled `milestones` MCP |
-| **Assign issues to milestone** | Bundled `milestones` MCP |
-| **Close milestone** | Bundled `milestones` MCP |
+| Read a single label (`get_label`) | Official GitHub MCP |
+| **Create milestone** | Bundled `github-extras` MCP |
+| **Assign issues to milestone** | Bundled `github-extras` MCP |
+| **Close milestone** | Bundled `github-extras` MCP |
+| **List repository labels** | Bundled `github-extras` MCP |
+| **Create repository label** | Bundled `github-extras` MCP |
 
-Both MCP servers are declared in `.mcp.json` at the plugin root and start automatically when the plugin is active. The official GitHub MCP is wired as the remote server `https://api.githubcopilot.com/mcp/` with `Authorization: Bearer ${GITHUB_TOKEN}`; the bundled `milestones` stdio server reads the same `GITHUB_TOKEN` from the environment. A single token covers both — the user just exports `GITHUB_TOKEN`.
+The official server has no tool to *list* or *create* repository labels (only `get_label` reads one by name), so the bundled server fills that gap alongside milestones.
+
+Both MCP servers are declared in `.mcp.json` at the plugin root and start automatically when the plugin is active. The official GitHub MCP is wired as the remote server `https://api.githubcopilot.com/mcp/` with `Authorization: Bearer ${GITHUB_TOKEN}`; the bundled `github-extras` stdio server reads the same `GITHUB_TOKEN` from the environment. A single token covers both — the user just exports `GITHUB_TOKEN`.
 
 ## Central artifacts (written to user's working repo)
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// devloop milestone MCP server
-// Fills the milestone gap in the official GitHub MCP server.
+// devloop github-extras MCP server
+// Fills the gaps in the official GitHub MCP server: milestone operations
+// (create/list/close/assign) and label operations (list/create).
 // Requires GITHUB_TOKEN in the environment.
 
 'use strict';
@@ -29,7 +30,7 @@ function githubRequest(method, repoPath, body = null) {
         Authorization: `Bearer ${token}`,
         Accept: 'application/vnd.github+json',
         'X-GitHub-Api-Version': '2022-11-28',
-        'User-Agent': 'devloop-plugin/milestones-mcp',
+        'User-Agent': 'devloop-plugin/github-extras-mcp',
         ...(body ? { 'Content-Type': 'application/json' } : {}),
       },
     };
@@ -60,7 +61,7 @@ function githubRequest(method, repoPath, body = null) {
 }
 
 // ---------------------------------------------------------------------------
-// Tool implementations
+// Tool implementations — milestones
 // ---------------------------------------------------------------------------
 
 async function createMilestone({ owner, repo, title, description }) {
@@ -128,6 +129,41 @@ async function assignIssuesToMilestone({ owner, repo, milestone_number, issue_nu
 }
 
 // ---------------------------------------------------------------------------
+// Tool implementations — labels
+// ---------------------------------------------------------------------------
+
+async function listLabels({ owner, repo }) {
+  const results = await githubRequest(
+    'GET',
+    `${owner}/${repo}/labels?per_page=100`
+  );
+  return results.map((l) => ({
+    name: l.name,
+    color: l.color,
+    description: l.description,
+  }));
+}
+
+async function createLabel({ owner, repo, name, color, description }) {
+  const body = { name };
+  // GitHub requires a 6-char hex color (no leading '#'). Default to a neutral grey.
+  body.color = (color || 'ededed').replace(/^#/, '');
+  if (description) body.description = description;
+
+  const result = await githubRequest(
+    'POST',
+    `${owner}/${repo}/labels`,
+    body
+  );
+  return {
+    name: result.name,
+    color: result.color,
+    description: result.description,
+    url: result.url,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Tool registry
 // ---------------------------------------------------------------------------
 
@@ -136,6 +172,8 @@ const TOOLS = {
   list_milestones: listMilestones,
   close_milestone: closeMilestone,
   assign_issues_to_milestone: assignIssuesToMilestone,
+  list_labels: listLabels,
+  create_label: createLabel,
 };
 
 const TOOL_DEFINITIONS = [
@@ -201,6 +239,33 @@ const TOOL_DEFINITIONS = [
       required: ['owner', 'repo', 'milestone_number', 'issue_numbers'],
     },
   },
+  {
+    name: 'list_labels',
+    description: 'List all labels defined in a GitHub repository. Use before create_label to see which labels already exist.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        owner: { type: 'string', description: 'Repository owner' },
+        repo:  { type: 'string', description: 'Repository name' },
+      },
+      required: ['owner', 'repo'],
+    },
+  },
+  {
+    name: 'create_label',
+    description: 'Create a label in a GitHub repository. Fails if a label with the same name already exists — call list_labels first to skip existing ones.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        owner:       { type: 'string', description: 'Repository owner' },
+        repo:        { type: 'string', description: 'Repository name' },
+        name:        { type: 'string', description: 'Label name (e.g. "epic:foundation")' },
+        color:       { type: 'string', description: '6-char hex color without "#" (e.g. "0e8a16"). Defaults to a neutral grey.' },
+        description: { type: 'string', description: 'Optional label description' },
+      },
+      required: ['owner', 'repo', 'name'],
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -228,7 +293,7 @@ function handleMessage(message) {
     respond(id, {
       protocolVersion: PROTOCOL_VERSION,
       capabilities: { tools: {} },
-      serverInfo: { name: 'milestones', version: '0.1.0' },
+      serverInfo: { name: 'github-extras', version: '0.2.0' },
     });
     return;
   }
