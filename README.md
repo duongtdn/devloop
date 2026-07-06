@@ -1,5 +1,7 @@
 # devloop
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A Claude Code plugin that automates a full **sprint lifecycle** — planning, execution (TDD), PR review, and sprint close — entirely from inside Claude Code. You drive your project through GitHub issues and milestones; devloop orchestrates specialized sub-agents to do the work, pausing at human gates before anything irreversible.
 
 Everything is grounded in GitHub: issues are the unit of work, milestones are sprints, and PRs are how code lands. devloop keeps a small set of tracked files in your repo (`.context/`) so progress survives across sessions and machines.
@@ -157,4 +159,4 @@ devloop keeps its state under `.context/` so work resumes across sessions:
 
 ## License
 
-MIT
+[MIT](LICENSE)
