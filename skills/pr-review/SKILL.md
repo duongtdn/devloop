@@ -14,7 +14,7 @@ User may have passed a PR reference via `$ARGUMENTS` (`web#42`, `42`, or empty).
 
 **No lock, no state file.** A review is short-lived and mutates no sprint state, so pr-review takes neither `.context/sprints/state/.lock` nor an `issue-N.md` state file. A `run` may be in progress concurrently; that is fine — pr-review only reads.
 
-**GitHub via MCP, git via the CLI.** All GitHub operations (PR metadata, linked issue, posting the review, labels) go through `mcp__github`. All repository operations (fetch the head ref, three-dot diff, read blobs) go through plain `git` over Bash. **Do not use `gh`** — it is an extra local dependency this plugin does not require.
+**GitHub via MCP, git via the CLI.** All GitHub operations (PR metadata, linked issue, posting the review, labels) go through the GitHub MCP tools available in your environment — find them by purpose, never by a hardcoded literal name (the exact name is composed by your environment and can differ across hosts and versions). All repository operations (fetch the head ref, three-dot diff, read blobs) go through plain `git` over Bash. **Do not use `gh`** — it is an extra local dependency this plugin does not require.
 
 **Nothing reaches GitHub before the human gate.** The `reviewer` agent only reasons and returns findings; this skill posts the curated set *after* the walkthrough. There is no path that auto-posts.
 
@@ -55,11 +55,11 @@ Parse `$ARGUMENTS`:
 | `N` (e.g. `42`) | PR `42` in the current repo |
 | empty | detect the open PR for the current branch |
 
-Resolve `$REPO` (`owner/repo`) from git remotes (prefer `origin`); for the bare-number form use the current repo. If empty, find the PR whose head matches the current branch via `mcp__github`. If no PR can be resolved:
+Resolve `$REPO` (`owner/repo`) from git remotes (prefer `origin`); for the bare-number form use the current repo. If empty, find the PR whose head matches the current branch via the GitHub MCP tools. If no PR can be resolved:
 
 > No PR found — pass a PR number (`/devloop:pr-review 42`) or check out the PR branch.
 
-Stop. Otherwise fetch PR metadata via `mcp__github`: title, body, base ref, head ref/SHA, author, state, mergeable state. Parse the body for a linked issue (`Closes #N`, `Fixes #N`) → `$ISSUE` (may be unset). Capture the authenticated GitHub user → `$ME` (for the solo-author check at submit).
+Stop. Otherwise fetch PR metadata via the GitHub MCP tools: title, body, base ref, head ref/SHA, author, state, mergeable state. Parse the body for a linked issue (`Closes #N`, `Fixes #N`) → `$ISSUE` (may be unset). Capture the authenticated GitHub user → `$ME` (for the solo-author check at submit).
 
 If the PR is **not open** (merged or closed):
 
@@ -171,7 +171,7 @@ Determine the review **event** from the curated set:
 
 (If the PR is merged/closed per intake, override the event to `COMMENT` and skip the label.)
 
-**Solo-author handling.** If `author == $ME`, GitHub rejects a self-`APPROVE`, so a solo dev can never get a formal approval — the `status:reviewed` label stands in for it. Whenever the curated review has **no accepted blockers** (the event would be `APPROVE`, or a `COMMENT` carrying only suggestions/nits), submit it as a **`COMMENT`** review and add the **`status:reviewed`** label via `mcp__github` (create the label silently if missing; clean review body: "Reviewed — no blockers."). If there are accepted blockers (`REQUEST_CHANGES`), do **not** set the label. `run`'s merge gate treats a formal GitHub approval **or** the `status:reviewed` label (with no open `REQUEST_CHANGES`) as approved — so the solo dev's review unblocks the merge whether it was clean or carried only non-blocking notes. (On a merged/closed PR, skip the label per intake.)
+**Solo-author handling.** If `author == $ME`, GitHub rejects a self-`APPROVE`, so a solo dev can never get a formal approval — the `status:reviewed` label stands in for it. Whenever the curated review has **no accepted blockers** (the event would be `APPROVE`, or a `COMMENT` carrying only suggestions/nits), submit it as a **`COMMENT`** review and add the **`status:reviewed`** label via the GitHub MCP tools (create the label silently if missing; clean review body: "Reviewed — no blockers."). If there are accepted blockers (`REQUEST_CHANGES`), do **not** set the label. `run`'s merge gate treats a formal GitHub approval **or** the `status:reviewed` label (with no open `REQUEST_CHANGES`) as approved — so the solo dev's review unblocks the merge whether it was clean or carried only non-blocking notes. (On a merged/closed PR, skip the label per intake.)
 
 **Resolve each comment's anchor by content, before previewing** (this is what keeps inline line numbers correct — presence in a hunk is *not* enough; a miscounted line can still sit inside a hunk on the wrong code):
 
@@ -195,7 +195,7 @@ Show the exact review to be posted, then confirm (this is the outward-facing act
 >
 > Proceed? (**y** / **edit** a comment / **back** to the walkthrough)
 
-On **y**, post via `mcp__github` as **one** review with the resolved event, comments at the anchors resolved above, and the body assembled as previewed.
+On **y**, post via the GitHub MCP tools as **one** review with the resolved event, comments at the anchors resolved above, and the body assembled as previewed.
 
 **Zone 2 (full tier only).** If a `context.md` exists (full tier), append a Zone 2 entry (`$NOW`, author `pr-review`) recording the event, the accepted finding ids, and the posted comment ids — so `pr-fix` matches them and does not double-count. On the light tier there is no `context.md`; the posted GitHub comments are the durable record, and `pr-fix` reads them directly.
 

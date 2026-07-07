@@ -14,7 +14,7 @@ User may have passed a PR reference via `$ARGUMENTS` (`web#42`, `42`, or empty).
 
 **It takes the lock.** Because it shares the main working tree, a concurrent `run` is a hazard — `run` could switch branches mid-fix. So `pr-fix` respects `.context/sprints/state/.lock`: a live `run` for another issue blocks it; otherwise it acquires the lock for the duration and releases it on exit. It writes **no** `issue-N.md` state file — each fix is its own commit, so progress already persists in git; a re-invoke re-reads the findings and continues.
 
-**GitHub via MCP, git via the CLI.** All GitHub operations (PR metadata, review comments, replies, labels) go through `mcp__github`. All repository operations (fetch, checkout, commit, push) go through plain `git` over Bash. **Do not use `gh`** — it is an extra local dependency this plugin does not require.
+**GitHub via MCP, git via the CLI.** All GitHub operations (PR metadata, review comments, replies, labels) go through the GitHub MCP tools available in your environment — find them by purpose, never by a hardcoded literal name (the exact name is composed by your environment and can differ across hosts and versions). All repository operations (fetch, checkout, commit, push) go through plain `git` over Bash. **Do not use `gh`** — it is an extra local dependency this plugin does not require.
 
 **Nothing reaches GitHub before the human gates.** The user triages which findings to fix (first gate), and the push + thread replies happen only after a final confirmation (second gate). The `coder` and `reviewer` agents only reason/edit locally; the skill posts.
 
@@ -56,11 +56,11 @@ Parse `$ARGUMENTS`:
 | `N` (e.g. `42`) | PR `42` in the current repo |
 | empty | detect the open PR for the current branch |
 
-Resolve `$REPO` (`owner/repo`) from git remotes (prefer `origin`). If empty, find the PR whose head matches the current branch via `mcp__github`. If none resolves:
+Resolve `$REPO` (`owner/repo`) from git remotes (prefer `origin`). If empty, find the PR whose head matches the current branch via the GitHub MCP tools. If none resolves:
 
 > No PR found — pass a PR number (`/devloop:pr-fix 42`) or check out the PR branch.
 
-Stop. Otherwise fetch PR metadata via `mcp__github`: title, body, base ref, head **ref name** and SHA, author, state, mergeable. Parse the body for a linked issue (`Closes #N`, `Fixes #N`) → `$ISSUE` (may be unset). Capture the authenticated GitHub user → `$ME`. Capture `$HEAD_REF` (the branch name to push back to).
+Stop. Otherwise fetch PR metadata via the GitHub MCP tools: title, body, base ref, head **ref name** and SHA, author, state, mergeable. Parse the body for a linked issue (`Closes #N`, `Fixes #N`) → `$ISSUE` (may be unset). Capture the authenticated GitHub user → `$ME`. Capture `$HEAD_REF` (the branch name to push back to).
 
 If the PR is **not open**:
 
@@ -111,7 +111,7 @@ To build fresh, derive `$NOW` and invoke **`context`** (`mode: pr`), passing `$P
 
 Assemble the work list from two sources and merge them.
 
-1. **GitHub inline review comments** — fetch the PR's review comments via `mcp__github`. Each carries an id, `path`, `line`, `body`, author, and `in_reply_to`. Skip replies (`in_reply_to` set) and any comment already authored by `$ME` as a `pr-fix` reply. Note which reviews are `CHANGES_REQUESTED` (their comments are blockers by intent).
+1. **GitHub inline review comments** — fetch the PR's review comments via the GitHub MCP tools. Each carries an id, `path`, `line`, `body`, author, and `in_reply_to`. Skip replies (`in_reply_to` set) and any comment already authored by `$ME` as a `pr-fix` reply. Note which reviews are `CHANGES_REQUESTED` (their comments are blockers by intent).
 2. **Zone 2 findings** — if `context.md` exists, read the prior review's Zone 2 entry: finding ids, severities (blocker/suggestion/nit), `file:line`, suggested fixes, and the **posted comment ids** it recorded at submit. If the prior `pr-review` ran a `critique` pass, also read its per-finding **uphold/drop verdict** — triage reuses it as the recommended disposition rather than re-reasoning a finding that was already judged.
 
 **Merge & dedup**, producing one entry per real finding:
@@ -216,11 +216,11 @@ This is the outward-facing action — confirm before anything leaves the machine
 
 On **y**:
 1. **Push** the branch: `git push [remote] [head-ref]` (a normal fast-forward push — never `--force`).
-2. **Reply to threads** via `mcp__github`:
+2. **Reply to threads** via the GitHub MCP tools:
    - Each **fixed** finding with a GitHub `thread` → post a reply (`Fixed in [sha] — [what changed]`) and resolve the thread if the API exposes it.
    - Each **skipped** finding with a GitHub `thread` → post a reply explaining it was intentionally skipped (the user's reason from triage).
    - Fixed findings with **no** thread → no GitHub reply; they're captured in Zone 2.
-3. **Stale review label.** If a `status:reviewed` label is present, remove it via `mcp__github` — the new commits invalidate the prior clean review, and `run`'s merge gate treats that label as approval. The PR now needs a fresh review pass. (Do **not** dismiss the reviewer's `CHANGES_REQUESTED` review — re-approval is the reviewer's call.)
+3. **Stale review label.** If a `status:reviewed` label is present, remove it via the GitHub MCP tools — the new commits invalidate the prior clean review, and `run`'s merge gate treats that label as approval. The PR now needs a fresh review pass. (Do **not** dismiss the reviewer's `CHANGES_REQUESTED` review — re-approval is the reviewer's call.)
 4. **Zone 2.** If `context.md` exists, append one entry (`$NOW`, author `pr-fix`): fixes applied (finding ids → shas), skipped (ids + reason), the pushed head sha, and any pre-existing-failure decisions.
 
 ## Phase: teardown
