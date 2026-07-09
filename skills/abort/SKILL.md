@@ -134,7 +134,7 @@ Carry out the recorded decisions in this order, so the only forced branch switch
    On **delete**, remove `.context/sprints/state/issue-N.md`. On **keep**, leave it and append a `## Log` line recording the abort with a script-derived timestamp (`node -e "console.log(new Date().toISOString())"`) so the resume point is dated, e.g. `- <ISO> aborted by user at phase [phase]`.
 
 3. **Release the lock.** Delete `.context/sprints/state/.lock` if it exists and it belongs to the issue being aborted (or is stale) — without it, `run` refuses to start (`⚙ run is already in progress`). The one exception: a **live** lock for a *different* issue belongs to another active run — leave it (see [Exception handling](#exception-handling)).
-4. **Leave `work/issue-N/` untouched** — its context/plan/design artifacts are harmless and useful for reference (and gitignored).
+4. **Leave `work/issue-N/` untouched** — its context/plan/design artifacts are harmless and useful for reference.
 
 ---
 

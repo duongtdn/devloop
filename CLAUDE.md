@@ -75,8 +75,8 @@ Both MCP servers are declared in `.mcp.json` at the plugin root and start automa
 
 | Path | Purpose |
 |---|---|
-| `.context/devloop-profile.md` | Operational manifest: build/test commands and test layout. **Committed.** Bootstrapped by `roadmap`; read by `plan` and `run`; written back by `run` (scaffold + newly-filled fields). Holds commands only — never stack/conventions (those stay in CLAUDE.md). See `profile-spec.md`. |
-| `.context/devloop-baseline.md` | Accepted-failure allowlist: checks known to fail and accepted until a real fix lands. **Committed.** Written by `run` on user decision (needs a tracking issue); read by the `test-runner` agent to classify failures as accepted vs new. Lets the green-check gate mean "no *new* failures," not zero. |
+| `.context/devloop-profile.md` | Operational manifest: build/test commands and test layout. Shared project record. Bootstrapped by `roadmap`; read by `plan` and `run`; written back by `run` (scaffold + newly-filled fields). Holds commands only — never stack/conventions (those stay in CLAUDE.md). See `profile-spec.md`. |
+| `.context/devloop-baseline.md` | Accepted-failure allowlist: checks known to fail and accepted until a real fix lands. Shared project record. Written by `run` on user decision (needs a tracking issue); read by the `test-runner` agent to classify failures as accepted vs new. Lets the green-check gate mean "no *new* failures," not zero. |
 | `.context/sprints/master-plan.md` | Project sprint map: vision, sprint themes, goals, statuses. Created and updated by `roadmap`. `plan` writes `Status: active` and `Sprint file:` per sprint; `review` writes `Status: completed`. |
 | `.context/sprints/sprint-N.md` | Sprint execution file. Checkbox list read/updated by `run`. |
 | `.context/sprints/state/.lock` | Concurrency guard: active issue number, PID, start time. |
@@ -84,10 +84,10 @@ Both MCP servers are declared in `.mcp.json` at the plugin root and start automa
 | `.context/sprints/work/issue-{N}/context.md` | Central knowledge file. Zone 1: retrieved facts (owned by `context`). Zone 2: append-only decision timeline — `planner`/`test-writer`/`coder`/`reviewer` and `run`'s gates each append a self-contained, script-timestamped entry; never edited. |
 | `.context/sprints/work/issue-{N}/plan.md` | Implementation plan from the `planner` agent. |
 | `.context/sprints/work/issue-{N}/test-plan.md` | Test strategy: unit scenarios per task + E2E scenarios per flow. |
-| `.context/sprints/work/pr-{repo}-{N}/context.md` | Standalone PR work dir (full-tier `pr-review`/`pr-fix` on a PR with no usable issue work dir). Built by `context` (`pr` mode). Gitignored like the rest of `work/`. |
+| `.context/sprints/work/pr-{repo}-{N}/context.md` | Standalone PR work dir (full-tier `pr-review`/`pr-fix` on a PR with no usable issue work dir). Built by `context` (`pr` mode). Part of `run`'s per-issue working area, like the rest of `work/`. |
 | `.context/sprints/sprint-N-review.md` | Sprint retrospective from review skill. |
 
-`.context/sprints/work/` is gitignored — persists locally only.
+`.context/sprints/work/` and `.context/sprints/state/` are `run`'s per-issue working area; `profile`, `baseline`, `master-plan`, `sprint-N`, and the sprint reviews are shared project records. **Whether any of `.context/` is version-controlled is the user's choice — devloop neither assumes nor enforces a gitignore policy.**
 
 ## Key conventions
 

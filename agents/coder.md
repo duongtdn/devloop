@@ -62,7 +62,7 @@ Use `MISSING:` only for the missing-command case (run will supply it and re-invo
 
 A spike is a **throwaway experiment** to answer `$QUESTION` with evidence — not production code. The design phase runs before any feature branch exists, so there is nothing to pollute; keep the experiment contained and discard it.
 
-- Write the minimum throwaway code under `$WORK_DIR/spike/` (the gitignored work area). Do **not** touch the real source tree, do **not** follow `plan.md`, do **not** write or modify tests, and do **not** commit anything.
+- Write the minimum throwaway code under `$WORK_DIR/spike/` (the per-issue work area). Do **not** touch the real source tree, do **not** follow `plan.md`, do **not** write or modify tests, and do **not** commit anything.
 - Run it (Bash) to actually measure/observe the answer — real output, not a guess. Capture the concrete result (numbers, error, behaviour).
 - Keep it small and focused on `$QUESTION`. If the question can't be answered by a quick experiment, say so rather than building something elaborate.
 - Append a Zone 2 entry (`$NOW`): **Did** spiked `$QUESTION`; **For next** the finding and what it implies for the design; **Artifacts** the `spike/` path (reference only — safe to delete).

@@ -135,15 +135,17 @@ Agents are the workers behind the skills — you don't invoke them directly. Eac
 
 devloop keeps its state under `.context/` so work resumes across sessions:
 
-| Path | Committed? | Purpose |
+| Path | Role | Purpose |
 |---|---|---|
-| `.context/devloop-profile.md` | ✅ | Build/test commands and test layout. The single source `run` uses — it never guesses a command. |
-| `.context/devloop-baseline.md` | ✅ | Accepted-failure allowlist — checks known to fail, so the green gate means "no *new* failures." |
-| `.context/sprints/master-plan.md` | ✅ | Project sprint map: vision, themes, goals, statuses. |
-| `.context/sprints/sprint-N.md` | ✅ | Per-sprint execution checklist. |
-| `.context/sprints/sprint-N-review.md` | ✅ | Sprint retrospective. |
-| `.context/sprints/state/` | local | Lock + per-issue control plane (lets `run` resume). |
-| `.context/sprints/work/` | gitignored | Per-issue working files (`context.md`, `plan.md`, `test-plan.md`, …). Local only. |
+| `.context/devloop-profile.md` | shared record | Build/test commands and test layout. The single source `run` uses — it never guesses a command. |
+| `.context/devloop-baseline.md` | shared record | Accepted-failure allowlist — checks known to fail, so the green gate means "no *new* failures." |
+| `.context/sprints/master-plan.md` | shared record | Project sprint map: vision, themes, goals, statuses. |
+| `.context/sprints/sprint-N.md` | shared record | Per-sprint execution checklist. |
+| `.context/sprints/sprint-N-review.md` | shared record | Sprint retrospective. |
+| `.context/sprints/state/` | working area | Lock + per-issue control plane (lets `run` resume). |
+| `.context/sprints/work/` | working area | Per-issue working files (`context.md`, `plan.md`, `test-plan.md`, …). |
+
+Whether any of `.context/` is version-controlled is your choice — devloop neither assumes nor enforces it. A common setup commits the shared records and keeps the per-issue working area (`work/`, `state/`) out of version control, but that's up to you.
 
 ---
 
