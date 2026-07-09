@@ -40,7 +40,8 @@ Not every phase runs for every issue — the **workflow** (chosen from labels, c
 | `.context/sprints/work/issue-N/plan.md` | issue | `planner` | ordered tasks + acceptance criteria per task |
 | `.context/sprints/work/issue-N/test-plan.md` | issue | `planner` | unit scenarios per task + e2e scenarios |
 | `.context/sprints/work/issue-N/spike/` | issue | `coder` (spike mode) | throwaway proof-of-concept; reference only, safe to delete |
-| `.context/sprints/state/issue-N.md` | issue | **run only** | phase, position, branch, pr, plan, tasks, log |
+| `.context/sprints/work/issue-N/run-state-final.md` | issue | **run** (at cleanup) | the archived state file — its `## Log`, plan, and tasks kept for post-mortem after the issue is done |
+| `.context/sprints/state/issue-N.md` | issue | **run only** | phase, position, branch, pr, plan, tasks, log — **while in progress**; archived to `work/` at cleanup |
 | `.context/sprints/state/.lock` | global | **run** + `pr-fix` | `holder` (`run`/`pr-fix`), issue or PR number, PID, start time |
 | `.context/devloop-profile.md` | project | roadmap; **run write-back** | build/test commands + test layout |
 | `.context/devloop-baseline.md` | project | **run** (on user decision) | accepted-failing tests |
@@ -521,8 +522,8 @@ The terminal cleanup every workflow ends with — referenced by the design termi
 
 1. **No-PR variant only** (design, manual, scaffold — workflows that produced no PR): **offer to close the GitHub issue** first, since no merged PR auto-closes it (`Close #[ISSUE] on GitHub? (y/n)`; on **y**, close via GitHub MCP with a comment noting how it was completed). The **merge** path skips this — the PR already closed the issue via its `Closes #` keyword.
 2. Tick the issue's checkbox `[x]` in `$SPRINT_FILE`.
-3. Delete `.context/sprints/state/issue-N.md` and `.context/sprints/state/.lock`.
-4. Leave `work/issue-N/` in place (gitignored, useful for reference).
+3. **Archive the state file, then release the lock.** Move `.context/sprints/state/issue-N.md` → `.context/sprints/work/issue-N/run-state-final.md` (this preserves its `## Log` — the script-timestamped run history — plus the confirmed plan and tasks, for post-mortem reference), then delete `.context/sprints/state/.lock`. Do **not** leave `issue-N.md` in `state/`: a completed issue's file lingering there would read as *in-progress* to a future `run` (Startup S4).
+4. Leave `work/issue-N/` in place (useful for reference) — it now also holds `run-state-final.md`.
 5. Print the terminal's one-line ✅ report (each terminal supplies its own wording), then ask **"Move to the next issue? (y/n)"** — on **y**, return to **Startup S4** as the no-arg case (pick the next unchecked issue); on **n**, exit cleanly.
 
 For the **merge** path, the ✅ report is:
@@ -547,7 +548,7 @@ Then run [Issue-complete cleanup](#issue-complete-cleanup) (no-PR variant), with
 
 ## Known-failing baseline
 
-`.context/devloop-baseline.md` is the committed allowlist of accepted-failing checks. The green-check gate is **no `new` failures**, not zero failures.
+`.context/devloop-baseline.md` is the shared allowlist of accepted-failing checks. The green-check gate is **no `new` failures**, not zero failures.
 
 `test-runner` reads the baseline and returns failures in three buckets:
 
