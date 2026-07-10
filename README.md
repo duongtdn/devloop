@@ -2,9 +2,122 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A Claude Code plugin that automates a full **sprint lifecycle** — planning, execution (TDD), PR review, and sprint close — entirely from inside Claude Code. You drive your project through GitHub issues and milestones; devloop orchestrates specialized sub-agents to do the work, pausing at human gates before anything irreversible.
+A Claude Code plugin that runs a full **sprint lifecycle** — plan, execute, review, close — from inside Claude Code, on top of your GitHub issues and milestones. Specialized sub-agents do the work; you decide how much of the driving to keep.
 
-Everything is grounded in GitHub: issues are the unit of work, milestones are sprints, and PRs are how code lands. devloop keeps a small set of tracked files in your repo (`.context/`) so progress survives across sessions and machines.
+Devloop's north star isn't "let the AI build it for you." It's **move fast *without outsourcing your understanding* of your own software.**
+
+---
+
+## The idea of Fast and Slow
+
+AI can now write software faster than a human can follow it. The tempting move is to hand over the wheel completely. But if you outsource the *doing*, you quietly outsource the *understanding* too — and you end up the owner of a codebase you can't reason about. That debt compounds: every next decision is harder because you no longer hold the mental model.
+
+Devloop's bet is that you can keep **both** — AI's speed *and* your grip on the system — if you're deliberate about **where the human spends attention.** So it runs at two speeds:
+
+- **Fast** — let the AI run unblocked. This is where velocity comes from: it plans, writes tests, implements, reviews its own diff, opens (and can merge) PRs, all without stopping to ask.
+- **Slow** — sit down *with* the AI and review, question, demo, and adjust. This is where **you build and refresh your mental model.** It's a conversation and a study session, not a rubber stamp.
+
+The slow part never disappears — it just moves depending on how you work. And because everything the AI does on the fast path is **logged with its reasoning**, the slow review is genuine understanding, not archaeology. You come out the other side having shipped quickly *and* knowing what you shipped and why.
+
+---
+
+## Two workflows
+
+Both workflows share the same setup and the same close — they differ in **where you sit relative to the fast execution**, which is exactly what "in the loop" and "on the loop" mean. The default is in-the-loop; you opt into on-the-loop with `--auto` (per task) or `/devloop:sprint` (per sprint).
+
+The diagrams below show the two ends of that spectrum — full control at every gate, and full autonomy across a whole sprint. They're illustrations, not the only shapes available; see [Mix and match](#mix-and-match-these-are-primitives-not-pipelines) below for how to run something in between.
+
+### 🧑‍💻 Human-*in*-the-loop — you ride every step
+
+The AI does the work, but `/devloop:run` **pauses at each gate and waits for you** — approve the plan, the review findings, the PR. Slow and deliberate: you understand each decision because you make it *with* the AI. This is the default (plain `/devloop:run`, no flags).
+
+```
+  /devloop:roadmap    vision, themes, build/test profile      (once per project)
+  /devloop:backlog    capture ideas as GitHub issues          (anytime, any chat)
+        │
+        ▼
+  /devloop:plan       scope the sprint, create the milestone
+        │
+        ▼
+  /devloop:run   ◄─── repeat for each issue
+        │
+        ├─ gate ▸ approve the plan + test strategy
+        ├─ gate ▸ approve the review findings        ◄─ YOU decide, step by step
+        ├─ gate ▸ approve the PR
+        │
+        └─ optional: /devloop:pr-review → /devloop:pr-fix   (code-level review)
+        │
+        ▼
+  /devloop:review     retro · tag a release · close the milestone
+        │
+        └─► next sprint ─► /devloop:plan
+```
+
+**Best for:** when you want **control and early steering** — catching a wrong turn while it's still cheap to redirect, rather than after it's already built.
+
+### 🛰️ Human-*on*-the-loop — you watch from above
+
+`/devloop:sprint` (and `/devloop:run --auto`) **run without stopping** — at every point that would be a gate, the AI reasons to the best decision, applies it, and **logs it with the reasoning**. If it can't decide something safely (a stuck task, a conflict, work needing a human hand), it halts and tells you rather than guessing. You meet the finished work at `/devloop:review`: it explains what it built and why, you demo and probe it, then **accept** or send it back as **rework**.
+
+This is where the learning actually happens — not in a gate. A gate only ever asks "approve or not"; `review` is the deep conversation, backed by the full logged reasoning of everything the AI decided. That's why on-the-loop works just as well on unfamiliar or high-stakes work as it does on routine work — you're not skipping the understanding, you're meeting it in one concentrated sitting instead of six small ones.
+
+```
+  /devloop:roadmap    vision, themes, build/test profile      (once per project)
+  /devloop:backlog    capture ideas as GitHub issues          (anytime, any chat)
+        │
+        ▼
+  /devloop:plan       scope the sprint, create the milestone
+        │
+        ▼
+  /devloop:sprint     Claude runs EVERY issue autonomously, merging each
+        │             to main as it lands. No gates while it works, and
+        │             every decision + reason is logged for your review.
+        ▼
+  /devloop:review     demo and question each shipped task:
+        │
+        ├─ accept ──────────────────────────────► ✓ marked accepted
+        │
+        └─ rework ─► /devloop:replan ─► new linked issue ─┐
+        │                                                 │
+        │      ◄──── re-run /devloop:sprint ◄─────────────┘
+        ▼
+  (all accepted)      retro · tag a release · close the milestone
+        │
+        └─► next sprint ─► /devloop:plan
+```
+
+**Best for:** velocity, whenever you're comfortable letting the AI run before you inspect what it did — the review conversation is what keeps you honestly informed, not the presence of gates.
+
+### The two, side by side
+
+|  | Human-in-the-loop | Human-on-the-loop |
+|---|---|---|
+| **Pace** | slow, step by step | fast run, then a focused review |
+| **Where you sit** | inside every gate | above the run; meet it at review |
+| **Execute with** | `run` (gated) | `run --auto`, `sprint` |
+| **Your attention** | continuous | concentrated in `review` |
+| **Understanding built** | as each decision is made | at review, from the logged reasoning |
+| **Best for** | control, early steering | velocity |
+
+Either way, **the slow, understanding-building conversation is a first-class part of the workflow** — never skipped, only relocated. That's the point: AI's leverage, without handing away the thing that makes you the architect of your own software.
+
+### Mix and match — these are primitives, not pipelines
+
+The two diagrams above show the ends of a spectrum for clarity, but every skill is an independent primitive — combine them at whatever granularity fits the moment. The loop doesn't have to run at sprint scale:
+
+```
+  /devloop:run 42 --auto     one issue, no gates, halts at the open PR
+        │
+        ▼
+  /devloop:review 42         demo and question just that task → accept or rework
+        │
+        ▼
+  /devloop:run 43 --auto     repeat, issue by issue
+```
+
+That's on-the-loop working at **task granularity** — a tighter feedback loop than `/devloop:sprint`, with a smaller, fresher batch to review each time, and still no gates slowing execution down. You can go further still and mix the two workflows within one sprint: gate the one issue you're unsure about with plain `/devloop:run`, and `--auto` the rest.
+
+The conversational skills aren't locked to any diagram either. **`/devloop:backlog` can be dropped into any conversation, any time** — the moment an idea or a bug surfaces mid-discussion, capture it as an issue without leaving the chat. Same for `/devloop:roadmap` when the direction shifts. And because each of these skills works by *talking through* the decision with you — explaining trade-offs, asking what you want, showing you what it found — **the conversation itself is how you learn the system**, whether that conversation happens at a gate, at `review`, or mid-brainstorm. That's the study time that keeps the mental model yours.
 
 ---
 
@@ -35,7 +148,7 @@ devloop talks to GitHub through **two MCP servers, both declared in the plugin's
 | **`github`** (official GitHub MCP) | Issues, PRs, branches, adding labels to issues | Remote server at `https://api.githubcopilot.com/mcp/`, authenticated with `Authorization: Bearer ${GITHUB_TOKEN}`. |
 | **`github-extras`** (bundled) | Create / assign / close GitHub **milestones**, plus **list / create repository labels** — the operations the official server doesn't cover | Local stdio server (`bin/github-extras.js`), launched via `${CLAUDE_PLUGIN_ROOT}`. Reads the same `GITHUB_TOKEN`. |
 
-> **The only thing you must provide is `GITHUB_TOKEN`** — a GitHub Personal Access Token with repo access, exported in your environment before launching Claude Code. Both servers read it; there is no second credential to manage. Without it, devloop cannot read issues, open PRs, or manage milestones and labels.
+> **The only thing you must provide is `GITHUB_TOKEN`** — a GitHub Personal Access Token with repo access, exported in your environment before launching Claude Code.
 >
 > ```bash
 > export GITHUB_TOKEN=ghp_your_token_here
@@ -43,85 +156,54 @@ devloop talks to GitHub through **two MCP servers, both declared in the plugin's
 
 ---
 
-## The workflow
-
-devloop maps the natural arc of a project onto skills. A typical loop:
-
-```
-  brainstorm
-      │
-      ▼
-  /devloop:roadmap      → master plan + project profile (build/test commands)
-      │
-      ▼
-  /devloop:backlog      → turn discussion into type:backlog issues
-      │
-      ▼
-  /devloop:plan         → pick a sprint goal, select issues, create a milestone
-      │
-      ▼
-  /devloop:run  ──────► per issue: context → plan → TDD → PR → merge
-      │   ▲
-      │   └── /devloop:status   (check progress, read-only)
-      │   └── /devloop:abort    (cleanly stop a run)
-      ▼
-  /devloop:pr-review    → review a PR, post inline comments
-  /devloop:pr-fix       → address those comments, push replies
-      │
-      ▼
-  /devloop:review       → retro, tag release, close the milestone
-```
-
-**You don't have to use all of it.** The PR-review skills work standalone on any PR. `status` and `abort` are utilities around `run`. Use what fits.
-
----
-
 ## Skills
 
-Skills are what you invoke. Most are **conversational** — they pause at every human gate and wait for your explicit confirmation before doing anything outward-facing or destructive.
+Skills are what you invoke. The conversational ones pause at every human gate; the autonomous ones (`run --auto`, `sprint`) run unblocked and log every decision for later review.
 
-### Project setup
-
-| Skill | What it's for |
-|---|---|
-| **`/devloop:roadmap [topic]`** | Initialize or update the project **master plan** (vision, sprint themes, goals) from your current conversation. Also bootstraps the **project profile** (`.context/devloop-profile.md`) — the build/test commands `plan` and `run` rely on. Run this first on a new project. |
-| **`/devloop:backlog [topic]`** | Distill a brainstorm conversation into GitHub **backlog issues** (labeled `type:backlog`). Proposes candidates, you confirm/edit, it creates the approved ones. |
-
-### Sprint planning & execution
+### Set up the project
 
 | Skill | What it's for |
 |---|---|
-| **`/devloop:plan`** | Prepare a sprint. Establishes the sprint goal, triages backlog issues, selects sprint-ready ones, ensures each has acceptance criteria and a Definition of Done, creates a GitHub **milestone**, sets execution order, and writes the sprint file. |
-| **`/devloop:run [issue]`** | The execution engine. Takes one issue from raw ticket to **merged PR**: builds context, plans, and drives a TDD loop (or a scaffold / design / manual flow). A **resumable** state machine — re-invoke to continue from the last completed phase; it never re-runs finished work. Pauses at declared human gates (plan approval, PR approval). |
-| **`/devloop:status [sprint-N]`** | Read-only snapshot of a sprint — issue statuses, the in-progress step, milestone due date and progress. No gates, makes no changes. |
-| **`/devloop:abort [issue]`** | The escape hatch for `run`. Cleanly stops an in-progress run: releases the lock and hands you control of the branch (delete / keep / park as draft PR) and run state (delete for a fresh restart, or keep to resume). Does **not** close the issue or touch the milestone. |
+| **`/devloop:roadmap [topic]`** | Initialize or update the project **master plan** (vision, sprint themes, goals) from your conversation. Also bootstraps the **project profile** (`.context/devloop-profile.md`) — the build/test commands `plan` and `run` rely on. Run this first on a new project. |
+| **`/devloop:backlog [topic]`** | Distill a brainstorm into GitHub **backlog issues** (`type:backlog`). Proposes candidates, you confirm/edit, it creates the approved ones. |
 
-### Pull request review
+### Plan & steer *(outer loop — slow)*
 
 | Skill | What it's for |
 |---|---|
-| **`/devloop:pr-review [repo#prN]`** | Review a PR end-to-end like a senior dev, then submit curated findings as **one inline GitHub review**. **Read-only** on your working tree — never checks out the branch or runs the suite. Sizes the review to the PR, walks you through every finding at a gate, posts only what you approve. |
-| **`/devloop:pr-fix [repo#prN]`** | Address review comments end-to-end. Checks out the PR branch (stashing first if needed), merges GitHub comments with prior findings, you triage what to fix, applies each fix with test verification, runs a scoped fix-review to confirm resolution, then — after a final gate — **pushes and replies** to the threads. |
+| **`/devloop:plan`** | Scope a sprint. Sets the goal and end-of-sprint demo, triages backlog issues, selects sprint-ready ones, ensures each has acceptance criteria and a Definition of Done, creates a GitHub **milestone**, sets execution order, and writes the sprint file. |
+| **`/devloop:replan`** | Amend the **active** sprint mid-flight — **add** an issue, **drop** one, **reorder**, **re-scope/split**, or file **rework** for shipped work as a new issue cross-linked to the original. The transactional sibling of `plan`; both share one spec so amendments stay format-identical. Usually invoked for you from `review`. |
 
-### Sprint close
+### Execute *(inner loop — fast, or gated)*
 
 | Skill | What it's for |
 |---|---|
-| **`/devloop:review [sprint-N]`** | End-of-sprint ceremony. Reconciles every sprint issue (shipped / carried over / dropped / closed), writes a retrospective, optionally tags a release, **closes the GitHub milestone**, and marks the sprint completed in the master plan. Won't close a milestone while a run is still active. |
+| **`/devloop:run [issue] [--auto [--merge]]`** | The execution engine — one issue from ticket to PR: context → plan → TDD → review → PR. A **resumable** state machine; re-invoke to continue from the last completed phase. **Default:** human-in-the-loop, pausing at each gate. **`--auto`:** human-on-the-loop — no gates, decisions logged, halts at the open PR. **`--auto --merge`:** also merges (used by `sprint`). |
+| **`/devloop:sprint`** | Execute the **whole** active sprint autonomously. A thin orchestrator over `run --auto --merge` that works every issue in order, merging each as it lands, and **stops the moment it hits a blocker it can't resolve** (never skipping ahead). Hands off to `review` when done. Re-invoke to resume after an interruption. |
+| **`/devloop:status [sprint-N]`** | Read-only snapshot — issue statuses, the in-progress step, milestone progress, and which shipped issues are **accepted vs. awaiting review**. No gates, no changes. |
+| **`/devloop:abort [issue]`** | The escape hatch for `run`. Cleanly stops an in-progress run: releases the lock, hands you the branch (delete / keep / park as draft PR) and run state (delete or keep to resume). Doesn't close the issue or touch the milestone. |
+
+### Review & close *(outer loop — slow)*
+
+| Skill | What it's for |
+|---|---|
+| **`/devloop:review [issue \| sprint-N]`** | The review conversation, at two scopes. **`review 42`** — *task* review: the AI explains what it built and why, you demo and question it, then **accept** (merging its PR if still open) or request **rework** (a new linked issue via `replan`). **`review`** — *sprint* review: walk every not-yet-accepted task the same way, then reconcile remaining issues, write the retrospective, **tag the release**, and **close the milestone**. |
+| **`/devloop:pr-review [repo#prN]`** | Code-level PR review. Reviews a PR like a senior dev and submits curated findings as **one inline GitHub review**. Read-only on your tree; posts only what you approve. (Complements `review`, which is product-level — "is this the right thing?" vs. "is the code sound?") |
+| **`/devloop:pr-fix [repo#prN]`** | Address review comments end-to-end: checks out the branch, triages comments with you, applies each fix with test verification, runs a scoped fix-review, then — after a final gate — **pushes and replies** to the threads. |
 
 ---
 
 ## Agents
 
-Agents are the workers behind the skills — you don't invoke them directly. Each owns a narrow role and reports back to the orchestrating skill, which owns all human interaction. They're listed here so you understand what's happening under the hood.
+Agents are the workers behind the skills — you don't invoke them directly. Each owns a narrow role and reports back to the orchestrating skill, which owns all human interaction.
 
 | Agent | Model | Role |
 |---|---|---|
 | **backlog-triage** | haiku | Fetches `type:backlog` issues and classifies each against the sprint goal. Used by `plan`. |
-| **issue-selector** | haiku | Fetches sprint-ready issues (no milestone, not backlog) and suggests include/consider/skip per the sprint goal. Used by `plan`. |
+| **issue-selector** | haiku | Fetches sprint-ready issues (no milestone, not backlog) and suggests include/consider/skip. Used by `plan`, `replan`. |
 | **context** | sonnet | Assembles the central knowledge file (`context.md`) from issues, docs, and codebase patterns. Issue-anchored for `run`, diff-anchored in PR mode. |
 | **planner** | sonnet | Turns context (and an approved design) into an ordered task list (`plan.md`) and a test strategy (`test-plan.md`). Can raise `NEEDS-DESIGN` or `MANUAL`. |
-| **designer** | sonnet | Design/architecture specialist. Authors an implementation guide / decision doc (`design.md`); a fresh instance critiques it against named criteria. |
+| **designer** | sonnet | Design/architecture specialist. Authors an implementation guide (`design.md`); a fresh instance critiques it against named criteria. |
 | **test-writer** | sonnet | Reads `test-plan.md` and writes the specified **failing** tests (unit + E2E). Never writes production code. |
 | **coder** | sonnet | Implements one task to make its failing tests pass, runs the project's checks, commits only when green. Also runs throwaway spikes. |
 | **test-runner** | sonnet | Runs tests and classifies every failure as **new / accepted / pre-existing** (using the baseline allowlist). Never edits code. |
@@ -140,22 +222,12 @@ devloop keeps its state under `.context/` so work resumes across sessions:
 | `.context/devloop-profile.md` | shared record | Build/test commands and test layout. The single source `run` uses — it never guesses a command. |
 | `.context/devloop-baseline.md` | shared record | Accepted-failure allowlist — checks known to fail, so the green gate means "no *new* failures." |
 | `.context/sprints/master-plan.md` | shared record | Project sprint map: vision, themes, goals, statuses. |
-| `.context/sprints/sprint-N.md` | shared record | Per-sprint execution checklist. |
+| `.context/sprints/sprint-N.md` | shared record | Per-sprint execution checklist. Each issue line tracks execution (`[x]`, by `run`) and human acceptance (`✓accepted`, by `review`) separately. |
 | `.context/sprints/sprint-N-review.md` | shared record | Sprint retrospective. |
-| `.context/sprints/state/` | working area | Lock + per-issue control plane (lets `run` resume). |
-| `.context/sprints/work/` | working area | Per-issue working files (`context.md`, `plan.md`, `test-plan.md`, …). |
+| `.context/sprints/state/` | working area | Lock + per-issue control plane (lets `run`/`sprint` resume). |
+| `.context/sprints/work/` | working area | Per-issue working files (`context.md` with its logged decision timeline, `plan.md`, `test-plan.md`, …). |
 
-Whether any of `.context/` is version-controlled is your choice — devloop neither assumes nor enforces it. A common setup commits the shared records and keeps the per-issue working area (`work/`, `state/`) out of version control, but that's up to you.
-
----
-
-## Key conventions
-
-- **Human gates.** Conversational skills pause and wait for explicit confirmation before any destructive or outward-facing action (creating issues, closing milestones, pushing, merging).
-- **Resumable runs.** `/devloop:run` is a phase-based state machine. If it's interrupted, just invoke it again — it reads the issue's state file and continues from the last completed phase.
-- **Profile-driven.** Build/test commands live in `.context/devloop-profile.md`. Stack and conventions stay in your `CLAUDE.md` (auto-loaded). `run` never invents commands.
-- **Green-check gate.** "No *new* test failures," not zero failures — accepted known-failing tests are tracked in the baseline.
-- **One active run at a time.** `run` holds a lock while active; `/devloop:abort` releases it cleanly.
+Whether any of `.context/` is version-controlled is your choice.
 
 ---
 
