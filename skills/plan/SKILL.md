@@ -264,46 +264,11 @@ Suggest labels for each proposed issue:
 - `epic:` — if the item belongs to a recognisable theme
 - `area:` — if the item has a clear technical layer (`area:infra`, `area:api`, `area:web`, etc.)
 
-**Draft acceptance criteria** for each proposed issue from the backlog body. Acceptance criteria are the contract `run` reads to plan and validate the work, so they must be concrete and verifiable:
-- Each criterion is a single user-visible or testable outcome, phrased as a checklist item.
-- Aim for 2–5 per issue. Cover the happy path and the obvious failure/edge cases implied by the backlog item.
-- Do not invent scope the backlog item does not imply. If the item is too vague to derive criteria, say so and ask the user rather than padding.
+**Draft acceptance criteria** for each proposed issue from the backlog body, following the acceptance-criteria rules in the spec (below).
 
-### Issue body template
+### Issue body template — read the shared spec
 
-Every issue this skill creates uses this body. The `## Definition of Done` is chosen by the issue's `type:` label **and** the profile test flags (Step 1) — include only the lines that apply.
-
-```markdown
-## What
-[2–3 sentences: what this issue delivers, in plain language]
-
-## Acceptance Criteria
-- [ ] [concrete, verifiable outcome]
-- [ ] [concrete, verifiable outcome]
-
-## Definition of Done
-[the lines from the DoD-by-type rule below]
-
-Derived from #[backlog-N]
-```
-
-**Definition of Done by type.** `run` reads the DoD — it activates a review phase when `Code reviewed` is present and checks DoD items at validation — so the lines must match how the issue will actually be completed. Not every issue ends in a PR: a `type:question`/`type:decision` produces a decision/design doc and closes with no PR, and a `type:chore` may be either a code change or an operational task `run` completes manually.
-
-- **`type:feature`, `type:bug`** — always a PR:
-  - `- [ ] Unit tests pass` ← only if `$HAS_UNIT_TESTS` is true
-  - `- [ ] E2E scenario passes` ← only if `$HAS_E2E` is true
-  - `- [ ] Code reviewed`
-  - `- [ ] PR merged to main`
-- **`type:question`, `type:decision`** — a decision, no PR:
-  - `- [ ] Outcome documented (in the issue or a linked design doc)`
-  - `- [ ] Any follow-up issues created`
-  - `- [ ] Issue closed with the decision recorded`
-- **`type:chore`** — code change *or* operational task (`run` decides at execution time), so keep the closing line neutral:
-  - `- [ ] Unit tests pass` ← only if `$HAS_UNIT_TESTS` is true **and** the chore changes code
-  - `- [ ] Code reviewed` ← keep it: a code chore should be reviewed; a manual chore skips review before this line is ever read
-  - `- [ ] Done and the issue closed — via a merged PR for a code change, or confirmed complete for an operational task`
-
-If the test flags are `unknown` (no profile), omit the test lines and keep the rest of the type's DoD.
+Every issue this skill creates follows **`plan-spec.md`** (in this skill's directory, alongside SKILL.md) — the shared spec for the issue body template, the acceptance-criteria rules, the **Definition-of-Done-by-type** rule (the issue's `type:` label × the profile test flags `$HAS_UNIT_TESTS`/`$HAS_E2E` from Step 1), and label conventions. Read it now if not already loaded; `/devloop:replan` reads the same file, which is what keeps sprint amendments format-identical to sprint creation. Issues resolved from a backlog item carry the spec's `Derived from #[backlog-N]` line.
 
 **Human gate — present reasoning and proposal, wait for approval:**
 
@@ -472,7 +437,7 @@ Otherwise, list the gaps:
 
 On **n** or `skip`, leave the issue untouched and note it; `run` will prompt for criteria when it reaches the issue.
 
-For each issue to draft, work one at a time: read its current body, then propose the missing sections following the **issue body template** in Step 3 — the Definition of Done per that template's DoD-by-type rule (the issue's `type:` label plus `$HAS_UNIT_TESTS` / `$HAS_E2E`).
+For each issue to draft, work one at a time: read its current body, then propose the missing sections following the issue body template in **`plan-spec.md`** — the Definition of Done per its DoD-by-type rule (the issue's `type:` label plus `$HAS_UNIT_TESTS` / `$HAS_E2E`).
 
 > **#42 — Add login page**
 >
@@ -496,23 +461,7 @@ If any assignments fail:
 
 Wait for response. On yes, retry the failed assignments. On no, continue and mark them as unassigned in the sprint file with a `⚠ unassigned` note.
 
-**Write sprint file:** Create `.context/sprints/` if it does not exist. Write `.context/sprints/sprint-[N].md`:
-
-```
-# Sprint [N]
-
-**Goal:** [sprint goal]
-**Demo:** [sprint demo — the watchable increment at sprint end; note if dev/CI-facing]
-**Milestone:** #[milestone_number]
-**Repo:** [owner/repo]
-**Created:** [ISO8601 date, date only]
-**Areas:** [area1 → area2 → area3]  ← omit this line if no area labels were found
-
-## Issues
-
-- [ ] #[N] — [title] ([labels: area:x, epic:y — omit if none])
-[one line per issue, in execution order]
-```
+**Write sprint file:** Create `.context/sprints/` if it does not exist. Write `.context/sprints/sprint-[N].md` following the **sprint file format in `plan-spec.md` §3** (header lines + one issue line per selected issue, in the confirmed execution order; annotate `⚠ unassigned` per the spec where milestone assignment failed).
 
 Example:
 

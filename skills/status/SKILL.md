@@ -47,7 +47,7 @@ Extract from the sprint file:
 - `$MILESTONE_NUMBER` — from the `**Milestone:**` line (the number after `#`)
 - `$REPO` — from the `**Repo:**` line
 - `$CREATED` — from the `**Created:**` line
-- Issue list — all `- [ ]` and `- [x]` lines, in order. Before extracting the issue number, title, and labels from each line, strip any trailing `⚠ unassigned` annotation.
+- Issue list — all `- [ ]` and `- [x]` lines, in order. Each line may carry trailing annotations per the sprint-file line grammar (`plan-spec.md` in the plan skill): strip `⚠ unassigned` before parsing, and capture `✓accepted YYYY-MM-DD` (written by `/devloop:review` when a human accepted the task) as `$ACCEPTED[N] = date` before stripping it too. Then extract the issue number, title, and labels.
 
 **Lock detection.** If `.lock` exists:
 - Read `$LOCK_HOLDER` (`run` or `pr-fix`; a missing field predates the `holder` field — treat as `run`), `$LOCK_PID` (PID), and `$LOCK_START` (start time). When `$LOCK_HOLDER` is `run`, read `$LOCKED_ISSUE` from `issue:`; when it is `pr-fix`, read `$LOCKED_PR` from `pr:` and leave `$LOCKED_ISSUE` unset (a pr-fix lock holds the tree but is not a sprint run).
@@ -136,18 +136,19 @@ If the master plan shows this sprint with `- **Status:** completed`:
 
 **Issue table**
 
-| # | Order | Title | Area | Status | PR |
-|---|-------|-------|------|--------|----|
-| #44 | 1 | Add session persistence | infra | `done` | — |
-| #43 | 2 | Add JWT middleware | api | `in progress` | #12 |
-| #42 | 3 | Add login page | web | `not started` | — |
+| # | Order | Title | Area | Status | PR | Reviewed |
+|---|-------|-------|------|--------|----|----------|
+| #44 | 1 | Add session persistence | infra | `done` | #10 | ✓ 07-08 |
+| #43 | 2 | Add JWT middleware | api | `done` | #12 | awaiting review |
+| #42 | 3 | Add login page | web | `not started` | — | — |
 
 - **#** — issue number
 - **Order** — position in the sprint file (1-indexed)
-- **Title** — stripped title from the sprint file (no label suffixes, no `⚠ unassigned`)
+- **Title** — stripped title from the sprint file (no label suffixes, no annotations)
 - **Area** — `area:*` label stripped of prefix, or `—` if none
 - **Status** — `done`, `done ⚠`, `in progress`, `stale`, or `not started`
 - **PR** — PR number from `$PR_MAP`, or `—`
+- **Reviewed** — human acceptance, orthogonal to Status (under autonomous execution an issue merges and closes *before* anyone reviews it): `✓ [date]` if `$ACCEPTED[N]` is set, `awaiting review` for a `done`/`done ⚠` issue without it, `—` otherwise. Omit this column entirely if no issue is `done` yet.
 
 If any issue has status `done ⚠`, add a footnote after the table:
 
@@ -176,10 +177,10 @@ So a manual issue at its gate renders simply `#[N]: manual · step "gate-manual"
 **Summary line**
 
 ```
-[X] done · [Y] in progress · [Z] stale · [W] not started · [Total] total
+[X] done ([A] accepted · [P] awaiting review) · [Y] in progress · [Z] stale · [W] not started · [Total] total
 ```
 
-Omit any count that is zero. If `$GITHUB_UNAVAILABLE` is true, append:
+Omit any count that is zero (drop the parenthetical entirely when nothing is done). If `$GITHUB_UNAVAILABLE` is true, append:
 
 ```
 (GitHub unavailable — showing local state only)
@@ -189,7 +190,8 @@ Omit any count that is zero. If `$GITHUB_UNAVAILABLE` is true, append:
 
 | Condition | Hint |
 |-----------|------|
-| All issues `done`, none `in progress` or `stale` | `All issues done. Run /devloop:review to close the sprint.` |
+| All issues `done`, some `awaiting review` | `All issues done — [P] awaiting review. Run /devloop:review to review and close the sprint.` |
+| All issues `done`, all accepted | `All issues done and accepted. Run /devloop:review to close the sprint.` |
 | One or more `stale`, none `in progress` | `Run /devloop:run to resume — stale state will be cleaned up automatically.` |
-| One or more `not started`, none `in progress` or `stale` | `Run /devloop:run to start the next issue.` |
+| One or more `not started`, none `in progress` or `stale` | `Run /devloop:run to start the next issue — or /devloop:sprint to execute the rest autonomously.` |
 | Otherwise | _(no hint)_ |
