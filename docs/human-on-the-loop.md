@@ -7,8 +7,25 @@ concentrated into review conversations, not inline gates.
 Status legend: **[done]** already implemented · **[new]** to build · **[change]** modify existing.
 
 > **Implementation status: fully implemented (2026-07-10).** The [new]/[change] tags below record what
-> each piece was at design time; all of them have landed (`run --auto --merge`, `sprint`, `replan`,
+> each piece was at design time; all of them have landed (`run --auto`, `sprint`, `replan`,
 > scope-aware `review`, `plan-spec.md`, the `✓accepted` marker, `status` states, CLAUDE.md).
+>
+> **Revision (2026-07-11) — delivery decoupled from autonomy.** The PR became a separate axis. `run`
+> now has **two orthogonal axes**: **autonomy** (`human | auto`) and **delivery** (`direct | pr`). The
+> old `--merge` flag / `auto+merge` mode are **gone**. `--auto` now **runs to completion (merges)** rather
+> than halting at a PR; the default delivery is **direct** (merge into base locally, no PR). A GitHub PR
+> is opt-in with `--pr` — only the **human + pr** cell halts for review before merge. `sprint` drives
+> plain `run --auto` (direct, PR-less). Where this doc says `run --auto` "halts at the open PR" or refers
+> to `--auto --merge`, read it through this revision; the authoritative behavior is in `skills/run/SKILL.md`
+> ([Autonomy and delivery]) and CLAUDE.md.
+>
+> **Revision (2026-07-11) — sprint drives each issue via an isolated subagent.** `sprint` now spawns a
+> fresh Agent-tool subagent per issue to invoke `run --auto`, instead of invoking it inline via the Skill
+> tool. `run --auto` has no human gates to preserve mid-conversation and logs every decision to disk
+> (`context.md` Zone 2, the state file), so nothing is lost by isolating each issue's execution — and it
+> keeps `sprint`'s own context flat regardless of sprint length instead of accumulating every phase and
+> agent call of every issue. `sprint` still cross-checks the sprint file's checkbox on disk rather than
+> trusting the subagent's report alone. See `skills/sprint/SKILL.md` Step 3.
 
 ---
 
@@ -22,7 +39,7 @@ Two complementary modes ("loops"):
 
 | Loop | Skill | Who drives | Human relationship |
 |---|---|---|---|
-| **Inner loop** (fast) | `run --auto`, `sprint` | AI runs autonomously; every decision + reasoning logged | human-**on**-the-loop (reviews after) |
+| **Inner loop** (fast) | `run --auto`, `sprint` | AI runs autonomously to completion (merges); every decision + reasoning logged | human-**on**-the-loop (reviews after, in the outer loop) |
 | **Outer loop** (slow) | `review` (task \| sprint) | human + AI in conversation | human-**in**-the-loop |
 
 Terminology: **inner loop / outer loop** (established DX vocabulary, and it fits *devloop*). The inner
@@ -38,8 +55,8 @@ the human resolves it in the outer loop.
 
 | Skill | Role | Status |
 |---|---|---|
-| `run` | **inner loop** — execute one issue. `--auto` autonomous, gated by default. | **[done]** (auto mode) |
-| `run --auto --merge` | inner loop that flows through merge (used by `sprint`). | **[new]** small flag |
+| `run` | **inner loop** — execute one issue. `--auto` autonomous (runs to completion), gated by default. Delivery `direct` (default, local merge) or `--pr`. | **[done]** |
+| `run --auto` | inner loop that runs to completion, merging (used by `sprint`). Was `--auto --merge` at design time — see the 2026-07-11 revision. | **[done]** |
 | `sprint` | **inner loop, sprint scope** — thin orchestrator: run every issue autonomously to the end. | **[new]** |
 | `review` | **outer loop** — scope-aware conversation: `review <issue>` (task) / `review` (sprint). | **[change]** expand |
 | `replan` | amend the active sprint (add / drop / reorder / re-scope / create rework issue). | **[new]** |
@@ -61,20 +78,28 @@ Autonomous single-issue execution. Already implemented in `skills/run/SKILL.md`:
 - Mode set by `--auto` on invocation, persisted as `autonomy:` in the state file, governs on resume.
 - **Gates don't stop** — at each gate, run applies a decision rule, acts, and logs the decision *and its
   reasoning* to `context.md` Zone 2 (attributed to `run (auto)`).
-- **Halts at `pending-review`** with an open PR — **never merges** in this mode. The open PR is the
-  artifact the human reviews.
+- **Runs to completion — it merges** (per the 2026-07-11 revision; at design time `--auto` halted at
+  `pending-review` and only `--auto --merge` merged). Default delivery is **direct**: the branch merges
+  into the base locally, no PR. The human reviews the shipped work afterward in the outer loop.
 - **Prefer proof over guessing** — where a load-bearing choice can be settled empirically, run a spike
   rather than reason to an answer (all `NEEDS-PROOF` spikes + any spike the critique still recommends).
 - **Boundary / stop-the-line** — stops and logs a blocker (never fakes a judgment) on: coder stuck after
   3 attempts, unfixable `new` test failures, a design still `needs-work` after one iteration, a
   rebase/merge conflict, an agent `ERROR:`, or a manual-workflow issue.
 
-### `run --auto --merge` **[new]**
+### Delivery — `direct` (default) vs `--pr` **[revised 2026-07-11]**
 
-`--merge` is the opt-in that lets an auto run **flow through the merge phase** instead of halting at
-`pending-review`. The flag is the *standing authorization* to merge without a separate human approval
-(consistent with the solo-dev CI-less path, where you can't approve your own PR). Only `sprint` uses it;
-a bare `run --auto <issue>` still halts at the PR. Everything else about the merge phase is unchanged
+Delivery is a second axis, orthogonal to autonomy:
+
+- **direct** (default) — the branch merges into the base **locally**, no PR. `--auto` is the standing
+  authorization to merge without a separate human approval (consistent with the solo-dev CI-less path,
+  where you can't approve your own PR). This is what `sprint` uses.
+- **`--pr`** — open a GitHub PR (for a PR-gated CI check, an audit trail, or a collaborator). In **human**
+  mode the run **halts at the open PR** for review (`pr-review` / `pr-fix`, then re-run to merge) — this
+  is the only cell that halts before merge; in **auto** mode the PR is created and **merged through**.
+
+The old `--auto --merge` flag is gone: an auto run merges by virtue of being auto, and whether that merge
+is local or via a PR is the delivery axis. Everything else about the merge phase is unchanged
 (rebase-if-behind, repo merge method, conflict → stop).
 
 ---
@@ -82,16 +107,17 @@ a bare `run --auto <issue>` still halts at the PR. Everything else about the mer
 ## 4. Inner loop, sprint scope — `sprint` **[new]**
 
 A **thin orchestrator over `run`**, not a new engine. It automates the "move to the next issue?" step
-that `run` already asks, in `--auto --merge` mode, across the whole sprint.
+that `run` already asks, in `--auto` mode (direct, PR-less), across the whole sprint.
 
-**Model M1 (merge-as-you-go):** each issue's PR merges to `main` as it completes, so later issues build
-on real, present code (honoring the execution order `plan` computed: infra → api → web). `main` advances
-autonomously during the sprint; the **milestone-end release tag** (§7) decouples release from that.
+**Model M1 (merge-as-you-go):** each issue's branch merges into `main` locally (no PR) as it completes,
+so later issues build on real, present code (honoring the execution order `plan` computed: infra → api →
+web). `main` advances autonomously during the sprint; the **milestone-end release tag** (§7) decouples
+release from that.
 
 Flow:
 1. Resolve the active sprint (same as `run` Startup S1).
 2. Walk the sprint file's issue list **in execution order**. For each unchecked issue, invoke `run`
-   in `--auto --merge` mode.
+   in `--auto` mode.
 3. **Resume-in-progress first:** on (re)invocation, if an issue is mid-flight (state file present),
    resume it before picking the next unchecked one — inherits `run`'s existing resume logic.
 4. **Stop on any inner-loop blocker.** If `run` halts (coder stuck, unfixable failure, manual issue,
@@ -111,13 +137,14 @@ cleanup stay in `run`.
 conversation core**; the sprint scope wraps it with the existing close ceremony.
 
 ### `review <issue>` — task review **[new capability]**
-The completion of the halt-at-PR task flow (`run --auto <issue>` → open PR → `review <issue>`):
+The review conversation for a shipped task. Two arrival paths: `run --auto <issue>` (merged already, no
+PR) → `review <issue>`; or the halt-at-PR path `run --pr <issue>` (human) → open PR → `review <issue>`.
 - AI **explains** the task (what was built, key decisions — from `context.md` Zone 2 / plan / diff).
 - Human **demos**, asks questions, gives feedback.
 - Outcome:
-  - **accept** → trigger `run`'s **merge** phase (merge + cleanup + close). Mark **`✓accepted`** (§6).
-    *(Merge stays in `run` — it owns lock + cleanup. Review's accept invokes that phase, it does not
-    merge itself.)*
+  - **accept** → if a PR is still open (the `--pr` human path), trigger `run`'s **merge** phase (merge +
+    cleanup + close); if the task already merged (the `--auto` / direct common case), there is nothing to
+    merge. Either way, mark **`✓accepted`** (§6). *(Merge stays in `run` — it owns lock + cleanup.)*
   - **request rework** → create a **new linked issue** via `replan` (§8); the original stays shipped.
 - May **spawn backlog items** and **adjust the sprint plan** — but only via `replan` / `backlog`,
   never by editing tracking files directly.
@@ -211,7 +238,7 @@ skill drops even though we add a file.
 **Fully autonomous sprint, then review:**
 ```
 plan            → sprint scoped, issues + milestone + order
-sprint          → run --auto --merge per issue, in order, merging to main
+sprint          → run --auto per issue, in order, merging to main locally (no PR)
                   (stops + reports on any blocker)
 review          → walk each un-accepted task: demo · accept (✓) / rework (→ replan new issue)
                   → reconcile · retro · tag · close milestone
@@ -219,9 +246,9 @@ review          → walk each un-accepted task: demo · accept (✓) / rework (�
 
 **Task-by-task (tighter oversight):**
 ```
-run --auto <issue>   → open PR (halts)
-review <issue>       → demo · accept → run merge → ✓accepted   |   rework → replan new issue
-… repeat …
+run --auto <issue>   → run to completion, merges locally (no PR)
+review <issue>       → demo · accept → ✓accepted   |   rework → replan new issue
+… repeat …           (to review *before* merge instead, use `run --pr <issue>` → open PR → review → merge)
 review               → sprint review skips ✓accepted; ceremony on the rest
 ```
 
