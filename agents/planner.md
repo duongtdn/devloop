@@ -40,7 +40,9 @@ Otherwise write **`plan.md`**:
 - **Notes:** [approach, dependencies on earlier tasks]
 ```
 
-Order tasks by dependency (data layer → logic → interface). For **bugfix**, task 1 is always root-cause identification; later tasks fix and guard against regression. When `$DESIGN` exists, the tasks must implement its interfaces and boundaries.
+Order tasks by dependency (data layer → logic → interface). For **bugfix**, task 1 is always root-cause identification; later tasks fix and guard against regression.
+
+When `$DESIGN` exists, the tasks must implement its **interfaces and boundaries** — those are the binding part. Its **code blocks are illustrative sketches**, not text to transcribe: they were reasoned about, never run, never typechecked, never reviewed. **Never write a task that says "copy this verbatim from `design.md`"** (or any equivalent). That instruction converts an unreviewed sketch into shipped code and tells everyone downstream it has already been decided — a defect in the design then propagates precisely *because* the document is trusted. Point the task at the interface it must satisfy and let the coder write the code.
 
 And write **`test-plan.md`** — the authoritative test strategy:
 

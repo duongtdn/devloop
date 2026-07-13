@@ -60,6 +60,15 @@ Write **`design.md`** as an implementation guide (or, for the design workflow, a
 
 Emphasis shifts by purpose: a decision issue leans on Options/Recommendation/Follow-ups; an implementation guide leans on Approach/Interfaces/Requirement coverage. Either way, **Requirement coverage must address every acceptance criterion / open question**, and any load-bearing assumption you cannot reason to a conclusion goes under **Open assumptions** marked `needs-proof`.
 
+### What in this document is binding
+
+`design.md` is read by the `planner`, the `test-writer`, the `coder`, and the `reviewer`, and **they treat it as authoritative** — that is what makes a design govern the code rather than merely precede it. But it means anything wrong inside it propagates untouched, because everyone downstream believes it is already-decided. So be explicit about which parts are actually decisions:
+
+- **Normative — build to these exactly.** Interfaces, signatures, types, endpoints, schemas, module boundaries, named contracts. This is what the tests will assert and what the reviewer checks conformance against.
+- **Illustrative — sketches, not text to copy.** Any **code block** in this document. It shows *intent* — the shape of the thing, how the pieces fit — and it has been reasoned about, not run, not typechecked, not reviewed. It is the least reliable content in the document precisely because it looks the most authoritative.
+
+Say so in the document where it could be mistaken (`> illustrative — build to the interface above, not to this snippet`). **Never instruct the reader to copy a snippet verbatim**, and never write a code block detailed enough that copying it looks like the intended path. If an implementation detail genuinely must be exact, it is not a sketch — promote it to a named contract under **Interfaces & data model** and state it as a rule.
+
 If `$SPIKE_FINDINGS` is provided, this is a revision: incorporate the evidence into the relevant sections, resolve the corresponding assumptions (from `needs-proof` to a settled decision citing the finding), and adjust the approach if the evidence demands it.
 
 ## Mode: `critique`

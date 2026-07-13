@@ -75,12 +75,16 @@ the run skill provides ($NOW) — never guess the time. Format:
 ### [$NOW] · [author] · [phase or task ref]
 - **Did:** what happened, one line
 - **Decisions:** non-obvious choices + why (omit if none)
+- **Caught by:** how a defect was detected — test-red | typecheck | lint | reviewer | critique |
+  validation | spike | human (only on entries that record a defect; omit otherwise)
 - **For next:** interfaces, assumptions, gotchas, deferred items (omit if none)
 - **Artifacts:** any extra files this step created, as `path — what it holds, when to load it` (omit if none)
 -->
 ```
 
-The **Artifacts** field is how agents extend the knowledge set beyond the standard files: if a step produces a supplementary artifact (a scratch analysis, a generated schema, a data sample, a sub-report), it lists the path and a one-line "load this if…" hint so a later agent can decide whether to read it — rather than every agent loading everything.
+The **Artifacts** field is how agents extend the knowledge set beyond the standard files: if a step produces a supplementary artifact (a scratch analysis, a generated schema, a data sample, a sub-report, a captured test-run log), it lists the path and a one-line "load this if…" hint so a later agent can decide whether to read it — rather than every agent loading everything.
+
+The **Caught by** field records *which gate found a bug*, not just that one was fixed. Without it, nobody downstream can tell whether a defect was caught by a red test, by the type checker, by the reviewer, or by a human eye — and `/devloop:review` is left reconstructing the history by guesswork. It also reveals, over time, which gates are actually load-bearing and which never fire. Keep the raw evidence (failing output, stack traces) **out** of Zone 2 and in a log file cited under **Artifacts**: Zone 2 is loaded by every downstream agent, so a stack trace pasted here is context every future agent pays for and none of them needs.
 
 ## Output
 

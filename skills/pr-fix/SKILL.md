@@ -35,7 +35,7 @@ intake → sync → context → findings → triage (gate) → fix loop → veri
 | `.context/sprints/work/issue-N/context.md` | reused if the PR came from `run` (Zone 1 facts + Zone 2 timeline incl. the prior review's findings) |
 | `.context/sprints/work/pr-{repo}-{N}/context.md` | built fresh (`context` `pr` mode) for a PR with no usable issue work dir |
 | `.context/devloop-profile.md` | the **only** source for build/test commands — never guess one; ask the user and write it back if missing |
-| `.context/devloop-baseline.md` | accepted-failure allowlist; passed to `test-runner` so the gate means "no *new* failures" |
+| `.context/devloop-baseline.md` | accepted-failure allowlist; its test ids (`$ACCEPTED`) go to **both** the `coder` (so it can reach green) and the `test-runner` (so the gate means "no *new* failures") |
 | `$WORK_DIR/design.md` | if present, the approved design — `coder` implements to it, `reviewer` checks conformance |
 
 Timestamps are **script-derived**, never the session clock; before invoking any appending agent derive a fresh `$NOW`:
@@ -152,12 +152,14 @@ The user confirms or overrides. The set to fix is `$TO_FIX`; everything else is 
 
 **Pin the pre-fix head first:** before any fix commit lands, capture `$PREFIX_HEAD` = the current branch tip (`git rev-parse HEAD`). The fix-review phase diffs `$PREFIX_HEAD..$HEAD` — the fix commits only — so this must be recorded before the loop mutates anything.
 
-For each finding in `$TO_FIX`, derive `$NOW` and invoke **`coder`** (`mode: fix`) — **no new tests** — passing `$WORK_DIR`, the finding as `$TASK` (its explanation + `file:line` + suggested fix), `$CHECKS` (the profile's `build`/`unit-test`/`typecheck`/`lint`), `$ABSENT` (checks the user has marked N/A), and `$NOW`. The coder auto-discovers `design.md` in `$WORK_DIR` and conforms to it; it edits the code, runs the given checks, commits **only when green**, and appends a Zone 2 entry.
+For each finding in `$TO_FIX`, derive `$NOW` and invoke **`coder`** (`mode: fix`) — **no new tests** — passing `$WORK_DIR`, the finding as `$TASK` (its explanation + `file:line` + suggested fix), `$CHECKS` (the profile's `build`/`unit-test`/`typecheck`/`lint`), `$ABSENT` (checks the user has marked N/A), **`$ACCEPTED`** (the test ids from `$BASELINE`), and `$NOW`. The coder auto-discovers `design.md` in `$WORK_DIR` and conforms to it; it edits the code, runs the given checks, commits **only when green**, and appends a Zone 2 entry.
+
+**`$ACCEPTED` is not optional.** The coder's green must mean *no new failures*, the same as everywhere else in devloop. A suite command exits non-zero on an accepted known-failing test exactly as it does on a real one — so a coder that has not been told which failures are already accepted cannot reach green at all in a project with a baseline, and will burn all three attempts on every finding chasing a failure that has nothing to do with its fix.
 
 - Returns **`MISSING: <check>`** → the profile lacks a command the fix needs. Ask the user, write it back to the profile, and re-invoke — **this is not a failed attempt**.
 - Returns **`BLOCKED:`** (can't get to green) → after **3 attempts** on this finding, escalate: **retry / edit the finding / skip it / abort**.
 
-Because the coder runs the unit suite as part of `$CHECKS` before each commit, every fix is already green on its own — there is no per-fix `test-runner` pass. The suite runs **once** after the loop (next) for baseline classification and to catch any cross-fix interaction.
+Because the coder runs the unit suite as part of `$CHECKS` before each commit, every fix is already green on its own — there is no per-fix `test-runner` pass. The suite runs **once** after the loop (next) for the verdict: baseline classification, independent verification of the coder's self-reported green, and any cross-fix interaction.
 
 ## Phase: verify
 

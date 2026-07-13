@@ -19,6 +19,8 @@ Devloop's bet is that you can keep **both** — AI's speed *and* your grip on th
 
 The slow part never disappears — it just moves depending on how you work. And because everything the AI does on the fast path is **logged with its reasoning**, the slow review is genuine understanding, not archaeology. You come out the other side having shipped quickly *and* knowing what you shipped and why.
 
+That log records more than decisions. For every bug the run hit, it records **which gate caught it** — a failing test, the type checker, the code review, the second-opinion pass — and keeps the raw failing output on disk. So at review you can ask *"how did you catch this?"* and get an answer with the evidence attached, rather than a plausible story. It also means the loop can tell you, over a sprint, **which of its own checks are actually earning their keep** and which have never once caught anything.
+
 ---
 
 ## Two workflows
@@ -106,7 +108,7 @@ Either way, **the slow, understanding-building conversation is a first-class par
 The two diagrams above show the ends of a spectrum for clarity, but every skill is an independent primitive — combine them at whatever granularity fits the moment. The loop doesn't have to run at sprint scale:
 
 ```
-  /devloop:run 42 --auto     one issue, no gates, halts at the open PR
+  /devloop:run 42 --auto     one issue, no gates, run to completion (merges locally, no PR)
         │
         ▼
   /devloop:review 42         demo and question just that task → accept or rework
@@ -178,8 +180,8 @@ Skills are what you invoke. The conversational ones pause at every human gate; t
 
 | Skill | What it's for |
 |---|---|
-| **`/devloop:run [issue] [--auto [--merge]]`** | The execution engine — one issue from ticket to PR: context → plan → TDD → review → PR. A **resumable** state machine; re-invoke to continue from the last completed phase. **Default:** human-in-the-loop, pausing at each gate. **`--auto`:** human-on-the-loop — no gates, decisions logged, halts at the open PR. **`--auto --merge`:** also merges (used by `sprint`). |
-| **`/devloop:sprint`** | Execute the **whole** active sprint autonomously. A thin orchestrator over `run --auto --merge` that works every issue in order, merging each as it lands, and **stops the moment it hits a blocker it can't resolve** (never skipping ahead). Hands off to `review` when done. Re-invoke to resume after an interruption. |
+| **`/devloop:run [issue] [--auto] [--pr]`** | The execution engine — one issue from ticket to merged code: context → plan → TDD → review → merge. A **resumable** state machine; re-invoke to continue from the last completed phase. **Default:** human-in-the-loop, pausing at each gate, merging locally with no PR. **`--auto`:** human-on-the-loop — no gates, decisions logged, runs to completion (merges); review happens afterward in `/devloop:review`. **`--pr`:** deliver through a GitHub PR instead of a local merge (human mode then halts at the open PR for review; auto mode merges it through). |
+| **`/devloop:sprint`** | Execute the **whole** active sprint autonomously. A thin orchestrator over `run --auto` that works every issue in order, merging each locally as it lands (**PR-less**), and **stops the moment it hits a blocker it can't resolve** (never skipping ahead). Hands off to `review` when done. Re-invoke to resume after an interruption. |
 | **`/devloop:status [sprint-N]`** | Read-only snapshot — issue statuses, the in-progress step, milestone progress, and which shipped issues are **accepted vs. awaiting review**. No gates, no changes. |
 | **`/devloop:abort [issue]`** | The escape hatch for `run`. Cleanly stops an in-progress run: releases the lock, hands you the branch (delete / keep / park as draft PR) and run state (delete or keep to resume). Doesn't close the issue or touch the milestone. |
 
@@ -204,11 +206,11 @@ Agents are the workers behind the skills — you don't invoke them directly. Eac
 | **context** | sonnet | Assembles the central knowledge file (`context.md`) from issues, docs, and codebase patterns. Issue-anchored for `run`, diff-anchored in PR mode. |
 | **planner** | sonnet | Turns context (and an approved design) into an ordered task list (`plan.md`) and a test strategy (`test-plan.md`). Can raise `NEEDS-DESIGN` or `MANUAL`. |
 | **designer** | sonnet | Design/architecture specialist. Authors an implementation guide (`design.md`); a fresh instance critiques it against named criteria. |
-| **test-writer** | sonnet | Reads `test-plan.md` and writes the specified **failing** tests (unit + E2E). Never writes production code. |
-| **coder** | sonnet | Implements one task to make its failing tests pass, runs the project's checks, commits only when green. Also runs throwaway spikes. |
-| **test-runner** | sonnet | Runs tests and classifies every failure as **new / accepted / pre-existing** (using the baseline allowlist). Never edits code. |
+| **test-writer** | sonnet | Writes the specified **failing** tests (unit + E2E), or a **regression** test reproducing a bug before it's fixed. Never runs them, never writes production code. When a clean test is impossible without an unsafe cast, it **stops** — that's the production interface being too narrow, not a test that needs a hack. |
+| **coder** | sonnet | Implements one task to make its failing tests pass, runs the project's checks, commits only when green (*green* = no **new** failures). Also runs throwaway spikes. Its green is provisional — the test-runner has the last word. |
+| **test-runner** | sonnet | The **independent verifier** — it didn't write the code, and it can't edit it. Runs tests and classifies every failure as **new / accepted / pre-existing** (using the baseline allowlist). Also verifies the **red** step: that a fresh test really fails, and fails for the right reason, rather than erroring on a broken import or passing vacuously. |
 | **pr-triage** | haiku | Classifies a PR's review intensity (light/full) from the nature of the diff. Used by `pr-review`. |
-| **reviewer** | sonnet | Reviews a diff and surfaces concrete `file:line` findings. Modes: review / pr-review / critique / fix-review. Reasons only — never posts to GitHub. |
+| **reviewer** | sonnet | Reviews a diff and surfaces concrete `file:line` findings. Modes: review / pr-review / critique / fix-review. Carries a **test-pass-insufficient** rubric for the bug class a green suite can't rule out (concurrency, resource scoping, ordering, idempotency, reversibility) — those are argued from the code, and "the tests pass" is not a rebuttal. Reasons only — never posts to GitHub. |
 | **scaffolder** | sonnet | Creates the repo (if needed) and bootstraps project structure, build tooling, and test setup, committing to the base branch. |
 
 ---
@@ -223,9 +225,9 @@ devloop keeps its state under `.context/` so work resumes across sessions:
 | `.context/devloop-baseline.md` | shared record | Accepted-failure allowlist — checks known to fail, so the green gate means "no *new* failures." |
 | `.context/sprints/master-plan.md` | shared record | Project sprint map: vision, themes, goals, statuses. |
 | `.context/sprints/sprint-N.md` | shared record | Per-sprint execution checklist. Each issue line tracks execution (`[x]`, by `run`) and human acceptance (`✓accepted`, by `review`) separately. |
-| `.context/sprints/sprint-N-review.md` | shared record | Sprint retrospective. |
+| `.context/sprints/sprint-N-review.md` | shared record | Sprint retrospective — including **loop calibration**: which of devloop's own gates caught the sprint's defects, and which never fired. |
 | `.context/sprints/state/` | working area | Lock + per-issue control plane (lets `run`/`sprint` resume). |
-| `.context/sprints/work/` | working area | Per-issue working files (`context.md` with its logged decision timeline, `plan.md`, `test-plan.md`, …). |
+| `.context/sprints/work/` | working area | Per-issue working files (`context.md` with its logged decision timeline, `plan.md`, `test-plan.md`, …) plus `logs/` — the raw test output behind each logged failure, kept out of the timeline and opened on demand at review. |
 
 Whether any of `.context/` is version-controlled is your choice.
 

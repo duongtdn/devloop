@@ -1,13 +1,13 @@
 ---
-description: Execute and resume sprint work for a single issue. Builds context, plans, and drives a TDD loop (or a scaffold/design/manual flow) through to a merged PR — or, for a manual issue, a confirmation gate with no PR. A resumable phase-based state machine — reads the issue's state file to continue from the last completed phase, pauses at human gates declared up front, and never re-runs a completed phase. Routes the issue to the right workflow from its labels and the user-approved execution plan. Pass `--auto` for human-on-the-loop execution — no gates stop the run; run reasons to the best decision at each one, logs every decision and its reasoning for later review, and halts only when it hits something it can't decide safely. It still stops at the open PR and never auto-merges unless `--merge` is also passed (the standing merge authorization the sprint skill uses).
+description: Execute and resume sprint work for a single issue. Builds context, plans, and drives a TDD loop (or a scaffold/design/manual flow) through to merged code — by default merged into the base locally with no PR; pass `--pr` to deliver through a GitHub PR instead. A resumable phase-based state machine — reads the issue's state file to continue from the last completed phase, pauses at human gates declared up front, and never re-runs a completed phase. Routes the issue to the right workflow from its labels and the user-approved execution plan. Pass `--auto` for human-on-the-loop execution — no gates stop the run; run reasons to the best decision at each one, logs every decision and its reasoning for later review, runs to completion (merging), and halts only when it hits something it can't decide safely; the human then reviews the shipped work in the outer loop (`/devloop:review`). With `--pr`, a human-mode run halts at the open PR for review while an auto run creates the PR and merges it through.
 ---
 
-You are running **devloop:run**. This is the execution engine: a resumable, phase-based state machine that takes one issue from raw ticket to merged PR.
+You are running **devloop:run**. This is the execution engine: a resumable, phase-based state machine that takes one issue from raw ticket to merged code (locally by default, or via a GitHub PR with `--pr`).
 
 Parse `$ARGUMENTS`:
 - an issue number (e.g. `42`, `#42`) → `$ISSUE` if present; otherwise `$ISSUE` is unset.
-- the `--auto` flag (in any position) → `$AUTONOMY = auto`; otherwise `$AUTONOMY = human`. This selects human-in-the-loop (default) vs human-on-the-loop execution — see [Autonomy](#autonomy--human-in-the-loop-vs-human-on-the-loop).
-- the `--merge` flag (only meaningful with `--auto`) → `$AUTONOMY = auto+merge`: the auto run flows **through the merge phase** instead of halting at the open PR. This is the standing authorization `/devloop:sprint` passes when it drives a whole sprint; a human typing it directly grants the same. `--merge` without `--auto` is an error — warn and ignore the flag.
+- the `--auto` flag (in any position) → `$AUTONOMY = auto`; otherwise `$AUTONOMY = human`. This selects human-in-the-loop (default) vs human-on-the-loop execution — see [Autonomy and delivery](#autonomy-and-delivery).
+- the `--pr` flag (in any position) → `$DELIVERY = pr`; otherwise `$DELIVERY = direct`. This selects how the branch lands: **direct** merges it into the base locally with no GitHub PR (the default — a solo dev rarely needs a PR review, and the real review is the outer loop); **pr** opens a GitHub PR. See [Autonomy and delivery](#autonomy-and-delivery).
 
 ---
 
@@ -16,8 +16,11 @@ Parse `$ARGUMENTS`:
 **Phases.** Work moves through named phases. Each phase has a precondition, invokes one or more agents, writes its outputs to files, records its position in the state file, and hands off to the next phase. The full spine:
 
 ```
-startup → context → [design → gate-design] → plan → gate-plan → build → e2e → review → validate → gate-pr → pending-review → merge
+startup → context → [design → gate-design] → plan → gate-plan → build → e2e → review → validate → deliver → merge
                                                   ↘ MANUAL → gate-manual → done
+
+deliver = direct (default): gate-deliver              → merge locally, no PR
+          pr (--pr):        gate-pr → pending-review   → open a GitHub PR
 ```
 
 Not every phase runs for every issue — the **workflow** (chosen from labels, confirmed at gate-plan) selects which phases are active. The **design** phase is optional: it always runs for the design workflow (and ends there), and runs for a feature/bugfix only when the planner asks for it (a `NEEDS-DESIGN` detour from the plan phase, confirmed at gate-design). The **manual** workflow is reached the same way — when the planner judges an issue has no code to build it returns `MANUAL`, and run carries the issue to done through a single confirmation gate (`gate-manual`) with no branch, tests, or PR.
@@ -26,7 +29,7 @@ Not every phase runs for every issue — the **workflow** (chosen from labels, c
 
 **Agents communicate only through artifacts.** Agents are stateless specialists. They share nothing in memory — only files (durable) and their final return message (the immediate decision payload run parses). run is the sole writer of `state/issue-N.md`, and the writer of `.lock` for a run (the short-lived `pr-fix` skill also takes `.lock`, tagged `holder: pr-fix`). The durable cross-agent channel for decisions is `context.md` Zone 2 — an append-only timeline (see [Reference](#contextmd-zone-2--the-shared-timeline)).
 
-**Human gates are declared up front.** At gate-plan the user sees every gate that will fire for this issue. Gates beyond gate-plan only appear if the execution plan includes them. In **auto** mode the gates don't stop — run decides and logs at each one instead. See [Autonomy](#autonomy--human-in-the-loop-vs-human-on-the-loop).
+**Human gates are declared up front.** At gate-plan the user sees every gate that will fire for this issue. Gates beyond gate-plan only appear if the execution plan includes them. In **auto** mode the gates don't stop — run decides and logs at each one instead. See [Autonomy](#autonomy-and-delivery).
 
 **Gates are resumable.** A gate panel is built from an agent's return message, which is not durable. So **before presenting any gate, write the structured payload that builds it to the state file's `## Pending gate` block** (the findings table, the critique scorecard, the validation results, the PR body). If a session resumes *at* a gate, rebuild the panel from that block — never re-run the agent to reconstruct it. Clear the block once the gate is resolved.
 
@@ -34,15 +37,28 @@ Not every phase runs for every issue — the **workflow** (chosen from labels, c
 
 ---
 
-## Autonomy — human-in-the-loop vs human-on-the-loop
+## Autonomy and delivery
 
-run has two modes, chosen per invocation and fixed for the life of the run.
+run has **two orthogonal axes**, each chosen per invocation and fixed for the life of the run.
 
+**Autonomy — who decides at gates.**
 - **human** (default) — every gate **stops and waits** for a person to approve, shape, or verify. This is the mode every gate section below describes.
-- **auto** (`run --auto`) — human-*on*-the-loop. The same phase spine, agents, resume logic, and Zone 2 discipline run unchanged, but **gates don't stop**: at each gate run applies a decision rule, acts, and logs the decision *and its reasoning* to `context.md` Zone 2. The user audits the finished run instead of approving each step. The run still ends at `pending-review` with an open PR — **auto-mode never merges** (merge is the one irreversible outward act; the PR is the artifact the human reviews). Invoking `--auto` is the user's authorization to take every within-scope action through to that open PR without a per-step prompt.
-- **auto+merge** (`run --auto --merge`) — auto-mode that additionally **flows through merge**: instead of halting at `pending-review`, the run merges its own PR (no formal approval required — the flag *is* the standing authorization, consistent with the solo-dev path where you can't approve your own PR) and runs Issue-complete cleanup. Used by `/devloop:sprint` to drive a whole sprint merge-as-you-go; the human then reviews the shipped work in `/devloop:review` and spawns rework issues for anything that needs changes. Everything else behaves exactly like **auto** — same decision policy, same boundary list.
+- **auto** (`run --auto`) — human-*on*-the-loop. The same phase spine, agents, resume logic, and Zone 2 discipline run unchanged, but **gates don't stop**: at each gate run applies a decision rule, acts, and logs the decision *and its reasoning* to `context.md` Zone 2. An auto run **runs to completion — it merges** — rather than halting for review; the human audits the shipped work afterward in the outer loop (`/devloop:review`) and spawns rework issues for anything that needs changing. Invoking `--auto` is the user's authorization to take every within-scope action, **including the merge**, without a per-step prompt.
 
-**Set at invocation, never inferred.** `$AUTONOMY` is `auto` when `--auto` is in `$ARGUMENTS` (`auto+merge` when `--merge` accompanies it), else `human`. Persist it as `autonomy:` in the state file (S6). On resume the state file's `autonomy:` governs — a run keeps the character it started with and never silently switches. (The `## Pending gate` block is a human-mode device for re-presenting a panel; auto-mode resolves gates in place and does not rely on it.)
+**Delivery — how the branch lands.**
+- **direct** (default) — merge the branch into the base **locally** (rebase-if-behind, then merge, push, delete the branch); **no GitHub PR**. A solo dev rarely needs a PR review, and the real review is the outer loop. `Closes #[ISSUE]` in the merge commit auto-closes the issue.
+- **pr** (`--pr`) — open a **GitHub PR** as the delivery vehicle (for a PR-gated CI check, an audit trail, or a collaborator). In **human** mode the run **halts at the open PR** for review (`pr-review` / `pr-fix`, then re-run to merge); in **auto** mode it creates the PR and **merges it through** (required checks / branch protection gate the merge if configured).
+
+The two axes give four behaviors:
+
+| | **direct** (default) | **`--pr`** |
+|---|---|---|
+| **human** (default) | gates stop; `gate-deliver` → merge locally | gates stop; create PR, **halt** at `pending-review` → re-run to merge |
+| **auto** (`--auto`) | run to completion → merge locally | create PR → merge through |
+
+Only the **human + pr** cell halts for review before merge; every other cell merges within the run. `/devloop:sprint` drives plain `run --auto` (direct) across the whole sprint.
+
+**Set at invocation, never inferred.** `$AUTONOMY` is `auto` when `--auto` is in `$ARGUMENTS`, else `human`; `$DELIVERY` is `pr` when `--pr` is present, else `direct`. Persist both as `autonomy:` and `delivery:` in the state file (S6). On resume the state file governs — a run keeps the character it started with and never silently switches; flags on a resume that differ from the recorded modes do not switch them (warn if they differ). (The `## Pending gate` block is a human-mode device for re-presenting a panel; auto-mode resolves gates in place and does not rely on it.)
 
 **Decision policy (auto-mode).** At each gate, take the choice the human-mode panel would *recommend* — the agents' own verdict — and record why:
 - accept the agent's structured output as produced (the planner's plan and phase set, a `sound` design, the reviewer's upheld findings);
@@ -54,6 +70,8 @@ run has two modes, chosen per invocation and fixed for the life of the run.
 **The boundary — what auto-mode will not fake.** Auto-mode never fabricates a judgment it structurally cannot make. At these points it **stops, logs a blocker** (Zone 2 + `## Log`), releases the lock, and exits — leaving the issue in-progress so a later `run` resumes from the recorded phase:
 - coder stuck after 3 attempts on a task;
 - `new` (non-baselined) test failures it cannot fix;
+- a test that cannot be made to fail meaningfully after two bounces off the `red` check (a build-loop test or a blocker's regression test) — a test nobody has ever seen fail is not evidence, and auto-mode must not manufacture a confidence a human would have withheld;
+- a clean test still unreachable after two `narrow-interface` widenings — at that point the interface isn't the problem, the design is;
 - a design critique still `needs-work` after one iteration;
 - a rebase/merge conflict, or an agent returns `ERROR:`;
 - a **manual-workflow** issue (`gate-manual`) — the work is outside the repo; no reasoning substitutes for it.
@@ -71,6 +89,7 @@ A manual *acceptance criterion* (at gate-validation) is **not** a hard stop: aut
 | `.context/sprints/work/issue-N/plan.md` | issue | `planner` | ordered tasks + acceptance criteria per task |
 | `.context/sprints/work/issue-N/test-plan.md` | issue | `planner` | unit scenarios per task + e2e scenarios |
 | `.context/sprints/work/issue-N/spike/` | issue | `coder` (spike mode) | throwaway proof-of-concept; reference only, safe to delete |
+| `.context/sprints/work/issue-N/logs/` | issue | `coder`, `test-runner` | raw test/check output — the evidence behind a Zone 2 entry. Never loaded by default; cited under **Artifacts** and opened on demand |
 | `.context/sprints/work/issue-N/run-state-final.md` | issue | **run** (at cleanup) | the archived state file — its `## Log`, plan, and tasks kept for post-mortem after the issue is done |
 | `.context/sprints/state/issue-N.md` | issue | **run only** | phase, position, branch, pr, plan, tasks, log — **while in progress**; archived to `work/` at cleanup |
 | `.context/sprints/state/.lock` | global | **run** + `pr-fix` | `holder` (`run`/`pr-fix`), issue or PR number, PID, start time |
@@ -85,10 +104,23 @@ Zone 2 is an **append-only timeline**: agents and gates add entries in execution
 
 Agents are not limited to the standard files — a step may create its own supplementary artifact (a generated schema, a scratch analysis, a data sample). When it does, it lists the path under **Artifacts** with a one-line "load this if…" hint, so a later agent (or run) chooses whether to read it instead of everyone loading everything.
 
+### Detection provenance — `Caught by:` and the log trail
+
+**Record how each defect was found, not just that it was fixed.** Any Zone 2 entry that records a defect carries a **`Caught by:`** field naming the gate that detected it: `test-red` · `typecheck` · `lint` · `reviewer` · `critique` · `validation` · `spike` · `human`. Without it the history is unreconstructable — `/devloop:review` cannot tell a human whether a bug was caught by a failing test or by someone reading the code, and neither can you tell, across many issues, **which gates are actually load-bearing and which never fire**. That is the only way to find out that (say) the test suite has never once caught a real bug while the critique catches most of them.
+
+**Evidence goes in a log file, not in Zone 2.** Zone 2 is loaded by every downstream agent — the planner, the coder, the reviewer all read `context.md`. Paste a stack trace into it and every future agent on this issue pays that context cost to serve one reader who shows up at the end. So split it:
+
+| Tier | Where | Content |
+|---|---|---|
+| **Signal** | Zone 2 entry | failing test id, the one-line error, `Caught by:`, and the log path under **Artifacts** |
+| **Evidence** | `work/issue-N/logs/<timestamp>-<what>.log` | the raw output — full failure, stack, assertion diff |
+
+Pass `$LOG_DIR` = `.context/sprints/work/issue-N/logs/` to the `coder` and the `test-runner`; each writes its own output there and returns the path, which run (or the agent itself) cites under **Artifacts**. Nobody loads a log by default; `review` opens one on demand when the human says "show me the failure."
+
 **Who appends:**
 - `designer`, `planner`, `test-writer`, `coder`, `reviewer` — one entry each when they finish (per their contracts).
-- **run** — one entry at each gate decision (a human's in human-mode, run's own reasoned decision in **auto**-mode, attributed to `run (auto)`) and whenever it changes shared state: a plan reshaped/accepted at gate-plan, findings accepted/declined at gate-review, manual ACs confirmed or flagged at gate-validation, a failure baselined, or an auto-mode blocker that halts the run.
-- `context` owns Zone 1 and leaves Zone 2 empty (with the legend). `test-runner` never writes — it returns buckets to run, which records any baselining.
+- **run** — one entry at each gate decision (a human's in human-mode, run's own reasoned decision in **auto**-mode, attributed to `run (auto)`) and whenever it changes shared state: a plan reshaped/accepted at gate-plan, findings accepted/declined at gate-review, manual ACs confirmed or flagged at gate-validation, a failure baselined, or an auto-mode blocker that halts the run. At gate-review run sets **`Caught by:`** per finding — `reviewer` for pass 1, `critique` for a finding pass 1 missed.
+- `context` owns Zone 1 and leaves Zone 2 empty (with the legend). `test-runner` **never writes to Zone 2** — it returns its buckets (and its log path) to run, which records any baselining and cites the log. Writing its own run log to `$LOG_DIR` is not an exception to that: it is capturing evidence, not mutating state, and its `disallowedTools` still bar it from touching code or tests.
 
 **Timestamps must be script-derived — never the session clock.** Before invoking an appending agent, and before writing your own gate entry, derive a fresh timestamp and use it as `$NOW`:
 
@@ -105,7 +137,8 @@ Node is always available (the bundled milestone MCP requires it); the trailing `
 
 issue: N
 workflow: feature | bugfix | design | scaffold | manual
-autonomy: human | auto | auto+merge     # set at S6 from $AUTONOMY; governs on resume
+autonomy: human | auto           # set at S6 from $AUTONOMY
+delivery: direct | pr            # set at S6 from $DELIVERY; both govern on resume
 phase: <phase name>
 phase_step: -        # multi-pass phases (design/review/validate) only; '-' otherwise
 task_index: -        # build-loop position, 0-based; '-' otherwise
@@ -114,8 +147,8 @@ base: <base branch>
 pr: -                # set once PR created
 
 ## Plan (confirmed at gate-plan)
-phases: context, [design,] plan, build, e2e, review, validate, gate-pr, merge
-gates:  gate-plan ✓, gate-review, gate-validation, gate-pr
+phases: context, [design,] plan, build, e2e, review, validate, <gate-deliver | gate-pr>, merge
+gates:  gate-plan ✓, gate-review, gate-validation, <gate-deliver | gate-pr>
 
 ## Pending gate        # written before a gate is presented; cleared when resolved
 gate: <gate name>
@@ -170,15 +203,15 @@ Read `.context/devloop-profile.md`. If it does not exist:
 
 On **n**, exit. On **y**, proceed and ask for commands inline when a phase needs one (writing each answer back to the profile).
 
-Read `.context/devloop-baseline.md` if it exists (the accepted-failing allowlist). Treat absent as empty.
+Read `.context/devloop-baseline.md` if it exists (the accepted-failing allowlist). Treat absent as empty. Collect its test ids as **`$ACCEPTED`** — these are already-failing, already-accepted checks, and **every agent that runs the suite must be told about them**, not just the `test-runner`. A suite command exits non-zero on an accepted failure exactly as it does on a real one, so a `coder` that has not been given `$ACCEPTED` can never reach green in a project with a baseline: it would burn all three attempts chasing a failure that is not its own, on every task. Pass `$ACCEPTED` to the `coder` alongside `$CHECKS`.
 
 ### S4 — Resolve the target issue and entry point
 
 | Invocation | State file `issue-N.md` | Action |
 |---|---|---|
-| `run N` | exists | Check GitHub: if PR merged or issue closed → set entry = **merge** (cleanup only). Else set entry = the recorded `phase` (resume). |
+| `run N` | exists | Check GitHub: if the issue is already closed (its PR merged, or a direct merge landed) → set entry = **merge** (cleanup only). Else set entry = the recorded `phase` (resume). |
 | `run N` | none | Entry = the workflow entry phase (fresh). Warn if N is not in `$SPRINT_FILE`, but allow. |
-| `run` (no arg) | exactly one in-progress | merged/closed → entry = **merge** (cleanup); else entry = recorded `phase` (resume). |
+| `run` (no arg) | exactly one in-progress | issue closed → entry = **merge** (cleanup); else entry = recorded `phase` (resume). |
 | `run` (no arg) | multiple in-progress | List them; ask which to resume or abort. |
 | `run` (no arg) | none | Pick the first unchecked issue in `$SPRINT_FILE`; entry = workflow entry phase (fresh). |
 
@@ -205,11 +238,11 @@ Some issues don't fit a single archetype — "run the suite and review existing 
 
 ### S6 — Acquire lock and dispatch
 
-Write `.context/sprints/state/.lock` with `holder: run`, `issue: $ISSUE`, the current PID (`pid:`), and an ISO `start:` time. The `holder` field distinguishes this from a `pr-fix` lock (`holder: pr-fix`, `pr: N`) on the same file — every reader keys mutual exclusion off the PID, and uses `holder` only to label who holds the tree. If no state file exists yet, create `state/issue-N.md` with the schema above (`phase: context`, branch `-`, `autonomy: $AUTONOMY`). When **resuming** an existing state file, `$AUTONOMY` is read from its `autonomy:` line — the started mode governs; a bare `--auto` on a resume of a human run (or vice-versa) does not switch it (warn if they differ).
+Write `.context/sprints/state/.lock` with `holder: run`, `issue: $ISSUE`, the current PID (`pid:`), and an ISO `start:` time. The `holder` field distinguishes this from a `pr-fix` lock (`holder: pr-fix`, `pr: N`) on the same file — every reader keys mutual exclusion off the PID, and uses `holder` only to label who holds the tree. If no state file exists yet, create `state/issue-N.md` with the schema above (`phase: context`, branch `-`, `autonomy: $AUTONOMY`, `delivery: $DELIVERY`). When **resuming** an existing state file, `$AUTONOMY` and `$DELIVERY` are read from its `autonomy:`/`delivery:` lines — the started modes govern; flags on a resume that differ from the recorded modes do not switch them (warn if they differ).
 
 Announce and dispatch:
 
-> **▶ run — Sprint [N] · #[ISSUE] [title] · workflow: [workflow] · mode: [human | auto]**
+> **▶ run — Sprint [N] · #[ISSUE] [title] · workflow: [workflow] · mode: [human | auto] · delivery: [direct | pr]**
 > [Starting fresh from context. | Resuming from phase "[phase]".]
 > [auto only:] Human-on-the-loop — no gates will stop; every decision is logged to context.md for your review. I'll halt only if I hit something I can't decide safely.
 
@@ -292,7 +325,7 @@ Build this panel from the agents' return summaries and **link** the document —
 - **Run another spike** → the user (or an open `concern` on the testability criterion) can request a spike on a specific question; run the spike loop (step 2 above), fold the finding in, re-critique, re-present.
 - **Skip design** (feature/bugfix only) → discard the guide, record `phase: plan`, and continue without it. On this path run re-invokes the planner with `$DESIGN_DECLINED: true` so it plans best-effort and does **not** bounce with `NEEDS-DESIGN` again (the user overrode the recommendation).
 
-**Auto-mode.** No panel, and it favors proof over guessing (see [Autonomy](#autonomy--human-in-the-loop-vs-human-on-the-loop)):
+**Auto-mode.** No panel, and it favors proof over guessing (see [Autonomy](#autonomy-and-delivery)):
 - In the design phase's spike step, run **all** `NEEDS-PROOF` spikes (the `all` option) before critiquing — never approve a design resting on an assumption a spike could test.
 - After the critique, if it **still recommends a spike**, run that spike (step 2 of the design phase: spike → fold the finding in → re-critique) *before* deciding — even when the verdict is otherwise `sound`. Don't approve on reasoning while a recommended spike is outstanding.
 - Then act on the verdict: **`sound`** (and no spike outstanding) → take the **Approve** path (Zone 2 entry; design workflow creates the proposed follow-up issues and completes via Issue-complete cleanup; feature/bugfix records `phase: plan`). **`needs-work`** → re-invoke `designer` **once** with the open concerns as feedback and re-critique; if it returns `sound`, approve; if still `needs-work`, **stop-the-line** (log the blocker and exit).
@@ -327,7 +360,7 @@ run owns the phase list. Start from the workflow default (the table in [How this
 
 When the issue doesn't match its archetype, compose the phase set directly from the named phases to fit the real work — e.g. a "test + review existing code" task is `build`-less (review + validate only); an investigation/spike is `context → plan → gate-plan` then done. The phase list can be any sensible subset/order of the named phases — that is what makes the workflow dynamic while keeping every phase predictable. (The design phase is not composed here — it sits *upstream* of this gate and is reached via the planner's `NEEDS-DESIGN` detour or the design workflow.)
 
-Then compute which **gates** will fire: `gate-plan` (now), `gate-review` (if review is active), `gate-validation` (if any acceptance criterion is manual / not test-backed), `gate-pr` (always for code workflows).
+Then compute which **gates** will fire: `gate-plan` (now), `gate-review` (if review is active), `gate-validation` (if any acceptance criterion is manual / not test-backed), and the **delivery gate** — `gate-deliver` if `delivery: direct`, `gate-pr` if `delivery: pr` (always, for code workflows).
 
 ### Present
 
@@ -339,15 +372,15 @@ Then compute which **gates** will fire: `gate-plan` (now), `gate-review` (if rev
 > | E2E | [scenario list] |  ← omit row if e2e not active
 > | Review | diff review + findings |  ← omit if not active
 > | Validate | [K] acceptance criteria ([M] need manual check) |
-> | PR | [branch] → [base] |
+> | Deliver | [branch] → [base] · [merge locally (direct) \| open PR (pr)] |
 >
 > Gates I'll stop at:
 > ① now — approve this plan + test strategy
 > ② after review — approve findings before fixes  ← list only active gates
 > ③ after validate — verify [M] ACs manually
-> ④ before PR — approve PR content
+> ④ [direct: before merge — confirm merging to [base] \| pr: before PR — approve PR content]
 >
-> Approve, or reshape (e.g. "skip e2e", "skip review", "this is a design task"):
+> Approve, or reshape (e.g. "skip e2e", "skip review", "this is a design task", "open a PR"):
 
 Apply any reshaping the user asks for (drop/add a stage, switch workflow). Re-present until approved. The user reshaping the workflow is the flexibility valve — honor it.
 
@@ -357,7 +390,7 @@ Apply any reshaping the user asks for (drop/add a stage, switch workflow). Re-pr
 
 1. Create the branch: `feat/issue-N-<slug>` (feature) or `fix/issue-N-<slug>` (bugfix), from `$base`. `<slug>` is the kebab-cased, truncated issue title.
 2. Write the confirmed `phases:` and `gates:` lines to the state file; mark `gate-plan ✓`.
-3. Record `phase:` = first active execution phase (`build`, or `validate`/`gate-pr` if build was dropped).
+3. Record `phase:` = first active execution phase (`build`, or `validate` / the delivery gate — `gate-deliver` for direct, `gate-pr` for pr — if build was dropped).
 
 (The design workflow does not reach this gate — it ends at [gate-design](#gate-gate-design). Reshaping a feature to "this is a design task" here switches it to the design workflow and routes it through the design phase. Reshaping to "this is a manual task" switches it to the **manual** workflow and routes it to [gate-manual](#gate-gate-manual) — no branch is created.)
 
@@ -397,25 +430,59 @@ Wait for the user's response.
 
 ---
 
+## The TDD micro-loop
+
+The four-step cycle that turns one unit of intent into committed, verified code. **run uses it in exactly two places** — once per **task** in the build phase, and once per **blocker** at gate-review — and it is identical in both. Only the **seed** differs:
+
+| Caller | `$SEED` | `test-writer` mode | `coder` mode |
+|---|---|---|---|
+| build phase (per task) | the task's scenarios in `test-plan.md` | `unit` | `implement` |
+| gate-review (per blocker) | the review finding | `regression` | `fix` |
+
+Defining it once is deliberate: the two callers must never drift apart, because a blocker fix that skipped the red check would be exactly as untrustworthy as a task that did.
+
+**1 · Write the test.** Invoke **`test-writer`** with `$SEED`, the mode from the table, `$WORK_DIR`, `$NOW`, and the `design.md` path **if a design phase ran** (so tests assert the approved interfaces). It writes failing tests; it does **not** run them.
+
+> **Narrow-interface round-trip.** A test that can only be written with an unsafe cast, a type assertion, or a poke at a private field is not a test problem — it is the **production interface** telling you it is too narrow to be used the way the behaviour requires, and the test is simply the first caller to find out. Forcing the cast buries that signal in the suite and ships the narrow interface. So the test-writer stops instead, returning `BLOCKED: narrow-interface` with the symbol, what the test needs, and the minimal widening. On that signal run **does not count a coder attempt** (nothing has failed): invoke the **`coder`** (`mode: fix`) with the widening as its task, then re-invoke the test-writer to write the test cleanly against the real API. Mechanical enough that **auto-mode resolves it without stopping** — log it to Zone 2 so the interface change is visible at review.
+
+**2 · Verify red.** Invoke **`test-runner`** (`mode: red`) with the test files just written, `$LOG_DIR`, and `$NOW`. **Nobody else in this pipeline ever sees the failing state** — the test-writer is forbidden from running tests, and the coder arrives next with the sole job of turning them green. Without this step "the test failed first" is an assumption, and an unverified assumption is how a test that proves nothing gets into the suite and is trusted forever after.
+
+| Verdict | Meaning | Action |
+|---|---|---|
+| **`RED`** | failed on a real assertion | the test is meaningful → continue to step 3 |
+| **`RED-SETUP`** | failed on a broken import / syntax / fixture | **not** a meaningful test — it would go green the moment the setup is fixed, having tested nothing → back to `test-writer` with the error |
+| **`GREEN`** | passed against code that doesn't exist yet (or, for a blocker, against the bug) | **vacuous** — it asserts nothing that depends on the behaviour. For a blocker this is a *real signal*: we have not understood the bug, and patching on top of that misunderstanding is how a "fixed" bug ships → back to `test-writer` |
+
+**3 · Code.** Invoke **`coder`** with `$SEED`, the mode from the table, `plan.md` (when it exists), `context.md`, the `design.md` path **if a design phase ran**, `$NOW`, `$LOG_DIR`, the profile checks it should run (the `build`/`unit-test`/`typecheck`/`lint` commands the profile actually has), `$ABSENT`, and **`$ACCEPTED`** (the baseline's test ids — see S3; without it the coder cannot reach green in any project that has baselined a failure). It makes the failing tests pass and commits **only when all provided checks pass**. Building to the approved design directly is what makes the reviewer's conformance check pass by construction.
+
+> **Missing-command round-trip.** The coder runs only the commands it is given and never guesses. If it needs a check the profile doesn't provide (e.g. there's no `typecheck` command but the code is typed), it returns `RESULT: blocked` with a `MISSING: <check>` line instead of committing. On that signal, run does not count an attempt — it asks the user:
+>
+> > The coder needs a **[check]** command, which isn't in the profile. What command runs it? (or `none` if this project has no [check]):
+>
+> Write the answer back to `.context/devloop-profile.md` (see [Profile write-back](#profile-write-back)) — or record `none` so it isn't asked again — then re-invoke the coder with the updated check set **and the `$ABSENT` list** (checks the user marked `none`), so it proceeds without re-flagging them. In **auto-mode** there is no one to ask: proceed with that check **absent for this run** and log it.
+
+**4 · Verify green — the verdict.** Invoke **`test-runner`** (`mode: unit`) with the test files, the full-suite command, the baseline path, `$LOG_DIR`, and `$NOW`. It returns three buckets — **new / accepted / pre-existing** — plus the `LOG:` path of its captured output. Handle them per [Known-failing baseline](#known-failing-baseline). `new` failures block.
+
+The coder already ran the suite, so this is usually green — that is expected, and it is not the point. This run does two things the coder's cannot: **classify** failures against the baseline (the coder sees only an exit code; "green" here means *no new failures*, not zero), and **independently verify** a result reported by the one agent that both wrote the code and wanted it to pass. The coder's green is provisional; the test-runner's is the verdict. Believe the test-runner.
+
+### Bounds — every loop in this cycle is capped
+
+Four different signals can send the micro-loop round again. They are **not** interchangeable: two are round-trips (nothing failed; a missing input is being supplied) and two are failures (something can't be made to work). All four are bounded — an uncapped retry is a hang, and in auto-mode there is no human to notice it.
+
+| Signal | Kind | Counts as a coder attempt? | Cap | On exhaustion |
+|---|---|---|---|---|
+| `BLOCKED: narrow-interface` (step 1) | round-trip | no | **2** | escalate (human) / stop-the-line (auto) — a second widening that still doesn't yield a clean test means the design is wrong, not the interface |
+| `MISSING: <check>` (step 3) | round-trip | no | **2** | proceed with the check absent for this run, and log it |
+| `RED-SETUP` / `GREEN` (step 2) | failure | no | **2** | escalate / stop-the-line — something is wrong with the scenario or our understanding of the bug, and grinding further won't find it |
+| `BLOCKED:` — tests won't pass (step 3) | failure | **yes** | **3** | escalate / stop-the-line (see the build phase) |
+
+---
+
 ## Phase: build
 
-**Active in:** feature, bugfix. The TDD loop, repeated per task in `plan.md`. `task_index` is the 0-based position.
+**Active in:** feature, bugfix. [The TDD micro-loop](#the-tdd-micro-loop), repeated per task in `plan.md`. `task_index` is the 0-based position.
 
-For the task at `task_index`:
-
-1. **Write tests.** Invoke **`test-writer`** with the `test-plan.md` path, the current task, and the `design.md` path **if a design phase ran** (so the tests assert the approved interfaces). It writes the specified failing unit tests. It does not run them.
-
-2. **Code.** Invoke **`coder`** with the task, `plan.md`, `context.md`, the `design.md` path **if a design phase ran**, `$NOW`, and the profile checks it should run (the `build`/`unit-test`/`typecheck`/`lint` commands the profile actually has). It makes the failing tests pass and commits **only when all provided checks pass**. Building to the approved design directly is what makes the reviewer's conformance check pass by construction.
-
-   **Missing-command round-trip.** The coder runs only the commands it is given and never guesses. If it needs a check the profile doesn't provide (e.g. there's no `typecheck` command but the code is typed), it returns `RESULT: blocked` with a `MISSING: <check>` line instead of committing. On that signal, run does not count an attempt — it asks the user:
-
-   > The coder needs a **[check]** command, which isn't in the profile. What command runs it? (or `none` if this project has no [check]):
-
-   Write the answer back to `.context/devloop-profile.md` (see [Profile write-back](#profile-write-back)) — or record `none` so it isn't asked again — then re-invoke the coder with the updated check set **and the `$ABSENT` list** (checks the user marked `none`), so the coder proceeds without re-flagging them. This is distinct from the 3-attempt escalation below, which is for tests that won't pass.
-
-3. **Run tests.** Invoke **`test-runner`** (unit mode) with the test file, the full-suite command, and the baseline path. It returns three buckets — **new / accepted / pre-existing**. Handle them per [Known-failing baseline](#known-failing-baseline). `new` failures block; resolve before continuing.
-
-4. Mark the task `[x]`, increment `task_index`, append a log line.
+For the task at `task_index`: run the micro-loop with `$SEED` = the task (test-writer `unit`, coder `implement`). Then mark the task `[x]`, increment `task_index`, and append a log line.
 
 **Escalation.** If `coder` cannot make the tests pass after **3 attempts** on the same task, stop the loop:
 
@@ -451,6 +518,8 @@ Record `phase: review`. Continue.
 
 2. **Critique** (`phase_step: critiqued`). Invoke **`reviewer`** again as a **fresh instance** in `mode: critique`, passing the findings from pass 1. Because it shares no memory with pass 1, it is an independent second opinion: for each finding it returns `uphold` or `drop` with one-line reasoning. run does this reasoning *nowhere itself* — it just collects the two structured returns.
 
+   It may also return **`NEW`** findings — bugs pass 1 missed. This channel is restricted at the agent to **blocker-class correctness only** (never simplicity, style, or nits; see the agent's contract for why an unrestricted channel would never converge). The fresh instance is the only second look this diff gets before it merges, and it would be perverse to have it spot a real bug with nowhere to put it — so `new` findings are treated exactly like upheld blockers from here on.
+
 3. **gate-review** (`phase_step: gated`). Merge the two passes and present grouped:
 
    > **Review — #[ISSUE]**
@@ -458,18 +527,27 @@ Record `phase: review`. Continue.
    > **Upheld ([n])** — both passes agree; will be addressed
    > - [blocker|refactor] [file:line] [finding]
    >
+   > **New from critique ([n])** ⚠ — the second pass caught these; pass 1 missed them
+   > - [blocker] [file:line] [finding]
+   >
    > **Dropped ([n])** — critique judged these not worth acting on: [reasoning]
    > **Disputed ([n])** ⚠ — review flagged, critique disagreed (or vice-versa); your call
    >
    > Override any verdict, or confirm to proceed:
 
-   "Disputed" = the two passes disagree; surface these for the user, who has final say on everything.
+   "Disputed" = the two passes disagree; surface these for the user, who has final say on everything. Omit any bucket with no findings.
 
-4. **Apply.** Confirmed **blocker** findings trigger another build pass — **the `coder` agent in `fix` mode (no new tests written)** plus `test-runner` to verify. Confirmed **refactor** findings are offered to the user; each accepted one is likewise applied by the **`coder` in `fix` mode** and verified by `test-runner` (unit). There is no separate refactor agent — refactoring is the coder's job. If any refactor was applied and e2e is active, re-run `test-runner` (full) to catch regressions.
+4. **Apply.** There is no separate refactor agent — fixing is the coder's job in `fix` mode. But the two classes of finding are applied differently, because they mean different things:
 
-**Auto-mode.** No panel. Resolve each finding by verdict and log every call: **upheld** (both passes agree) blockers and refactors are applied; **disputed** (the passes disagree) blockers are applied (safe = fix the possible bug), disputed refactors are skipped (safe = don't churn working code); **dropped** findings are left. Apply exactly as in step 4 (coder `fix` mode + `test-runner` verify; if a refactor was applied and e2e is active, re-run `test-runner` full). If a fix can't be made to pass, that routes through the build-phase 3-attempt escalation → **stop-the-line**. The Zone 2 entry below records each per-finding decision and its reasoning, attributed to `run (auto)`.
+   **Blockers** (upheld, new-from-critique, or disputed-and-confirmed) **ship with a regression test.** A blocker is by definition a bug the **entire suite already ran over and did not catch** — that is why a reviewer had to find it by reading code. So re-running that same suite after a bare patch proves nothing: it was green before the fix and it will be green after, whether or not the fix works. So each blocker goes through [the TDD micro-loop](#the-tdd-micro-loop) with `$SEED` = the finding (test-writer `regression`, coder `fix`) — same four steps and same bounds as a build task. Now the fix is proven to work, and the bug cannot come back unnoticed.
 
-Append a Zone 2 entry (`$NOW`) recording the gate outcome — which findings the user (or, in auto-mode, run) upheld, dropped, or overrode — so validation sees the decision.
+   **Not every blocker can be pinned by a test** — a divergence from the approved design, a bug whose trigger depends on timing you cannot force deterministically, a finding about code with no observable behaviour. The test-writer returns `NOT-REPRODUCIBLE: [why]` rather than faking a test that passes for the wrong reason (which would be worse than none, because it would be trusted). Skip steps 1–2, apply the fix, and **record the reason in Zone 2** — a blocker shipping untested is exactly what a human should see at review.
+
+   **Refactors** change no behaviour, so they get **no new test** — they skip steps 1–2 of the micro-loop entirely: `coder` (`mode: fix`) applies each accepted one, `test-runner` (`unit`) verifies nothing broke. In human mode each is offered to the user first. If any refactor was applied and e2e is active, re-run `test-runner` (`full`) to catch regressions.
+
+**Auto-mode.** No panel. Resolve each finding by verdict and log every call: **upheld** (both passes agree) blockers and refactors are applied; **new from critique** are applied (they are blocker-class by construction); **disputed** (the passes disagree) blockers are applied (safe = fix the possible bug), disputed refactors are skipped (safe = don't churn working code); **dropped** findings are left. Apply exactly as in step 4 — blockers through the mini-TDD loop (regression test first, red-verified), refactors bare. If a fix can't be made to pass, or a regression test can't be made to go red in two tries, that routes through the build-phase escalation → **stop-the-line**. The Zone 2 entry below records each per-finding decision and its reasoning, attributed to `run (auto)`, including any blocker that shipped `NOT-REPRODUCIBLE` and why.
+
+Append a Zone 2 entry (`$NOW`) recording the gate outcome — which findings the user (or, in auto-mode, run) upheld, dropped, or overrode — so validation sees the decision. Set **`Caught by:`** per applied finding (`reviewer` for pass 1, `critique` for one pass 1 missed), and cite the regression tests written and the `test-runner` logs under **Artifacts**. This is what lets `/devloop:review` later tell a human *how* a bug was found rather than guessing — and, across issues, which gates are earning their keep.
 
 Record `phase: validate`. Continue.
 
@@ -500,23 +578,47 @@ If any AC or required DoD item is unmet:
 
 **Block with override** — proceed only on explicit `y`. On `n`, return to the relevant phase (build for a failed behavior, e2e for a failed flow). Re-entering an earlier phase re-runs the phases after it that are affected by the change (e.g. a build fix re-runs review and validate); unaffected completed phases are not redone.
 
-**Auto-mode.** Automated ACs are marked satisfied as usual. For each **manual** AC, best-effort to remove the human dependency: invoke `test-writer` + `test-runner` to write a test that exercises the behavior. If it passes, the AC is genuinely verified. If the new test *fails* (the behavior is actually broken), that is a `new` failure → handle per the baseline (coder fix; unfixable → **stop-the-line**). If the behavior can't be meaningfully automated, mark the AC **unverified**, log it, and carry it into the PR body as a `needs manual verification` checklist item — never waive it silently. Auto-mode does **not** stop at gate-validation; unverifiable ACs travel to the PR as flags for the human to confirm during review.
+**Auto-mode.** Automated ACs are marked satisfied as usual. For each **manual** AC, best-effort to remove the human dependency: invoke `test-writer` + `test-runner` to write a test that exercises the behavior. If it passes, the AC is genuinely verified. If the new test *fails* (the behavior is actually broken), that is a `new` failure → handle per the baseline (coder fix; unfixable → **stop-the-line**). If the behavior can't be meaningfully automated, mark the AC **unverified**, log it, and carry it forward as a `needs manual verification` flag — into the PR body when `delivery: pr`, or (direct) recorded in Zone 2 for the human to confirm in the outer-loop review — never waive it silently. Auto-mode does **not** stop at gate-validation; unverifiable ACs travel forward as flags for the human to confirm during review.
 
-Append a Zone 2 entry (`$NOW`) recording the validation outcome — which criteria were confirmed (and how — auto-test vs already test-backed), which the user waived on override, and (auto-mode) which were left `needs manual verification` for the PR.
+Append a Zone 2 entry (`$NOW`) recording the validation outcome — which criteria were confirmed (and how — auto-test vs already test-backed), which the user waived on override, and (auto-mode) which were left `needs manual verification`.
 
-Record `phase: gate-pr`. Continue.
+Record `phase:` = the delivery gate (`gate-deliver` if `delivery: direct`, `gate-pr` if `delivery: pr`). Continue.
+
+---
+
+## Gate: gate-deliver
+
+**Active in:** feature, bugfix when `delivery: direct`. *(Human gate.)* The delivery gate for a **local merge** — no PR is created.
+
+Resumable like every gate: before presenting, write the payload (the summary + validation checklist) to the state file's `## Pending gate` block, so a resumed session re-presents it without re-deriving.
+
+Present:
+
+> **Ready to merge — #[ISSUE]: [title]**
+> [branch] → [base]  ·  direct merge, no PR
+>
+> [one-paragraph summary from `plan.md`]
+> [validation checklist — incl. any `needs manual verification` items]
+>
+> Merge to [base] now? (y / edit / open a PR instead)
+
+- **y** → record `phase: merge` and continue to the [merge phase](#phase-merge) (direct variant).
+- **edit** → adjust the summary / merge-commit message, re-present.
+- **open a PR instead** → switch to `delivery: pr` (update the state file), record `phase: gate-pr`, and continue there. The escape hatch when a change turns out to want a PR after all.
+
+**Auto-mode.** No panel. A direct auto run merges within the run — this is its authorized endpoint. Append a Zone 2 entry, record `phase: merge`, and continue straight to the [merge phase](#phase-merge).
 
 ---
 
 ## Gate: gate-pr
 
-**Active in:** feature, bugfix. *(Human gate.)*
+**Active in:** feature, bugfix when `delivery: pr`. *(Human gate in human mode.)*
 
 Push the branch. Create the PR via GitHub MCP:
 - Title: the issue title.
-- Body: `Closes #[ISSUE]`, a one-paragraph summary from `plan.md`, and the validation checklist.
+- Body: `Closes #[ISSUE]`, a one-paragraph summary from `plan.md`, and the validation checklist (incl. any `needs manual verification` items).
 
-Present:
+Present (human mode):
 
 > **PR ready — #[ISSUE]**
 > [branch] → [base]
@@ -526,15 +628,15 @@ Present:
 >
 > Approve to open the PR for review? (y / edit)
 
-On approval, record `pr:` = the PR number and `phase: pending-review`. Continue.
+On approval, record `pr:` = the PR number and `phase: pending-review`. Continue. In **human + pr** mode the run **halts** at pending-review so the human can review the PR (`pr-review` / `pr-fix`) before merging.
 
-**Auto-mode.** Build the body (include any `needs manual verification` items from validation) and open the PR without the approval prompt — this is the authorized endpoint of an auto run. Record `pr:` and `phase: pending-review`, append a Zone 2 entry, and continue to pending-review. Auto-mode stops here: it does **not** fall through to merge — **unless** `autonomy: auto+merge`, in which case record `phase: merge` instead and continue straight to the [merge phase](#phase-merge) (the flag is the standing merge authorization).
+**Auto-mode.** Build the body and open the PR without the approval prompt. An **auto + pr** run does **not** halt — record `pr:`, append a Zone 2 entry, record `phase: merge`, and continue to the [merge phase](#phase-merge), which merges the PR through (required checks / branch protection gate the merge if configured). `--auto` is the authorization to merge.
 
 ---
 
 ## Phase: pending-review
 
-**Active in:** feature, bugfix. The hand-off point.
+**Active in:** feature, bugfix when `delivery: pr` and `autonomy: human` — the only cell that halts before merge. The hand-off point.
 
 Record `phase: pending-review` and `pr:`. **Delete the lock** — run is no longer active; the PR is in human/CI hands. Exit cleanly:
 
@@ -551,7 +653,18 @@ Stop.
 
 ## Phase: merge
 
-**Active in:** feature, bugfix. Reached on resume when `phase: pending-review` (or directly from Startup S4 when the PR is already merged / issue closed).
+**Active in:** feature, bugfix. Reached from `gate-deliver` (direct), from `gate-pr` / `pending-review` (pr), or directly from Startup S4 when the issue is already closed. Branches on `$DELIVERY`.
+
+### delivery: direct
+
+No PR. Land the branch locally:
+1. Rebase the branch on `$base` if behind. A conflict → surface it and stop (ask the user to resolve manually or `/devloop:abort`).
+2. Merge the branch into `$base` locally (git **squash** by default, so the issue lands as one commit), with `Closes #[ISSUE]` in the commit message. Push `$base`. Delete the feature branch.
+3. Run [Issue-complete cleanup](#issue-complete-cleanup): pushing `Closes #[ISSUE]` to the default branch auto-closes the issue — verify it closed; if `$base` is **not** the default branch (no auto-close), close it explicitly per the no-PR variant.
+
+✅ report: `✅ #[ISSUE] done — merged to [base], issue closed, sprint file updated.`
+
+### delivery: pr
 
 Re-check the PR state via GitHub MCP. **"Approved"** means a formal GitHub approval **or** the `status:reviewed` label is present with no open `REQUEST_CHANGES` review — the label is how a solo developer's `pr-review` signs off, since GitHub forbids approving your own PR.
 
@@ -565,23 +678,23 @@ Re-check the PR state via GitHub MCP. **"Approved"** means a formal GitHub appro
 
 > Merge #[pr] by **squash / rebase / merge commit**?
 
-(Plain **auto** reaches merge only on an explicit resume of an already-approved PR — a fresh auto run stops at pending-review, and the table above still bars merging an unapproved PR. **auto+merge** reaches merge directly from gate-pr, and for it the "not approved" row does not bar the merge — the `--merge` flag *is* the standing approval; rebase-if-behind and the conflict rule still apply. In either auto mode, when several merge methods are enabled pick **squash** if available, else the first allowed method, and log the choice instead of asking.)
+(**auto + pr** reaches merge directly from gate-pr; for it the "not approved" row does not bar the merge — `--auto` *is* the standing approval — but required checks / branch protection still gate it, and rebase-if-behind and the conflict rule still apply. In auto mode, when several merge methods are enabled pick **squash** if available, else the first allowed method, and log the choice instead of asking.)
 
 If a rebase hits a conflict, surface it and stop — ask the user to resolve manually or `/devloop:abort`.
+
+✅ report: `✅ #[ISSUE] done — PR #[pr] merged, issue closed, sprint file updated.`
 
 ### Issue-complete cleanup
 
 The terminal cleanup every workflow ends with — referenced by the design terminal, gate-manual, and scaffold so the steps stay identical:
 
-1. **No-PR variant only** (design, manual, scaffold — workflows that produced no PR): **offer to close the GitHub issue** first, since no merged PR auto-closes it (`Close #[ISSUE] on GitHub? (y/n)`; on **y**, close via GitHub MCP with a comment noting how it was completed). The **merge** path skips this — the PR already closed the issue via its `Closes #` keyword.
+1. **Close the GitHub issue as appropriate:**
+   - **PR merge, or a direct merge to the default branch** — the `Closes #[ISSUE]` keyword already closed it. Verify; nothing to do.
+   - **No-PR variant** (design, manual, scaffold — workflows that produced no PR) **or a direct merge to a non-default base** (no auto-close): **offer to close the issue** (`Close #[ISSUE] on GitHub? (y/n)`; on **y**, close via GitHub MCP with a comment noting how it was completed).
 2. Tick the issue's checkbox `[x]` in `$SPRINT_FILE`.
 3. **Archive the state file, then release the lock.** Move `.context/sprints/state/issue-N.md` → `.context/sprints/work/issue-N/run-state-final.md` (this preserves its `## Log` — the script-timestamped run history — plus the confirmed plan and tasks, for post-mortem reference), then delete `.context/sprints/state/.lock`. Do **not** leave `issue-N.md` in `state/`: a completed issue's file lingering there would read as *in-progress* to a future `run` (Startup S4).
 4. Leave `work/issue-N/` in place (useful for reference) — it now also holds `run-state-final.md`.
-5. Print the terminal's one-line ✅ report (each terminal supplies its own wording), then ask **"Move to the next issue? (y/n)"** — on **y**, return to **Startup S4** as the no-arg case (pick the next unchecked issue); on **n**, exit cleanly. **Auto modes skip this prompt** and exit cleanly after the report — one invocation handles one issue; sprint-level sequencing belongs to `/devloop:sprint`, not to run.
-
-For the **merge** path, the ✅ report is:
-
-> ✅ #[ISSUE] done — PR #[pr] merged, issue closed, sprint file updated.
+5. Print the terminal's one-line ✅ report (each terminal supplies its own wording — the delivery variants above supply the merge-path wording), then ask **"Move to the next issue? (y/n)"** — on **y**, return to **Startup S4** as the no-arg case (pick the next unchecked issue); on **n**, exit cleanly. **Auto mode skips this prompt** and exits cleanly after the report — one invocation handles one issue; sprint-level sequencing belongs to `/devloop:sprint`, not to run.
 
 ---
 
@@ -658,8 +771,13 @@ Write only the confirmed fields; never overwrite an existing non-empty field wit
 
 - **Agent returns `ERROR:`** — surface the message; offer **retry** / **skip** (where safe) / **abort**.
 - **Coder stuck after 3 attempts** — escalate per the build phase.
+- **`test-writer` returns `BLOCKED: narrow-interface`** — not a failure and **not a coder attempt**: the production interface is too narrow to test cleanly. Send the `coder` (`mode: fix`) to widen it, re-invoke the test-writer. Auto-mode resolves this itself. **Capped at 2** — a second widening that still doesn't yield a clean test means the *design* is wrong, not the interface; escalate / stop-the-line rather than widening forever.
+- **`test-runner` (`red`) returns `RED-SETUP` or `GREEN`** — the test isn't meaningful (it fails for the wrong reason, or it's vacuous). Back to the `test-writer`, **capped at 2**; a third failure escalates (human) / stops-the-line (auto). Never hand a coder a test that hasn't been seen to fail properly.
+- **`test-writer` returns `NOT-REPRODUCIBLE`** on a blocker's regression test — accept it, apply the fix without a test, and record the reason in Zone 2. Do not accept a faked test in its place.
+
+  *(All four retry paths in the micro-loop are capped — see [Bounds](#bounds--every-loop-in-this-cycle-is-capped). An uncapped retry is a hang, and auto-mode has no human to notice one.)*
 - **New test failures** — block per the baseline section.
 - **Rebase/merge conflict** — surface, stop, ask the user to resolve or `/devloop:abort`.
 - **GitHub MCP failure** — report; retry once on the user's go-ahead, otherwise note it and continue where the step is non-critical (e.g. an optional label), or exit where it is critical (PR creation, merge).
 - **Crash mid-run** — leaves the lock and state file. The next invocation's stale-PID check clears the lock; the recorded `phase` resumes the work.
-- **Auto-mode blocker** — where human-mode would escalate to the user (coder stuck after 3 attempts, unfixable `new` failures, a design still `needs-work` after one iteration, a rebase/merge conflict, an agent `ERROR:`, a manual-workflow issue), auto-mode does not ask: it appends the blocker to Zone 2 + `## Log`, releases the lock, and **exits** with the issue left in-progress. A later `run [ISSUE]` (auto or human) resumes from the recorded phase. See [Autonomy](#autonomy--human-in-the-loop-vs-human-on-the-loop) for the full boundary list.
+- **Auto-mode blocker** — where human-mode would escalate to the user (coder stuck after 3 attempts, unfixable `new` failures, a design still `needs-work` after one iteration, a rebase/merge conflict, an agent `ERROR:`, a manual-workflow issue), auto-mode does not ask: it appends the blocker to Zone 2 + `## Log`, releases the lock, and **exits** with the issue left in-progress. A later `run [ISSUE]` (auto or human) resumes from the recorded phase. See [Autonomy](#autonomy-and-delivery) for the full boundary list.
