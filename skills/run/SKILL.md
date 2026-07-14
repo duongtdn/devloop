@@ -106,7 +106,7 @@ Agents are not limited to the standard files — a step may create its own suppl
 
 ### Detection provenance — `Caught by:` and the log trail
 
-**Record how each defect was found, not just that it was fixed.** Any Zone 2 entry that records a defect carries a **`Caught by:`** field naming the gate that detected it: `test-red` · `typecheck` · `lint` · `reviewer` · `critique` · `validation` · `spike` · `human`. Without it the history is unreconstructable — `/devloop:review` cannot tell a human whether a bug was caught by a failing test or by someone reading the code, and neither can you tell, across many issues, **which gates are actually load-bearing and which never fire**. That is the only way to find out that (say) the test suite has never once caught a real bug while the critique catches most of them.
+**Record how each defect was found, not just that it was fixed.** Any Zone 2 entry that records a defect carries a **`Caught by:`** field naming the gate that detected it: `test-red` · `typecheck` · `lint` · `reviewer` · `critique` · `validation` · `spike` · `demo` · `human`. (`demo` and `human` are written by `/devloop:review` in the outer loop, not by run — `demo` when running the change through the real entry point surfaces a defect every inner-loop gate passed.) Without it the history is unreconstructable — `/devloop:review` cannot tell a human whether a bug was caught by a failing test or by someone reading the code, and neither can you tell, across many issues, **which gates are actually load-bearing and which never fire**. That is the only way to find out that (say) the test suite has never once caught a real bug while the critique catches most of them.
 
 **Evidence goes in a log file, not in Zone 2.** Zone 2 is loaded by every downstream agent — the planner, the coder, the reviewer all read `context.md`. Paste a stack trace into it and every future agent on this issue pays that context cost to serve one reader who shows up at the end. So split it:
 
@@ -145,6 +145,8 @@ task_index: -        # build-loop position, 0-based; '-' otherwise
 branch: <branch>     # '-' until created
 base: <base branch>
 pr: -                # set once PR created
+merge-commit: -      # the squash/merge SHA on $base; set at merge
+history-ref: -       # refs/devloop/issue-N — the branch as built, archived at merge (local only)
 
 ## Plan (confirmed at gate-plan)
 phases: context, [design,] plan, build, e2e, review, validate, <gate-deliver | gate-pr>, merge
@@ -659,8 +661,9 @@ Stop.
 
 No PR. Land the branch locally:
 1. Rebase the branch on `$base` if behind. A conflict → surface it and stop (ask the user to resolve manually or `/devloop:abort`).
-2. Merge the branch into `$base` locally (git **squash** by default, so the issue lands as one commit), with `Closes #[ISSUE]` in the commit message. Push `$base`. Delete the feature branch.
-3. Run [Issue-complete cleanup](#issue-complete-cleanup): pushing `Closes #[ISSUE]` to the default branch auto-closes the issue — verify it closed; if `$base` is **not** the default branch (no auto-close), close it explicitly per the no-PR variant.
+2. Merge the branch into `$base` locally (git **squash** by default, so the issue lands as one commit), with `Closes #[ISSUE]` in the commit message. Push `$base`.
+3. Run [Preserve the history](#preserve-the-history) — **before** the branch is gone. Then delete the feature branch.
+4. Run [Issue-complete cleanup](#issue-complete-cleanup): pushing `Closes #[ISSUE]` to the default branch auto-closes the issue — verify it closed; if `$base` is **not** the default branch (no auto-close), close it explicitly per the no-PR variant.
 
 ✅ report: `✅ #[ISSUE] done — merged to [base], issue closed, sprint file updated.`
 
@@ -682,7 +685,36 @@ Re-check the PR state via GitHub MCP. **"Approved"** means a formal GitHub appro
 
 If a rebase hits a conflict, surface it and stop — ask the user to resolve manually or `/devloop:abort`.
 
+Once merged, run [Preserve the history](#preserve-the-history). The merge SHA comes back from the merge call; the local feature branch still holds the per-task commits even after GitHub deletes the remote head, so archive from it.
+
 ✅ report: `✅ #[ISSUE] done — PR #[pr] merged, issue closed, sprint file updated.`
+
+### Preserve the history
+
+A squash lands the issue as **one** commit on `$base`, and the feature branch's commits — one per plan task, the record of *how the issue was actually built* — become unreachable the moment the branch goes. The `coder` already cites its per-task SHAs in Zone 2 (`implemented [task] → [sha]`); without this step those citations dangle, and `/devloop:review` has nothing to resolve them against.
+
+Two records, both cheap, and the first must happen **while the branch still exists**:
+
+1. **Archive the branch.** Point a ref at its tip so the objects stay reachable through `gc`:
+
+   ```
+   git update-ref refs/devloop/issue-[ISSUE] <branch-tip-sha>
+   ```
+
+   A custom ref namespace — not a branch, not a tag: it keeps the commits alive without showing up in `git branch` or `git tag -l`. **Local only; do not push it.** `review` runs on the machine that ran the sprint (it reads `.context/`), so local reachability is exactly what it needs, and `git log $base..refs/devloop/issue-[ISSUE]` replays the build task by task for as long as the clone lives.
+
+2. **Record both refs** in the state file (they ride along to `run-state-final.md` at cleanup, which is what `review` reads) and in a Zone 2 entry:
+
+   ```
+   merge-commit: <sha on $base>
+   history-ref:  refs/devloop/issue-[ISSUE]
+   ```
+
+   The merge SHA is what lets `review` anchor the task's diff **exactly** (`git show <sha>`) instead of grepping `$base` for `Closes #[ISSUE]` — a substring match that finds `#4` inside `#42`.
+
+If `update-ref` fails, log it and continue: the merge is done, the merge SHA is the load-bearing record, and the archive is a bonus. Write `history-ref: -` so `review` knows there is nothing to look for.
+
+(Scaffold commits straight to `$base` and has no branch to archive — record its commit range as `merge-commit:` and leave `history-ref: -`. Design and manual workflows produce no commits at all.)
 
 ### Issue-complete cleanup
 
