@@ -73,10 +73,11 @@ Only the **human + pr** cell halts for review before merge; every other cell mer
 - a test that cannot be made to fail meaningfully after two bounces off the `red` check (a build-loop test or a blocker's regression test) — a test nobody has ever seen fail is not evidence, and auto-mode must not manufacture a confidence a human would have withheld;
 - a clean test still unreachable after two `narrow-interface` widenings — at that point the interface isn't the problem, the design is;
 - a design critique still `needs-work` after one iteration;
+- an AC with **no production call path** that one scoped wiring task could not close (see [validate](#reachability-a-green-test-is-not-a-satisfied-ac)) — wiring it would mean picking an entry point or a design intent the run isn't entitled to choose;
 - a rebase/merge conflict, or an agent returns `ERROR:`;
 - a **manual-workflow** issue (`gate-manual`) — the work is outside the repo; no reasoning substitutes for it.
 
-A manual *acceptance criterion* (at gate-validation) is **not** a hard stop: auto-mode tries to automate it, and if it can't, flags it in the PR for the human to verify (see gate-validation).
+A manual *acceptance criterion* (at gate-validation) is **not** a hard stop: auto-mode tries to automate it, and if it can't, flags it in the PR for the human to verify (see gate-validation). An **unreachable** AC is a different animal and *is* a stop if it can't be wired: the flag says "a human must check this", while the empty trace says "this does not work" — carrying the latter forward as a flag is how it merges with a tick beside it.
 
 ---
 
@@ -557,32 +558,56 @@ Record `phase: validate`. Continue.
 
 ## Phase: validate
 
-**Active in:** feature, bugfix. *(Human gate: gate-validation, only if manual ACs exist.)*
+**Active in:** feature, bugfix. *(Human gate: gate-validation, if manual ACs exist — or if any AC failed its reachability trace, which is an unmet AC and always gets a human in human mode.)*
 
 Cross-check the issue's acceptance criteria and Definition of Done against what was delivered. `phase_step`: `auto-checked` → `gated`.
 
-- **Automated ACs / DoD** (test-backed): mark satisfied from the latest `test-runner` results and the completed review. "PR merged to main" cannot be checked yet — leave it.
+- **Automated ACs / DoD** (test-backed): an AC is satisfied when a passing test covers it **and** the behavior it asserts is **reachable from a production entry point**. Both halves are required — see [Reachability](#reachability-a-green-test-is-not-a-satisfied-ac) below. "PR merged to main" cannot be checked yet — leave it.
 - **Manual ACs** (user-visible behavior with no test): present at **gate-validation**:
 
   > **Validate — #[ISSUE]**
   >
-  > Verified automatically:
-  > - [x] [criterion] (unit) · [x] [criterion] (e2e) · [x] Code reviewed
+  > Verified automatically (test + reachable):
+  > - [x] [criterion] (unit) — reached via `[traced path]`
+  > - [x] [criterion] (e2e) — reached via `[traced path]`
+  > - [x] Code reviewed
+  >
+  > [⚠ Green but unreachable — no production call path:]        ← only if a trace came up empty
+  > [- [ ] [criterion] — `[symbol]` is called only by its own test]
   >
   > Please verify manually:
   > - [ ] [criterion — e.g. "error toast appears on wrong password"]
   >
   > Confirm each is met (y / list the ones that fail):
 
-If any AC or required DoD item is unmet:
+### Reachability: a green test is not a satisfied AC
+
+**"A test covering this AC passes" and "the system does this" are different claims, and this phase is the only gate positioned to notice the difference.** A unit test verifies a symbol against *its own contract*; it is structurally incapable of noticing the symbol has no callers. Typecheck and lint accept an exported symbol nobody imports. The `reviewer` sees a module and its tests land together, freshly written and green, and it *looks complete*. Nothing in the diff announces "and nothing calls this." So the artifact ships — implemented, tested, documented, green, and **unreachable** (`docs/field-reports/2026-07-13-green-but-unreachable.md`: a tier resolver whose guardrail was tested, passing, and bypassed by the real adapter; every request billed straight past it).
+
+So for **each automated AC**, do not ask *"is this test-backed?"* — ask **"what production call path exercises this?"** and answer it concretely:
+
+1. Identify the symbol(s) the AC rests on (the function, guard, validator, schema, route, or resolver the tests assert against).
+2. `grep -rn <symbol>` across production sources — the **non-test** tree.
+3. **Name the path**, composition root inward: `AC1 → src/index.ts → createGateway() → llm/complete.ts:41 → resolveTier()`. A path must terminate at a real entry point (CLI command, HTTP route, exported package API, scheduled job, composition root) — not at another untested, uncalled module.
+
+Two failure shapes, both **unmet ACs**:
+
+- **Nothing calls it.** The symbol's only references are its own definition and its own test file. The AC is satisfied *as a library function* and unsatisfied *as a behavior of the running system*.
+- **Something calls it, but nothing real feeds it.** The symbol is imported, but the only inputs it ever validates or resolves are objects the tests construct. Ask what feeds it in production and read *that* code — a schema green against hand-built fixtures can be incapable of accepting one real line from the actual producer.
+
+The cost is one grep per AC. **Never tick an AC because its test is green when this trace comes up empty** — that tick is precisely how a green, unreachable module sails into `main` with a checkmark beside it.
+
+If any AC or required DoD item is unmet — including any that **failed the reachability trace**:
 
 > [k] of [total] criteria are unverified: [list]. Create the PR anyway? (y/n)
 
-**Block with override** — proceed only on explicit `y`. On `n`, return to the relevant phase (build for a failed behavior, e2e for a failed flow). Re-entering an earlier phase re-runs the phases after it that are affected by the change (e.g. a build fix re-runs review and validate); unaffected completed phases are not redone.
+**Block with override** — proceed only on explicit `y`. On `n`, return to the relevant phase (build for a failed behavior or a missing production call path, e2e for a failed flow). Re-entering an earlier phase re-runs the phases after it that are affected by the change (e.g. a build fix re-runs review and validate); unaffected completed phases are not redone.
 
-**Auto-mode.** Automated ACs are marked satisfied as usual. For each **manual** AC, best-effort to remove the human dependency: invoke `test-writer` + `test-runner` to write a test that exercises the behavior. If it passes, the AC is genuinely verified. If the new test *fails* (the behavior is actually broken), that is a `new` failure → handle per the baseline (coder fix; unfixable → **stop-the-line**). If the behavior can't be meaningfully automated, mark the AC **unverified**, log it, and carry it forward as a `needs manual verification` flag — into the PR body when `delivery: pr`, or (direct) recorded in Zone 2 for the human to confirm in the outer-loop review — never waive it silently. Auto-mode does **not** stop at gate-validation; unverifiable ACs travel forward as flags for the human to confirm during review.
+**Auto-mode.** The **reachability trace runs exactly as above** — it is mechanical, it needs no human, and auto-mode is where it matters most, because nobody is looking at the diff before it merges. An AC whose trace comes up empty is **not** a flag to carry forward: unlike a manual AC that *can't* be automated, this is a **demonstrable defect with a known fix** — the code was never wired in. Route it back to **build** as one scoped wiring task (coder → test-runner → review, as any build fix). Attempt this **once per AC**; if the wiring can't be done without a decision the run isn't entitled to make (which entry point should call this, whether the design intended this path at all), **stop-the-line** — log the blocker with the empty trace and exit, exactly as anywhere else auto-mode would escalate.
 
-Append a Zone 2 entry (`$NOW`) recording the validation outcome — which criteria were confirmed (and how — auto-test vs already test-backed), which the user waived on override, and (auto-mode) which were left `needs manual verification`.
+For each **manual** AC, best-effort to remove the human dependency: invoke `test-writer` + `test-runner` to write a test that exercises the behavior. If it passes, the AC is genuinely verified — *and it still needs a reachability trace, for the same reason: a test the loop wrote itself is the loop vouching for the loop.* If the new test *fails* (the behavior is actually broken), that is a `new` failure → handle per the baseline (coder fix; unfixable → **stop-the-line**). If the behavior can't be meaningfully automated, mark the AC **unverified**, log it, and carry it forward as a `needs manual verification` flag — into the PR body when `delivery: pr`, or (direct) recorded in Zone 2 for the human to confirm in the outer-loop review — never waive it silently. Auto-mode does **not** stop at gate-validation; unverifiable ACs travel forward as flags for the human to confirm during review.
+
+Append a Zone 2 entry (`$NOW`) recording the validation outcome — which criteria were confirmed (and how — auto-test vs already test-backed), **the traced production call path for each automated AC** (verbatim, e.g. `AC1 → src/index.ts → createGateway() → llm/complete.ts:41 → resolveTier()`), which the user waived on override, and (auto-mode) which were left `needs manual verification`. A trace that came up empty is a defect found here: record it with **`Caught by: validation`**, and cite the grep under **Artifacts**. The traces are not bookkeeping — `/devloop:review` reads them at the outer loop, where today the human has to reconstruct them by hand, which is exactly how both field-report cases were found.
 
 Record `phase:` = the delivery gate (`gate-deliver` if `delivery: direct`, `gate-pr` if `delivery: pr`). Continue.
 

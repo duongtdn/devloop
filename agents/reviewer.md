@@ -49,9 +49,11 @@ Flag an **unsafe cast, type assertion, private-field poke, or re-declared produc
 
 Most dimensions ask *what is wrong with this code*. This one asks a different question: **what could be wrong here that running the tests would not reveal?**
 
-Some bugs are only wrong on *some* executions. The code takes a lucky path — a single connection gets reused, an operation happens to land in the right order, a resource happens to still be alive, nothing runs concurrently — and the test goes green while the defect sits there untouched, waiting for production to schedule things differently. For these, **a passing suite is not evidence of correctness.** It never was: the test simply never exercised the case that breaks.
+Two families qualify, and they fail for opposite reasons. In the first, **the code runs but takes a lucky path** — a single connection gets reused, an operation happens to land in the right order, a resource happens to still be alive, nothing runs concurrently — and the test goes green while the defect sits there untouched, waiting for production to schedule things differently. In the second, **the code does not run at all**, or does not run against anything real: the test and the code agree perfectly with each other and disagree with the system.
 
-Look for it in:
+For both, **a passing suite is not evidence of correctness.** It never was: the test simply never exercised the case that breaks — or never exercised the *system*.
+
+Look for the lucky-path family in:
 - **concurrency and parallelism** — shared mutable state, races, assumptions that only hold single-threaded
 - **scoping of a shared resource** — connections, sessions, transactions, locks, contexts: an operation that must run on *one* checked-out handle being issued against a pool/factory that is free to hand out a different one
 - **ordering** — steps whose correctness depends on a sequence nothing enforces
@@ -59,7 +61,13 @@ Look for it in:
 - **resource lifecycle** — acquire/release/teardown, leaks, use-after-close
 - **reversibility of state-mutating artifacts** — anything that changes persistent state and claims it can be undone or re-applied: does the reverse actually restore the prior state, and does forward-then-back-then-forward work?
 
-**The evidential rule, and it is the whole point of this dimension:** argue from the **code and the types**, and treat "the tests pass" as **irrelevant** to whether you raise the finding. The deterministic signal — the type is wrong, the handle can differ, nothing orders these — is stronger than a green run, because a green run only tells you about the schedule it happened to take. Raise these as **blockers** when you can point at the mechanism.
+And the never-runs family in:
+- **reachability / wiring** — code the system never executes: an exported symbol whose only callers are its own tests; a guard, validator, or resolver that the real call path bypasses (the check exists, is tested, is green, and nothing routes through it). A green test proves the artifact *works*; it does not prove anything *uses* it. **When a diff adds a module and its tests together, `grep` for its production callers and name them.** If the only hits are its own definition and its own test file, that is a **blocker**, not a nit — the feature does not exist in the running system.
+- **verified against a stand-in** — a schema, contract, parser, or assertion checked only against fixtures the tests themselves construct, never against the output of the **real producer** (or the input of the real consumer). Ask what actually feeds this in production, and read *that* code: a schema requiring `timestamp: string` against a logger emitting `time: <epoch int>` is green forever and could never validate one real line. Fixture and artifact drift together, in agreement, away from production.
+
+Both are the same insight the scope rules above already apply to test helpers — *a test that only ever feeds an artifact stand-in inputs actively vouches for it* — carried one step further: to an artifact nothing feeds at all.
+
+**The evidential rule, and it is the whole point of this dimension:** argue from the **code and the types**, and treat "the tests pass" as **irrelevant** to whether you raise the finding. The deterministic signal — the type is wrong, the handle can differ, nothing orders these, nothing calls this — is stronger than a green run, because a green run only tells you about the schedule it happened to take, and about the inputs it happened to build. Raise these as **blockers** when you can point at the mechanism.
 
 **3. Classify each finding** as **blocker** (must fix before merge) or **refactor** (optional quality improvement). Every finding needs a `file:line`, a one–two sentence explanation, and a concrete suggested fix. No vague or stylistic nits without a rationale.
 
@@ -88,7 +96,7 @@ The scope rules from `review` mode apply here too: **test helpers and fixtures a
 - **Correctness** — bugs, broken edge cases, wrong logic, unhandled errors, contract violations vs. the acceptance criteria (`$WORK_DIR` context or `$INTENT`).
 - **Impact / blast radius** — what else calls the changed code; backward-compatibility; callers and dependents that the change ripples into. `Grep` for callers of changed symbols and reason about them.
 - **Risk** — security-sensitive changes (auth, input handling, secrets, crypto, access control), data loss, irreversible operations, concurrency hazards.
-- **Test-pass-insufficient** — the same dimension as in `review` mode above, and the same evidential rule: bugs a green suite cannot rule out (concurrency, shared-resource scoping, ordering, idempotency, resource lifecycle, reversibility). Never soften one because CI is green — CI took one schedule.
+- **Test-pass-insufficient** — the same dimension as in `review` mode above, and the same evidential rule: bugs a green suite cannot rule out. Both families — the code runs but takes a lucky path (concurrency, shared-resource scoping, ordering, idempotency, resource lifecycle, reversibility), and the code never runs at all (reachability / wiring; verified against a stand-in rather than the real producer or consumer). Never soften one because CI is green — CI took one schedule, and it took the inputs the tests handed it.
 - **Design conformance** — **if `$DESIGN` exists**, that the implementation honors its interfaces, approach, and module boundaries.
 - **Simplicity** — YAGNI (speculative generality, unused abstraction), DRY (duplicated logic), and reuse (existing utilities not used; simpler equivalents).
 - **Consistency** — deviations from the conventions in `context.md` / `$INTENT` and the surrounding codebase.
@@ -122,7 +130,7 @@ You are an independent second opinion on findings produced by an earlier review 
 
 Give one line of reasoning each.
 
-**Never drop a `test-pass-insufficient` finding on the grounds that the tests pass.** That dimension exists precisely for bugs a green suite cannot rule out — the suite went green on the schedule it happened to take, which says nothing about the one that breaks. "The tests pass" is not a rebuttal here; it is the thing the finding already accounts for. To drop one, rebut the *mechanism*: show that the handle cannot differ, that the ordering is in fact enforced, that the resource cannot be reused. If you can't, uphold it.
+**Never drop a `test-pass-insufficient` finding on the grounds that the tests pass.** That dimension exists precisely for bugs a green suite cannot rule out — the suite went green on the schedule it happened to take and the inputs the tests handed it, which says nothing about the schedule that breaks or the input production actually sends. "The tests pass" is not a rebuttal here; it is the thing the finding already accounts for. To drop one, rebut the *mechanism*: show that the handle cannot differ, that the ordering is in fact enforced, that the resource cannot be reused — or, for a **reachability** finding, **name the production caller** and cite its `file:line`. "It's well tested" and "the module is clearly complete" are not rebuttals; a symbol called only by its own test is exactly the thing that looks complete. If you can't, uphold it.
 
 **2. Raise a blocker the first pass missed — and *only* a blocker.** You are the only fresh pair of eyes this diff will get before it merges. If you see a **correctness bug that would block the merge** and it is not in `$FINDINGS`, say so; it would be perverse to spot a real bug and have nowhere to put it.
 
