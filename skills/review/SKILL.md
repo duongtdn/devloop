@@ -212,7 +212,7 @@ On **local**, set `$GITHUB_UNAVAILABLE = true` and skip every GitHub/milestone c
 **Gather GitHub state** (skip all of this if `$GITHUB_UNAVAILABLE`):
 - For each sprint issue number, fetch its state (`open` / `closed`) via GitHub MCP.
 - List the repo's PRs (paginate past 100) and map each sprint issue to a merged or open PR the way `status` does — head branch `feat/issue-N-` or `fix/issue-N-` (N anchored by a trailing `-`), or a `Closes #N` / `Fixes #N` body keyword (N anchored by a non-digit/end). Record `$PR_MAP[N]`.
-- Fetch milestone `$MILESTONE_NUMBER` via GitHub MCP for `$MILESTONE_DUE`, `$MILESTONE_OPEN`, `$MILESTONE_CLOSED`, and its current `state` (`open`/`closed`).
+- Read milestone `$MILESTONE_NUMBER` via the **bundled github-extras MCP's milestone-listing operation** (`owner`, `repo`, `state: all` — it may already be closed by an earlier run of this skill), taking the entry with that number: `$MILESTONE_DUE` (from `due_on` — the ISO date, or `no due date` when null), `$MILESTONE_OPEN` (`open_issues`), `$MILESTONE_CLOSED` (`closed_issues`), and its current `state` (`open`/`closed`). The **official** GitHub MCP has no milestone tools — don't look for one there. If the read fails or returns no such milestone, treat these as `unknown` and say so in the header; never fill them in from the sprint file or from memory.
 
 **Read the baseline.** Read `.context/devloop-baseline.md` if it exists — the accepted-failing allowlist. Collect entries whose `tracking:` issue is still open (carry-over debt) and any `added-by: issue #X` where X is in this sprint (debt this sprint introduced).
 
@@ -324,10 +324,14 @@ Wait for the response. Accept bulk and per-issue decisions in any combination. R
 
 **Apply** on confirmation (skip GitHub calls if `$GITHUB_UNAVAILABLE`, recording them as deferred in the report):
 - **resume** — no GitHub call and **no file change**: the issue's state file and branch are left exactly as `run` left them. Hand off and stop.
-- **carry over** — clear the issue's milestone via GitHub MCP (set milestone to none). Leave the checkbox unticked.
-- **backlog** — add the `type:backlog` label and clear the milestone via GitHub MCP.
+- **carry over** — clear the issue's milestone (see below). Leave the checkbox unticked.
+- **backlog** — add the `type:backlog` label, then clear the milestone (see below).
 - **close** — close via GitHub MCP with a comment: `Closed at Sprint [N] review — [out of scope / superseded].` For a **done ⚠** issue, the comment is `Closing — delivered in PR #[pr] (merged without a closes keyword).`
 - **keep** — no GitHub call.
+
+**Clearing a milestone** — use the **bundled github-extras MCP's milestone-assignment operation** with `milestone_number: null` (plus `owner`, `repo`, `issue_numbers`). Passing null is what removes the issues from their milestone. The **official** GitHub MCP cannot do this — its issue-update milestone field takes a number and rejects null, and omitting the field leaves the existing milestone untouched — so do not go looking for it there, and do not shell out to `gh`.
+
+This is **the mechanism, not a detail**: the `issue-selector` only sees issues with *no* milestone, so a carry-over whose milestone is never cleared is invisible to the next `/devloop:plan` and silently falls out of the process. It doesn't carry over — it disappears. If the clear fails, the issue is **not** carried over; report it as such rather than as a success.
 
 If any call fails:
 

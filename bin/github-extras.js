@@ -89,6 +89,7 @@ async function listMilestones({ owner, repo, state = 'open' }) {
     title: m.title,
     description: m.description,
     state: m.state,
+    due_on: m.due_on,          // ISO timestamp, or null when no due date is set
     open_issues: m.open_issues,
     closed_issues: m.closed_issues,
     url: m.html_url,
@@ -105,6 +106,17 @@ async function closeMilestone({ owner, repo, milestone_number }) {
 }
 
 async function assignIssuesToMilestone({ owner, repo, milestone_number, issue_numbers }) {
+  // milestone_number: null is the documented REST way to remove an issue from its
+  // milestone — how an issue is carried over, sent to backlog, or dropped from a sprint.
+  const clearing = milestone_number === null;
+
+  if (milestone_number === undefined) {
+    throw new Error(
+      'milestone_number is required. Pass a milestone number to assign, or null to remove ' +
+      'the issues from their milestone.'
+    );
+  }
+
   if (!Array.isArray(issue_numbers) || issue_numbers.length === 0) {
     return { assigned: [], skipped: 'issue_numbers was empty' };
   }
@@ -125,7 +137,9 @@ async function assignIssuesToMilestone({ owner, repo, milestone_number, issue_nu
     }
   }
 
-  return { assigned: results, failed: failures };
+  return clearing
+    ? { cleared: results, failed: failures }
+    : { assigned: results, failed: failures };
 }
 
 // ---------------------------------------------------------------------------
@@ -193,7 +207,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: 'list_milestones',
-    description: 'List milestones for a GitHub repository.',
+    description: 'List milestones for a GitHub repository, with each one\'s state, due date, and open/closed issue counts. This is also the only way to READ a single milestone (the official GitHub MCP server has no milestone tools at all) — list with state "all" and pick the one whose number you want.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -202,7 +216,7 @@ const TOOL_DEFINITIONS = [
         state: {
           type: 'string',
           enum: ['open', 'closed', 'all'],
-          description: 'Filter by milestone state. Defaults to open.',
+          description: 'Filter by milestone state. Defaults to open. Use "all" when looking up a milestone by number, since it may already be closed.',
         },
       },
       required: ['owner', 'repo'],
@@ -223,17 +237,20 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: 'assign_issues_to_milestone',
-    description: 'Assign one or more issues to a GitHub milestone. Returns which assignments succeeded and which failed.',
+    description: 'Assign one or more issues to a GitHub milestone, or REMOVE them from their milestone by passing milestone_number: null. Removal is how an issue is carried over to a later sprint, sent back to the backlog, or dropped — an issue that keeps its milestone is invisible to the next sprint\'s issue selection. Returns which issues succeeded and which failed.',
     inputSchema: {
       type: 'object',
       properties: {
         owner:            { type: 'string',  description: 'Repository owner' },
         repo:             { type: 'string',  description: 'Repository name' },
-        milestone_number: { type: 'number',  description: 'Milestone number to assign issues to' },
+        milestone_number: {
+          type: ['number', 'null'],
+          description: 'Milestone number to assign the issues to, or null to remove them from their current milestone. Required — null must be explicit, so no accidental omission ever clears a milestone.',
+        },
         issue_numbers:    {
           type: 'array',
           items: { type: 'number' },
-          description: 'Issue numbers to assign',
+          description: 'Issue numbers to assign or clear',
         },
       },
       required: ['owner', 'repo', 'milestone_number', 'issue_numbers'],

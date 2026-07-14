@@ -86,9 +86,11 @@ Rework = **a new issue in the sprint**; the original stays closed/merged — his
 
 Only an **unstarted** issue can be dropped cleanly (unchecked, no state file in `.context/sprints/state/`). For an issue with run state, point to `/devloop:abort` first. Dispositions (same vocabulary as `review`'s reconcile):
 
-- **to pool** (default) — clear its milestone via GitHub MCP; it returns to the sprint-ready pool for a later `plan`.
-- **to backlog** — add `type:backlog` and clear the milestone; `plan`'s triage will re-assess it.
+- **to pool** (default) — clear its milestone (see below); it returns to the sprint-ready pool for a later `plan`.
+- **to backlog** — add `type:backlog`, then clear the milestone; `plan`'s triage will re-assess it.
 - **close** — close via GitHub MCP with a comment: `Closed at Sprint [N] replan — [out of scope / superseded / reason].`
+
+**Clearing a milestone** — use the **bundled github-extras MCP's milestone-assignment operation** with `milestone_number: null` (plus `owner`, `repo`, `issue_numbers`). Passing null is what removes the issues from their milestone; the **official** GitHub MCP cannot express it (its milestone field takes a number and rejects null, and omitting the field leaves the milestone untouched), so don't hunt for it there and don't shell out to `gh`. The clear is what makes the issue selectable again — `issue-selector` only sees issues with no milestone — so a drop whose clear failed is a drop that didn't happen: report the failure, and leave the sprint-file line in place.
 
 Present the issue, the proposed disposition, and the consequence; confirm; apply; **remove its line** from the sprint file (never renumber or touch other lines).
 

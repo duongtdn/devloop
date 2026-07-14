@@ -73,12 +73,16 @@ The plugin uses the **official GitHub MCP server** for all standard operations (
 | Create/list branches | Official GitHub MCP |
 | Read a single label (`get_label`) | Official GitHub MCP |
 | **Create milestone** | Bundled `github-extras` MCP |
+| **Read / list milestones** (state, `due_on`, issue counts) | Bundled `github-extras` MCP |
 | **Assign issues to milestone** | Bundled `github-extras` MCP |
+| **Clear an issue's milestone** (`milestone_number: null`) | Bundled `github-extras` MCP |
 | **Close milestone** | Bundled `github-extras` MCP |
 | **List repository labels** | Bundled `github-extras` MCP |
 | **Create repository label** | Bundled `github-extras` MCP |
 
-The official server has no tool to *list* or *create* repository labels (only `get_label` reads one by name), so the bundled server fills that gap alongside milestones.
+The official server has **no milestone tools at all** — not even a read — so *every* milestone operation, including simply looking one up, goes through the bundled server (list with `state: all` and pick by number; it returns `state`, `due_on`, and open/closed issue counts). It likewise has no tool to *list* or *create* repository labels (only `get_label` reads one by name). The bundled server fills both gaps.
+
+**Clearing a milestone is a first-class operation, not an edge case** — it is how `review` carries an issue over or sends it to the backlog, and how `replan` drops one, and the `issue-selector` only sees issues with *no* milestone, so an uncleared carry-over doesn't carry over: it vanishes from the process. The official server cannot express it (its milestone field is typed `number`, which rejects `null`; omitting it leaves the milestone untouched), so the bundled server's milestone-assignment operation takes `milestone_number: ['number','null']` — `null` removes the issues from their milestone. It stays **required**, so no accidental omission ever clears one. Never fall back to `gh` for this: `gh` is not a declared devloop dependency, and a skill that reaches for it fails on any machine with a valid token but no `gh` login (`docs/field-reports/2026-07-13-cannot-clear-milestone.md`).
 
 Both MCP servers are declared in `.mcp.json` at the plugin root and start automatically when the plugin is active. The official GitHub MCP is wired as the remote server `https://api.githubcopilot.com/mcp/` with `Authorization: Bearer ${GITHUB_TOKEN}`; the bundled `github-extras` stdio server reads the same `GITHUB_TOKEN` from the environment. A single token covers both — the user just exports `GITHUB_TOKEN`.
 

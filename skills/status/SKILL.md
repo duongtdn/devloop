@@ -71,12 +71,12 @@ If GitHub MCP calls fail (token missing, network error, or repo not found), proc
 
 Record as `$PR_MAP[N] = PR_number` (first match per issue). If the PR list call fails, skip silently.
 
-**Milestone health.** Call the GitHub MCP to fetch the milestone with number `$MILESTONE_NUMBER` in `$REPO`. Extract:
-- `$MILESTONE_DUE` — due date (ISO date only, or `no due date` if unset)
-- `$MILESTONE_OPEN` — count of open issues under this milestone
-- `$MILESTONE_CLOSED` — count of closed issues under this milestone
+**Milestone health.** Read the milestone via the **bundled github-extras MCP's milestone-listing operation** (`owner`, `repo`, `state: all` — the sprint's milestone may already be closed), then pick the entry whose `number` is `$MILESTONE_NUMBER`. The **official** GitHub MCP has no milestone tools at all, so don't look for one there. Extract:
+- `$MILESTONE_DUE` — from `due_on`; render the ISO date only, or `no due date` when it is null
+- `$MILESTONE_OPEN` — `open_issues`, the count of open issues under this milestone
+- `$MILESTONE_CLOSED` — `closed_issues`
 
-If the milestone call fails, set all three to `unknown` and continue.
+If the call fails, or no milestone with that number is returned, set all three to `unknown` and continue — never infer a due date or a count that wasn't returned.
 
 ---
 
