@@ -126,7 +126,7 @@ Agents are not limited to the standard files — a step may create its own suppl
 | **Signal** | Zone 2 entry | failing test id, the one-line error, `Caught by:`, and the log path under **Artifacts** |
 | **Evidence** | `work/issue-N/logs/<timestamp>-<what>.log` | the raw output — full failure, stack, assertion diff |
 
-Pass `$LOG_DIR` = `.context/sprints/work/issue-N/logs/` to the `coder` and the `test-runner`; each writes its own output there and returns the path, which run (or the agent itself) cites under **Artifacts**. Nobody loads a log by default; `review` opens one on demand when the human says "show me the failure."
+Pass `$LOG_DIR` = `$WORK_DIR/logs/` (absolute, per [S1](#s1--resolve-the-active-sprint)) to the `coder` and the `test-runner`; each writes its own output there and returns the path, which run (or the agent itself) cites under **Artifacts**. Nobody loads a log by default; `review` opens one on demand when the human says "show me the failure."
 
 **Who appends:**
 - `designer`, `planner`, `test-writer`, `coder`, `reviewer` — one entry each when they finish (per their contracts).
@@ -188,6 +188,8 @@ Append a `## Log` line at every phase boundary and human decision. Update `phase
 Run this section on every invocation, in order.
 
 ### S1 — Resolve the active sprint
+
+Capture `$REPO_ROOT` = `pwd` — the directory `.context/` lives in for this invocation. Every path passed to an agent this run (`$WORK_DIR`, `$LOG_DIR`, and anything under them) is built as `$REPO_ROOT/...` and handed over **absolute**, never a bare `.context/...` string. This matters specifically because `coder` and `test-runner` run `$CHECKS`/`$UNIT_CMD`/`$E2E_CMD` via Bash, and in a monorepo those commands often `cd` into a subpackage (e.g. `cd apps/web && npm test`) — that `cd` persists for the rest of their Bash session, so a relative log path resolved *after* the check runs lands under the subpackage instead of `.context/`. An absolute `$WORK_DIR`/`$LOG_DIR` is immune to that drift.
 
 Determine the active sprint:
 - Read `.context/sprints/master-plan.md`; find the entry with `- **Status:** active`. Use its sprint number and `Sprint file:`.
@@ -279,7 +281,7 @@ Compute the relative time from scripts, not the session clock: read the build ti
 
 On **n**, keep the existing file and continue. On **y** (or on a fresh start), invoke `context`.
 
-Invoke **`context`**, passing: `$ISSUE`, `$REPO`, `$SPRINT_GOAL`, the work dir `.context/sprints/work/issue-N/`, a one-line profile summary, and `$NOW` (script-derived) for its Zone 2 legend. For **scaffold**, request the `light` variant (issue + workspace map only); otherwise `full`, in which the agent **self-calibrates depth** (`minimal`/`standard`/`deep`) to the issue and biases light — run does **not** dictate the depth, exactly as it does not assess complexity for a design decision. It writes `context.md` Zone 1 and returns the `TIER` it chose. Record the build time (`$NOW`) **and the tier** in the state log so a later resume can compute the relative age and the retro can see whether the default is calibrated.
+Invoke **`context`**, passing: `$ISSUE`, `$REPO`, `$SPRINT_GOAL`, `$WORK_DIR` = `$REPO_ROOT/.context/sprints/work/issue-N/` (absolute — see [S1](#s1--resolve-the-active-sprint)), a one-line profile summary, and `$NOW` (script-derived) for its Zone 2 legend. For **scaffold**, request the `light` variant (issue + workspace map only); otherwise `full`, in which the agent **self-calibrates depth** (`minimal`/`standard`/`deep`) to the issue and biases light — run does **not** dictate the depth, exactly as it does not assess complexity for a design decision. It writes `context.md` Zone 1 and returns the `TIER` it chose. Record the build time (`$NOW`) **and the tier** in the state log so a later resume can compute the relative age and the retro can see whether the default is calibrated.
 
 **A light default is safe because context is reachable on demand.** If a later agent finds Zone 1 too thin, it raises `NEEDS-CONTEXT` (the planner does today; see [plan](#phase-plan)), and run re-invokes `context` in `deepen` mode to fill exactly that gap — appending to Zone 1, not rebuilding. This is the escape hatch; it is what lets the agent bias light without starving the planner.
 

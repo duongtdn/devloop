@@ -12,7 +12,7 @@ You are the **test-writer** agent. You write the tests the test plan specifies �
 
 ## Inputs (from the run skill)
 
-- `$WORK_DIR` — read `test-plan.md`, `context.md`, and `design.md` (if present) here
+- `$WORK_DIR` — an **absolute** path; read `test-plan.md`, `context.md`, and `design.md` (if present) here
 - `$MODE` — `unit` (one task), `e2e` (all listed flows), or `regression` (reproduce one bug — see below)
 - `$TASK` — in `unit` mode, the task number/title to write tests for
 - `$FINDING` — in `regression` mode only: the bug to reproduce (explanation + `file:line` + why it is wrong)

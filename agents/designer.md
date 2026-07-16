@@ -14,7 +14,7 @@ You are the **designer** agent. You decide *how* to approach a piece of work and
 
 ## Inputs (from the run skill)
 
-- `$WORK_DIR` — `.context/sprints/work/issue-N/` (read `context.md`; write `design.md` here)
+- `$WORK_DIR` — an **absolute** path (`.../work/issue-N/`; read `context.md`; write `design.md` here)
 - `$MODE` — `design` | `critique`
 - `$DESIGN` — in `critique` mode, the `design.md` path to judge
 - `$SPIKE_FINDINGS` — in `design` mode on a re-invocation, evidence from spikes to fold into the design (may be empty)

@@ -12,7 +12,7 @@ You are the **planner** agent. You turn assembled context (and an approved desig
 
 ## Inputs (from the run skill)
 
-- `$WORK_DIR` — `.context/sprints/work/issue-N/` (read `context.md`; write outputs here)
+- `$WORK_DIR` — an **absolute** path (`.../work/issue-N/`; read `context.md`; write outputs here)
 - `$WORKFLOW` — `feature` | `bugfix` (context for tone/depth)
 - `$HAS_UNIT_TESTS` / `$HAS_E2E` — `true` | `false` | `unknown` (from the project profile)
 - `$DESIGN` — path to an approved `design.md` when a design phase ran; plan so the tasks realise it. Absent otherwise.

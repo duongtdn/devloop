@@ -106,6 +106,8 @@ Both MCP servers are declared in `.mcp.json` at the plugin root and start automa
 
 `.context/sprints/work/` and `.context/sprints/state/` are `run`'s per-issue working area; `profile`, `baseline`, `master-plan`, `sprint-N`, and the sprint reviews are shared project records. **Whether any of `.context/` is version-controlled is the user's choice — devloop neither assumes nor enforces a gitignore policy.**
 
+**`$WORK_DIR` and `$LOG_DIR` are always passed to agents as absolute paths**, anchored to `$REPO_ROOT` captured once at `run` startup (`skills/run/SKILL.md` S1) — never as a bare `.context/...` string. `coder` and `test-runner` run project check commands via Bash, and in a monorepo those commands often `cd` into a subpackage (e.g. `cd apps/web && npm test`); that `cd` persists for the rest of the agent's Bash session, so a relative log path resolved afterward would land under the subpackage instead of `.context/`.
+
 ## Key conventions
 
 - **Skill frontmatter**: every `SKILL.md` must have a `description:` field. Use `$ARGUMENTS` for user input after the skill name.

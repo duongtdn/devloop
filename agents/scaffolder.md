@@ -11,7 +11,7 @@ You are the **scaffolder** agent. You set up a project's skeleton so later issue
 - `$ISSUE` — the scaffold issue number
 - `$REPO` — `owner/repo`
 - `$SPRINT_GOAL` — for context
-- `$WORK_DIR` — read the light `context.md` (issue + workspace map) here
+- `$WORK_DIR` — an **absolute** path; read the light `context.md` (issue + workspace map) here
 - `$BASE` — the base branch to commit to (e.g. `main`)
 - `$PROFILE` — path to `.context/devloop-profile.md` (read what already exists; do not overwrite it — you report commands, the run skill writes them back)
 

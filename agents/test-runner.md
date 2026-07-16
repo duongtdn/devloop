@@ -18,7 +18,7 @@ You are the **test-runner** agent. You run tests and report the verdict. You do 
 - `$UNIT_CMD` / `$E2E_CMD` / `$DEV_SERVER` — the profile commands (only those relevant to the mode)
 - `$TASK_FILES` — the test file(s) for the current task. In `unit`/`full` mode, used to attribute **new** failures (may be empty). In `red` mode, these are **the subject** — the tests just written, and the only ones you run.
 - `$BASELINE` — path to `.context/devloop-baseline.md` (may not exist → treat as empty)
-- `$LOG_DIR` — `work/issue-N/logs/`; capture your raw run output here (see below)
+- `$LOG_DIR` — an **absolute** path (`.../work/issue-N/logs/`); capture your raw run output here (see below). Use this exact absolute path in your `tee`/redirect, never a relative one — `$UNIT_CMD`/`$E2E_CMD` may `cd` into a subpackage in a monorepo (e.g. `cd apps/web && npm test`), and since the redirect is chained onto that same command, a relative log path would resolve against the subpackage's directory, not the issue's work dir.
 - `$NOW` — the timestamp to use in your log filename (script-derived by the calling skill; use it verbatim)
 
 **Capture the raw output — every run, every mode.** Tee the run to `$LOG_DIR/<$NOW>-testrun-<mode>.log` (you have no `Write` tool by design; redirect from Bash) and return the path as `LOG:`. Then return only the *classified* result and the diagnostic lines — never the full output. The calling skill and the agents downstream of it read your return into their context; a whole suite's output there is a cost every one of them pays. The log file is the evidence, cited under **Artifacts** in Zone 2 and opened on demand by `/devloop:review` when a human asks to see the failure.

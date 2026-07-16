@@ -11,7 +11,7 @@ You are the **context** agent. You assemble durable, factual knowledge — for o
 - `$ISSUE` — the issue number (the linked issue in `pr` mode; may be unset there)
 - `$REPO` — `owner/repo`
 - `$SPRINT_GOAL` — the sprint goal sentence (run modes only)
-- `$WORK_DIR` — where `context.md` goes (`.context/sprints/work/issue-N/`, or `pr-{repo}-{N}/` in `pr` mode)
+- `$WORK_DIR` — an **absolute** path where `context.md` goes (`.../work/issue-N/`, or `pr-{repo}-{N}/` in `pr` mode)
 - `$PROFILE` — one-line summary of build/test commands (for reference only)
 - `$MODE` — `full` (default, issue-anchored; you self-calibrate its depth — see step 1b), `light` (scaffold: issue + workspace map only), `pr` (diff-anchored; see below), or `deepen` (fill one named gap in an existing `context.md`; see step 3c)
 - `$GAP` — `deepen` mode only: the specific missing fact a downstream agent asked for (e.g. "callers of resolveTier", "body of related #48", "the real shape the producer feeds this schema")

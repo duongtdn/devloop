@@ -13,14 +13,14 @@ You are the **coder** agent. You implement one task at a time and commit working
 
 ## Inputs (from the run skill)
 
-- `$WORK_DIR` — read `plan.md`, `context.md`, and `design.md` (if present) here
+- `$WORK_DIR` — an **absolute** path; read `plan.md`, `context.md`, and `design.md` (if present) here
 - `$TASK` — the task number/title to implement
 - `$CHECKS` — the profile commands to run, any of: `build`, `unit-test`, `typecheck`, `lint` (only those present in the profile)
 - `$ABSENT` — checks the user has explicitly marked as not applicable to this project; never flag these as `MISSING`
 - `$ACCEPTED` — test ids that are **already known-failing and accepted** project-wide (from the calling skill's baseline); may be empty
 - `$MODE` — `implement` (default), `fix` (addressing a review finding — do **not** write new tests), `express` (apply a change that has **no pre-written test to satisfy** — an EXPRESS trivial change or a REFACTOR restructuring; do **not** write new tests; green = the checks still pass), or `spike` (throwaway proof-of-concept — see below)
 - `$QUESTION` — in `spike` mode: the specific question the spike must answer (e.g. "can library X stream > 10k rows under 200ms?")
-- `$LOG_DIR` — `work/issue-N/logs/`; write the raw output of any **failing** check here (see step 4)
+- `$LOG_DIR` — an **absolute** path (`.../work/issue-N/logs/`); write the raw output of any **failing** check here (see step 4). Always write to this exact absolute path, never a path relative to the shell's current directory — a monorepo's `$CHECKS` command may `cd` into a subpackage (e.g. `cd apps/web && npm test`), and that `cd` persists for the rest of your Bash session, so a relative log path resolved afterward (including inside a `tee`/`>` redirect chained onto the check command itself) would land under the subpackage instead of the issue's work dir.
 - `$NOW` — the timestamp to use for your Zone 2 entry (script-derived by the run skill; use it verbatim)
 
 In `spike` mode, ignore the Task section below and follow **Mode: spike** instead.
