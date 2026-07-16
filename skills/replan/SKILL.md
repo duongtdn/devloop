@@ -62,7 +62,7 @@ Propose placement in the execution order (the spec's ordering rules: `infra → 
 >
 > Confirm to [create and] add? (y / adjust)
 
-On confirmation: create the issue if new (creating any missing `epic:`/`area:` labels first, announced); assign it to milestone `$MILESTONE_NUMBER` via the milestone-assignment operation (bundled github-extras MCP); insert its line into the sprint file at the confirmed position (unchecked, per the spec grammar — annotate `⚠ unassigned` if assignment failed after one retry).
+On confirmation: create the issue if new (creating any missing `epic:`/`area:` labels first, announced); assign it to milestone `$MILESTONE_NUMBER` via the milestone-assignment operation (bundled github-extras MCP); insert its line into the sprint file at the confirmed position (unchecked, per the spec grammar — annotate `⚠ unassigned` if assignment failed after one retry). No `✓accepted` — that marker is `review`'s alone, even if neighboring lines already carry one.
 
 > ✔ #[N] added to Sprint [N] at position [k].
 
@@ -76,7 +76,7 @@ Rework = **a new issue in the sprint**; the original stays closed/merged — his
 
 1. Draft the rework issue per the spec: title (imperative, from the feedback), labels (inherit `area:`/`epic:` from `#N`; `type:bug` for a behavioral defect, else the original's type), body with `## What` (the feedback in plain language, with 1 line of context from `#N`), `## Acceptance Criteria` (derived from the feedback — what "fixed" observably means), DoD by type, and the trailing **`Rework of #[N]`** line.
 2. Present the draft + proposed execution-order position; confirm (y / adjust).
-3. On confirmation: create the issue → **post the backlink comment on `#N`**: `Rework tracked in #[M]` → assign to the milestone → insert the sprint-file line.
+3. On confirmation: create the issue → **post the backlink comment on `#N`**: `Rework tracked in #[M]` → assign to the milestone → insert the sprint-file line (unchecked, no `✓accepted` — a new issue has neither, regardless of what neighboring lines carry).
 
 > ✔ Rework of #[N] created as #[M], added to Sprint [N] at position [k]. (#[N] carries the backlink.)
 
@@ -110,7 +110,7 @@ Only **unstarted** issues may move (checked-off work is history; an in-flight is
 
 **Re-scope** (`rescope #N: <what changed>`): fetch the issue, propose edited `## Acceptance Criteria` (and `## What` if the framing changed) per the spec's AC rules. Confirm, then update the issue body via GitHub MCP — preserve all other sections. If the issue is mid-flight or done, refuse (that's rework or abort territory).
 
-**Split** (`split #N`): when an unstarted issue is too big, propose 2+ child issues per the spec's template (each independently executable), present the set, confirm. On approval: create the children, assign each to the milestone, close `#N` with the comment `Resolved into: #[c1], #[c2], ...`, replace `#N`'s sprint-file line with the children's lines at the same position (in dependency order).
+**Split** (`split #N`): when an unstarted issue is too big, propose 2+ child issues per the spec's template (each independently executable), present the set, confirm. On approval: create the children, assign each to the milestone, close `#N` with the comment `Resolved into: #[c1], #[c2], ...`, replace `#N`'s sprint-file line with the children's lines at the same position (in dependency order) — each unchecked, no `✓accepted` (they're new, unreviewed work).
 
 > ✔ #[N] split into #[c1], #[c2] — sprint file and milestone updated.
 
