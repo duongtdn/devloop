@@ -172,6 +172,8 @@ e2e-tests:   <glob for e2e test files>
 frameworks:  <comma-separated, e.g. vitest, playwright>
 ```
 
+List only the checks `run` should execute **locally**. A heavy check the project's CI owns (a full e2e matrix, integration, a security scan) is simply left out — in `--pr` mode branch protection still gates the merge on CI, and `direct` mode has no CI, so the listed checks are the whole gate.
+
 ### If the profile already exists (`$PROFILE_EXISTS` is true)
 
 Summarise its current commands and ask:
