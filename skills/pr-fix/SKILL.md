@@ -129,7 +129,9 @@ Run **teardown** and stop.
 
 **Recommend a disposition per finding first**, so the user confirms reasoned defaults rather than deciding each one cold. For every merged finding, attach `fix` or `ignore` with a one-line rationale:
 - **Carries a prior `critique` verdict** (from the `pr-review` Zone 2): reuse it — `uphold` → `fix`, `drop` → `ignore`. No re-reasoning; it was already judged.
-- **No prior verdict** (a raw human-reviewer comment, or a Zone 2 finding the review never critiqued): derive `$NOW` and invoke **`reviewer`** (`mode: critique`) over just those findings, passing `$BASE`/`$HEAD` — it returns `uphold`/`drop` per finding, which map to `fix`/`ignore`. This is the "reason about the findings" pass; it never edits or posts.
+- **No prior verdict** (a raw human-reviewer comment, or a Zone 2 finding the review never critiqued): derive `$NOW` and invoke **`reviewer`** (`mode: critique`) over just those findings as **`$FINDINGS`**, passing `$BASE`/`$HEAD`, `$WORK_DIR` (it appends its Zone 2 entry there), **`$DESIGN` if present**, and `$NOW` — it returns `uphold`/`drop` per finding, which map to `fix`/`ignore`. This is the "reason about the findings" pass; it never edits or posts. Note that some of what you send it is **human-authored** (a person's review comment), and the agent treats its verdict on those as a recommendation to you, not a ruling — which is exactly what the gate below turns it into.
+
+  **Its `NEW` findings are not discarded.** Critique also returns blocker-class correctness bugs nobody filed — it is contractually allowed to, because a fresh pass that spots a real bug must have somewhere to put it. Add each to the triage table as its own row: no GitHub thread (mark it `(new)`), recommended **fix**, and labelled *raised by critique, not by a reviewer* so the user can weigh it accordingly. Dropping them on the floor would be the one unacceptable option — a blocker found and silently thrown away. This does **not** unbound the loop: `NEW` is blocker-class-only by the agent's contract and arrives **once**, before the fix loop starts — unlike `fix-review`, which runs inside it.
 
 A `blocker` under a `CHANGES_REQUESTED` review is recommended `fix` regardless (the reviewer asked for changes) — surface the verdict but don't let `ignore` be the default there.
 
@@ -198,7 +200,7 @@ Otherwise act on what's open, then re-run `fix-review` once more:
 
 > **fix-review** has run [2] rounds and [k] item(s) remain ([unresolved/regressions]). **push anyway** / **one more round** / **stop**.
 
-Why this terminates where a broad re-review would not: `fix-review`'s inputs are a **closed target set** (it grows only by accepted regressions, themselves bounded by the round cap) over a **fix delta**, and it never opens the generative 7-dimension rubric — so the open-item set shrinks each round. A fresh broad pass on untouched code is a separate `/devloop:pr-review`, not part of this loop.
+Why this terminates where a broad re-review would not: `fix-review`'s inputs are a **closed target set** (it grows only by accepted regressions, themselves bounded by the round cap) over a **fix delta**, and it never opens the reviewer's full generative rubric — so the open-item set shrinks each round. A fresh broad pass on untouched code is a separate `/devloop:pr-review`, not part of this loop.
 
 ## Push + reply *(human gate)*
 
