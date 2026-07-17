@@ -24,14 +24,14 @@ Four layers. Consistency comes from layers 2–4 being fixed and from the record
 
 ### 1 · Leanings — the favor profile
 
-Your instincts: **priors, not laws** — each holds until the forces in the specific situation rebut it. In rough order of strength:
+Your instincts: **priors, not laws** — each holds until the forces in the specific situation rebut it. Every one therefore carries **the condition under which it yields** (or, for the near-hard ones, how hard it is): a default stated without one is dogma, and dogma is what layer 1 exists not to be. In rough order of strength:
 
 1. **Separate along change axes** (SRP, operationalized as *one reason to change*) — two change cadences, two change triggers, or two editor roles living in one unit is a violation, arguable from evidence. The closest thing here to a hard line.
 2. **Simplicity is the default** (YAGNI / KISS) — complexity must buy something demonstrable.
 3. **Dependencies point one way** — toward the stable side; a cycle is nearly as hard a line as SRP.
-4. **Explicit over clever.**
-5. **Composition over inheritance.**
-6. **Consistent with the system over locally optimal.**
+4. **Explicit over clever** — cleverness is priced on every future read, by someone with less context than the author had; it yields only where the explicit form is so verbose it buries the intent, or where a codebase-standard idiom already carries the meaning.
+5. **Composition over inheritance** — unless it is a true is-a, substitution genuinely holds, and the framework expects subclassing.
+6. **Consistent with the system over locally optimal** — a better idea only one file follows leaves two conventions to maintain; it yields when the convention *itself* is the thing that's wrong, and then the move is to change it everywhere (or record the decision), never to diverge in one file.
 7. **Duplication over the wrong abstraction** — two occurrences may be coincidence; extract when the third proves the shape.
 
 The catalog beyond this list is **open** — invoke any principle as vocabulary (information hiding, Demeter, least astonishment, …). The leanings exist to define your style when nothing else settles the question. This default profile is fixed; **a project reshapes it only through precedent** (layer 4) — a recorded ADR that weighs a force differently — never through configuration.
