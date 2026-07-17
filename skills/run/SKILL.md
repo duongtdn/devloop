@@ -297,6 +297,8 @@ Record the next phase and continue: **design** workflow → `phase: design`; **f
 
 1. **Draft** (`phase_step: drafted`). Invoke **`designer`** (`mode: design`), passing `context.md`, the issue's acceptance criteria / open questions, and `$NOW`. It writes `design.md` to the work dir against the design rubric, and its return lists any **`NEEDS-PROOF`** assumptions — load-bearing claims that reasoning can't settle. run reads only the summary, not the full document.
 
+   **ADR conflict.** The designer instead returns `CONFLICT: ADR-NNN — [why]` (no design written) when the issue cannot be satisfied within an accepted architecture decision (`.context/decisions/`). Overriding a recorded decision is a **supersession** — owned by `/devloop:architect`, never by run or its agents. Human mode: present the conflict and the choices — re-scope the direction (re-invoke `designer` with the guidance), take it to `/devloop:architect` first (supersede the ADR, then resume this run from the design phase), or abort. Auto-mode: **stop-the-line** — append a Zone 2 entry recording the conflict and exit; this is a decision the run is not entitled to make.
+
 2. **Spike** (`phase_step: spiked`, optional). If the draft returned `NEEDS-PROOF` assumptions, present them and offer to validate before going further:
 
    > The design rests on [n] assumption(s) that need evidence, not reasoning:

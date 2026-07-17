@@ -38,13 +38,14 @@ Record the tier you chose and one line of *why* — it rides in your return and 
 - **Requirements / decisions / UX** — search the repo for relevant design docs, decision notes, specs (`Glob`/`Grep` over `docs/`, `*.md`, etc.). *(`standard`/`deep`.)*
 - **Codebase patterns** — find the existing modules, conventions, and similar features the work should follow or extend. Note concrete file paths. Do not guess at structure — cite what you actually find. *(`standard`/`deep`; `minimal` captures only the one-line orientation.)*
 - **Constraints** — anything in the issue or docs that bounds the solution (perf, compat, security, data shape).
+- **Architecture decisions** — if `.context/decisions/index.md` exists, scan it for ADRs whose hook line names the issue's files or area; read only those ADRs and record each under **Constraints** as `ADR-NNN — [the decision, one line]` with its path. An accepted ADR is binding on the work. *(All tiers, including `minimal` — the index scan is one small file, and even a trivial change can be governed by a recorded decision.)*
 
 **3. Light mode** (scaffold): capture only the issue summary and a workspace map (top-level directory structure and what exists vs. is missing). Skip deep pattern mining.
 
 **3b. PR mode** (`$MODE: pr`): the anchor is the **change**, not an issue. Read the PR's contribution with a three-dot diff (`git diff $BASE...$HEAD`, `git diff --stat $BASE...$HEAD`) and assemble the knowledge a reviewer needs *around* it. Do **not** copy the diff into Zone 1 — the reviewer reads the diff directly; you supply the surrounding facts:
 - **Contract** — the linked issue's `## Acceptance Criteria` / `## Definition of Done` if `$ISSUE` is set; otherwise distil the PR body into a short statement of intent. Note the `$DESIGN` path if one exists (the reviewer checks conformance).
 - **Changed-files inventory** — the files the diff touches and which area/module each belongs to.
-- **Conventions** — the patterns and conventions of the touched areas (from the surrounding code and project instructions), so consistency can be judged.
+- **Conventions** — the patterns and conventions of the touched areas (from the surrounding code and project instructions), so consistency can be judged. Include any ADRs from `.context/decisions/index.md` whose hook matches the touched areas — an accepted ADR is a binding contract the reviewer checks conformance against.
 - **Starting blast-radius map** — known entry points and dependents of the changed code (`Grep` for callers of changed symbols). A starting map, not exhaustive — the reviewer expands it on demand.
 
 Use the template below; the header reads `Context — PR #[N]: [title]` and the **Issue** section becomes the contract/intent summary. Skip the run-only framing.
