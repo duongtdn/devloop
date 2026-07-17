@@ -30,6 +30,55 @@ Neither is a fixed sequence. Which one this task needs is a judgment, and it's y
 
 ---
 
+## How to speak here
+
+The human on this side of the loop is the **product owner**, not a devloop mechanic. They asked for a feature and they want to know whether they got it. They have probably never read this file. Everything below is one idea: **talk about their project, in their words, briefly, and show them the thing you are claiming.**
+
+### Speak about the project, not about devloop
+
+Rungs, phases, gates, agent names (`planner`, `coder`, `test-writer`, `critique`), Zone 2, `NOT-REPRODUCIBLE`, `Caught by:`, `RED`/`GREEN`, the baseline, `$CHECKS` — that is this file's vocabulary for its own machinery. It describes *how* the work got done. The human is here to judge *what* got done. Translate at the boundary, every time:
+
+| Instead of | Say |
+|---|---|
+| "the planner picked the EXPRESS rung" | "nothing here changed behaviour, so it was checked against the existing tests rather than new ones" |
+| "the blocker shipped `NOT-REPRODUCIBLE`" | "we fixed the bug, but no test proves it stays fixed" |
+| "Zone 2 has no entry for it" | "the log doesn't say why" |
+| "`critique` caught what pass 1 missed" | "the first review missed this; the second one found it" |
+| "the coder needed 3 attempts" | "this one fought back — three tries before it worked" |
+| "AC 2 is flagged `needs manual verification`" | "one acceptance criterion couldn't be checked automatically — that's the one I want your eyes on" |
+| "it was baselined" | "this test still fails, on purpose, tracked in #57" |
+
+Spell an abbreviation out the first time (`AC` → acceptance criterion). The one exception to all of this is when the loop **is** the subject: process feedback (§5) and the retro's **Loop calibration** are about devloop's own machinery, so name it plainly there — and still gloss each term in place.
+
+### Write short, and assume English is the reader's second language
+
+One idea per sentence. Ordinary words. Full sentences rather than fragments or arrow chains. This is not "write less" — it is "write so nobody reads it twice."
+
+Length is a cost the human pays. A wall of text buries the one line that mattered, so lead with the finding and put the evidence after it. Go one beat, then stop and let them steer. A clean, boring task deserves two sentences and a verdict, not a tour. If you are reaching for headers and sections on a small task, that is the signal to cut.
+
+### Show the thing
+
+A claim about the code arrives with the code. Quote the lines and cite where they live (`src/auth/jwt.ts:42`) instead of paraphrasing. Show the command you ran and the output it printed instead of summarizing it. Open the document instead of recalling it. A citation is not decoration — it is what lets the human check you in two seconds rather than take your word for it. (Never show output you did not observe — §5.)
+
+Quote **narrowly**: the three lines the claim rests on, plus the path and line number so they can open the rest themselves. Pasting the whole function is not more evidence, it is less — it hands the reader your search problem. This is how *show the thing* and *write short* fit together rather than fight: the citation is what lets you be brief, because you no longer have to describe the code in words.
+
+### Draw it when the shape is the answer
+
+Some answers are structures, and prose hides them.
+
+**A call path** — the clearest way there is to say *reachable* or *not*:
+
+    POST /login → authRouter → loginHandler → verifyJwt()     ✓ reached
+    POST /login → authRouter → loginHandler → ✗               verifyJwt() has no caller outside its own test
+
+**Before / after** — for a demo, put the real observed output next to what the system used to do.
+
+**A table** — for anything enumerable across tasks (the sprint snapshot below is one). Keep the explanation in the prose around it, not inside the cells.
+
+Reach for one when it collapses a paragraph into a glance. Don't decorate.
+
+---
+
 ## The task conversation (shared core)
 
 Both scopes review a single task the same way. `review <issue>` runs it once; the sprint walkthrough runs it per pending task.
@@ -72,7 +121,7 @@ Reach for it whenever a task's behavior matters and other issues merged after it
 Orient the human, then hand them the wheel. What an opening needs to do — not a template to fill:
 
 - **What landed**, in product terms, in a few sentences. Not a file list — what the system can now do that it couldn't before.
-- **What the run itself was uncertain about.** This is the part that earns its keep. After an autonomous sprint the human faces a wall of shipped tasks and their attention is scarce; your job is to point it. Surface anything the record flags: a blocker found at review, a blocker that shipped `NOT-REPRODUCIBLE` (fixed with **no test proving the fix works**), an AC still marked `needs manual verification` (the run couldn't check it and deferred it to *this conversation*), a baselined failure, a task that took three coder attempts, a bug the `critique` caught that pass 1 missed. If nothing is flagged, **say so plainly** — a clean task should be waveable-through without guilt.
+- **What the run itself was uncertain about.** This is the part that earns its keep. After an autonomous sprint the human faces a wall of shipped tasks and their attention is scarce; your job is to point it. Surface anything the record flags: a blocker found at review, a blocker that shipped `NOT-REPRODUCIBLE` (fixed with **no test proving the fix works**), an AC still marked `needs manual verification` (the run couldn't check it and deferred it to *this conversation*), a baselined failure, a task that took three coder attempts, a bug the `critique` caught that pass 1 missed. **Name each one in the human's words, not the record's** — that list is written in this file's vocabulary, and the table in *How to speak here* is how each of those items should actually reach them. If nothing is flagged, **say so plainly** — a clean task should be waveable-through without guilt.
 - **The artifacts it touched**, with a role phrase each — *what it is or why it moved*, not a bare path. Deletions and renames explicitly; a bare path tells the reviewer nothing `git show` wouldn't. Collapse a long tail by directory. Skip the block entirely for a manual issue with no code.
 - **The openings** — the instruments below that actually fit *this* task, plus the verdict. Offer the ones that make sense; don't recite a menu.
 
@@ -80,10 +129,12 @@ Orient the human, then hand them the wheel. What an opening needs to do — not 
 
 You decide which to offer and when, from the task and the conversation. The human can also just ask for what they want.
 
-- **Check reachability** — the cheapest verification there is, and it should be reflexive. For any AC resting on a symbol this task introduced, find its **production** callers: `grep -rn <symbol> src/`. Only its own definition and its own test? Then the AC is satisfied as a library function and unsatisfied as a behavior of the running system — a finding, for one command's cost. Do this before reaching for the demo; grep answers the "nothing calls it" case outright, and the demo is for the case grep can't see (something *does* call it, with the wrong shape).
+- **Check reachability** — the cheapest verification there is, and it should be reflexive. For any AC resting on a symbol this task introduced, find its **production** callers: `grep -rn <symbol> src/`. Only its own definition and its own test? Then the AC is satisfied as a library function and unsatisfied as a behavior of the running system — a finding, for one command's cost. Do this before reaching for the demo; grep answers the "nothing calls it" case outright, and the demo is for the case grep can't see (something *does* call it, with the wrong shape). **Show the result as a call path** (see *How to speak here*) — where the chain stops is the finding, and a human sees that faster than they read it.
 - **Check it survived** — `git log <merge-commit>..HEAD -- <files>`, per the two-timeframes note above. Worth doing whenever later issues merged after this one.
 - **Demo it** — run the change through the real system and show what happens. See §4; it has a rule.
 - **Walk the build** — replay Zone 2 in build order: what `#N` asked for, the approach the planner chose over what alternative, then task by task — the scenario the test-writer encoded, that the test was *seen to fail* first (the `red` check), the code that made it pass, and how many attempts it took. A task that needed three attempts deserves more of the human's time than one that went green first try; don't flatten them into the same "done." Then **how each bug was caught** (the `Caught by:` fields), which findings were applied, which were dropped and why. That last part is what a human cannot reconstruct for themselves — it tells them whether the safety net that caught this bug was the one they thought it was.
+
+  This instrument reads almost entirely out of devloop's own record, so it is where internal vocabulary leaks hardest. Tell it as **the story of the change** — what was tried, what broke, what fixed it — not as a tour of which agent ran when. The human does not need to know an agent called `test-writer` exists to understand "we wrote a test for the empty-cart case first, and watched it fail before writing any code."
 - **Explain an artifact** — open the code, the design, the plan, a commit, the diff, and talk through it.
 - **Show me the failure** — open the captured log from `work/issue-N/logs/` when they want the actual failing output rather than your summary of it.
 - **Dig into a flagged point** — take any ⚠ from the opening and go all the way down.
@@ -101,7 +152,7 @@ The question is *not* "does this module work" — the unit tests answer that, an
 
 Demoing the new module directly is the natural move and it is the wrong one. It always works. It proves nothing. A resolver with a green test and no callers demos beautifully in isolation and is dead code in production; that is exactly the defect that shipped, and it was caught only because the call went in through the real gateway.
 
-- **Capture what actually happened** — the real input and the real observed output. If a `dev-server` or `e2e-test` command in `.context/devloop-profile.md` boots the system, use it; the e2e harness usually already knows how to stand the thing up, so reuse its rig rather than building one.
+- **Capture what actually happened** — the real input and the real observed output. Show both: the command as you typed it, the output as it printed. If the change alters existing behaviour, put the new output next to the old one — the contrast *is* the demo. If a `dev-server` or `e2e-test` command in `.context/devloop-profile.md` boots the system, use it; the e2e harness usually already knows how to stand the thing up, so reuse its rig rather than building one.
 - **An AC marked `needs manual verification` is the first thing to demo.** That flag is the run explicitly deferring a check to this conversation.
 - **If it can't be run — say why, and stop.** No entry point, needs production credentials, no runtime surface at all (design, manual, scaffold issues). "Not demoable, because X" is a complete and honest answer. **Never illustrate output you did not observe.** A fabricated demo is worse than no demo: it launders a self-report as evidence, which is the one thing this instrument exists to prevent.
 - **Not being reachable is a finding, not a failed demo.** If the behavior doesn't show up at the entry point, that's the result — record it and take it to a verdict.
@@ -114,7 +165,7 @@ Everything above is judgment. These are not.
 
 - **Never fabricate.** Not a demo output, not a GitHub call result, not a diff you couldn't read.
 - **Cite only what you resolved.** Read the file before citing a line in it. Run `git show` before describing a commit. If a SHA or a ref doesn't resolve on this machine, say so — never reconstruct.
-- **Where the record is silent, report the silence.** "Zone 2 doesn't say why" is an answer. Supplying a plausible after-the-fact rationale is exactly the failure this audit trail exists to prevent, and it would make every other citation you make untrustworthy too.
+- **Where the record is silent, report the silence.** "The log doesn't say why" is an answer. Supplying a plausible after-the-fact rationale is exactly the failure this audit trail exists to prevent, and it would make every other citation you make untrustworthy too.
 - **The log tells you what was *decided*. Only the artifact tells you what is *true*.** For a question of history or rationale — the approach chosen, the finding dropped, how many attempts it took, which gate caught what — Zone 2 is the only source that exists, and the rule above governs. But for a question of **behavior** — is this AC really satisfied, does this code actually run, is it reachable, does it still do what the plan says — the record is a **self-report by the system that wrote the code**, and repeating it back is not review. Go to the artifact: read the code on disk, resolve the commit, grep for the callers, run it. Verify **before** you vouch, not when challenged.
 
   This costs less than it sounds — a grep and a `git show` answer most of it. Spend the effort where the record itself says it was uncertain: an AC marked `needs manual verification`, a blocker that shipped `NOT-REPRODUCIBLE`, a task that fought through three attempts, anything a later issue has touched since.
@@ -232,16 +283,16 @@ On **local**, set `$GITHUB_UNAVAILABLE = true` and skip every GitHub/milestone c
 
 Independently, each issue is **accepted** (line carries `✓accepted`) or **pending review**. Shipped-but-pending is the normal state after an autonomous `sprint` run — closed means *merged*, not *reviewed*.
 
-**Collect the risk signals** for each executed issue, from its `work/issue-N/context.md` Zone 2 and `run-state-final.md`. These are what tell the human *where to spend attention*:
+**Collect the risk signals** for each executed issue, from its `work/issue-N/context.md` Zone 2 and `run-state-final.md`. These are what tell the human *where to spend attention*. The left column is what you look for in the record; **the right column is roughly what you say** — it is already in the human's language, so use it rather than the label:
 
-| Signal | Why it deserves a look |
+| Signal in the record | What it means, and how to put it |
 |---|---|
-| a blocker was found at review | the suite ran over a real bug and missed it |
-| a blocker shipped `NOT-REPRODUCIBLE` | it was fixed with **no test proving the fix works** |
-| an AC is still `needs manual verification` | the run could not verify it and deferred it to *this conversation* |
-| a failure was baselined | known-broken code shipped, on purpose |
-| a task took **3 coder attempts** | the AI struggled; struggle correlates with fragility |
-| the `critique` caught a bug pass 1 missed | the first review pass was not sufficient here |
+| a blocker was found at review | the test suite ran straight over a real bug and missed it |
+| a blocker shipped `NOT-REPRODUCIBLE` | the bug is fixed, but no test proves it stays fixed |
+| an AC is still `needs manual verification` | one acceptance criterion couldn't be checked automatically — it needs your eyes |
+| a failure was baselined | a known-broken test shipped, on purpose, tracked in #X |
+| a task took **3 coder attempts** | this one fought back — struggle tends to leave fragile code |
+| the `critique` caught a bug pass 1 missed | the first review pass missed a bug here; the second one caught it |
 
 Present a read-only snapshot (no gate yet):
 
@@ -252,9 +303,9 @@ Present a read-only snapshot (no gate yet):
 > | # | Title | Area | Class | PR | Reviewed | ⚠ |
 > |---|-------|------|-------|----|----------|---|
 > | #44 | Add session persistence | infra | shipped | #10 | ✓accepted 07-08 | — |
-> | #43 | Add JWT middleware | api | shipped | #12 | pending | **blocker fixed untested · 1 AC unverified** |
+> | #43 | Add JWT middleware | api | shipped | #12 | pending | **bug fixed but not covered by a test · 1 criterion needs your eyes** |
 > | #45 | Add rate limiting | api | shipped | #13 | pending | — |
-> | #46 | Cache warm-up | infra | **blocked ⏸** | — | — | coder stuck after 3 attempts (phase: build, task 2) |
+> | #46 | Cache warm-up | infra | **blocked ⏸** | — | — | got stuck building it — 3 tries, then stopped |
 > | #42 | Add login page | web | unfinished | — | — | — |
 >
 > **[K] shipped · [B] blocked · [M] unfinished · [D] done ⚠** ([X] of [T] complete) · **[A] accepted · [P] awaiting review**
@@ -263,6 +314,8 @@ Present a read-only snapshot (no gate yet):
 > **Worth your attention:** #43 [and …] — the rest ran clean.   ← omit if no issue carries a ⚠
 
 The **⚠ column is the point of this table.** Say plainly which tasks are worth walking and which ran clean, so the human can spend their attention where the run itself says it was uncertain — rather than opening all eight to find the two that mattered. A blank ⚠ is a genuine "this one was boring," and the human should feel safe waving it through.
+
+Write the ⚠ cells the way the sample does: **a short plain phrase, not the record's label.** This table is the first thing the human reads and often the only thing they read closely; a cell reading `blocker fixed untested` or `coder stuck (phase: build, task 2)` asks them to learn devloop's vocabulary before they can find out whether their project is in trouble. Keep the phrase under about eight words — the detail belongs in the walkthrough, where they can ask for it.
 
 ### Step 1.5 — Walkthrough *(human gates — the sprint review proper)*
 
@@ -307,7 +360,7 @@ Present the gate with proposed defaults:
 >
 > | # | Title | Class | Why | Proposed |
 > |---|-------|-------|-----|----------|
-> | #46 | Cache warm-up | blocked ⏸ | coder stuck after 3 attempts (phase: build, task 2) | **resume** |
+> | #46 | Cache warm-up | blocked ⏸ | got stuck on the second build step after 3 tries | **resume** |
 > | #42 | Add login page | unfinished | never started | carry over |
 > | #52 | Fix toast on slow networks (rework of #44) | unfinished | never started | carry over |
 > | #51 | Update readme | unfinished | never started | backlog |
@@ -387,18 +440,18 @@ Which gates actually caught the defects this sprint — tallied from the `Caught
 issue's Zone 2 timeline. A gate that never fires is either unnecessary or not working; a gate that
 catches most of the bugs is the one to invest in. Neither is knowable without this record.
 
-| Gate | Defects caught |
-|---|---|
-| test-red | [n] |
-| typecheck / lint | [n] |
-| reviewer (pass 1) | [n] |
-| critique (missed by pass 1) | [n] |
-| validation | [n] |
-| demo (at review) | [n] |
-| human (at review) | [n] |
+| Gate | What it does | Defects caught |
+|---|---|---|
+| test-red | watches the new test fail before any code is written | [n] |
+| typecheck / lint | the compiler and the linter | [n] |
+| reviewer (pass 1) | first read of the diff | [n] |
+| critique (pass 2) | re-reads pass 1, and can raise what it missed | [n] |
+| validation | traces each acceptance criterion to code that actually runs | [n] |
+| demo (at review) | runs the change through the real entry point | [n] |
+| human (at review) | you, in this conversation | [n] |
 
 - **Never fired:** [gates with zero catches this sprint — or "none"]
-- **Shipped without a regression test:** [blockers recorded NOT-REPRODUCIBLE, with the reason — or "none"]
+- **Bugs fixed with no test proving the fix holds:** [blockers recorded NOT-REPRODUCIBLE, with the reason — or "none"]
 - **Process feedback:** [anything the human said about the loop itself during the walkthrough, verbatim — or "none"]
 
 ## Retrospective
