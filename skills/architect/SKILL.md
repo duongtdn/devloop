@@ -102,7 +102,9 @@ Constraints that bind at this write site (restated here on purpose — they hold
 - **The Decision section is the binding part** — files, boundaries, signatures; later work is judged for conformance against it. Any code block anywhere in an ADR is a sketch (the same normative/illustrative split as `design.md`); never write one detailed enough that copying it looks like the intended path.
 - **Never edit an accepted ADR's body.** A change of decision is a new, superseding ADR. The only permitted mutation of an old ADR is its `Status:` line.
 
-Numbering: next `NNN` from `index.md` (zero-padded, global — not per sprint). File: `.context/decisions/adr-NNN-<slug>.md`. Create `.context/decisions/` if it does not exist.
+Numbering: next `NNN` from `index.md` (zero-padded, global — not per sprint).
+
+**The index is the authority on where records live.** By default they sit beside it: `.context/decisions/adr-NNN-<slug>.md` (create the directory if absent). But a project may already keep an ADR corpus somewhere its own docs are organized around — read `.context/decisions/index.md` first, and **if its entries point elsewhere, write there and follow the corpus's existing file-naming**. `index.md` stays at the fixed path regardless (that is what every reader scans); only the records it points to may live elsewhere. Never relocate an existing corpus to satisfy the default — the default is for projects that have no answer yet, and a decision record's address is one its own project already made.
 
 ```markdown
 # ADR-NNN — [title]
@@ -136,7 +138,7 @@ Numbering: next `NNN` from `index.md` (zero-padded, global — not per sprint). 
 
 ### The index
 
-`.context/decisions/index.md` is the retrieval surface — the inner loop's `context` agent scans it to find decisions bearing on an issue, so **the hook line must name the code area or files the decision governs** (that is what gets matched). One line per ADR:
+`.context/decisions/index.md` is the retrieval surface — the inner loop's `context` agent scans it to find decisions bearing on an issue, so **the hook line must name the code area or files the decision governs** (that is what gets matched), and **the link must resolve from the index's own location** (relative paths reach a corpus living outside this directory). One line per ADR:
 
 ```markdown
 # Architecture decisions
