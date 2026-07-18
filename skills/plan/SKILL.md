@@ -1,5 +1,5 @@
 ---
-description: Prepare a sprint iteration. Establishes the sprint goal and end-of-sprint demo through conversation, triages backlog issues, selects sprint-ready issues, ensures every issue has acceptance criteria and a Definition of Done, creates a GitHub milestone, determines execution order, and writes the sprint file. Conversational — pauses at every step for user confirmation.
+description: Prepare a sprint iteration. Establishes the sprint goal and end-of-sprint demo through conversation, triages backlog issues into sprint tasks (many-to-many, with per-item disposition), selects sprint-ready issues, assesses whether the selection covers the goal and authors net-new tasks (under an inline architect conversation) to fill any gap, ensures every issue has acceptance criteria and a Definition of Done, creates a GitHub milestone, determines execution order, and writes the sprint file. Conversational — pauses at every step for user confirmation.
 ---
 
 You are running **devloop:plan**. This skill is fully conversational — pause at every human gate and wait for explicit confirmation before moving to the next step. Never batch steps together.
@@ -249,39 +249,43 @@ Handle defer and close decisions immediately in batch:
 
   Wait for response. On yes, retry once. On no, leave open and count it as deferred in the summary.
 
-For **resolve** items, work through them strictly one at a time. Do not move to the next until the current one is approved and created.
+For **resolve** items, reason across the whole set together — do **not** process them one at a time. The backlog-item→task relationship is many-to-many: a task may synthesize several backlog items, one backlog item may split across several tasks, and the coverage can overlap. Handling items in isolation cannot express that.
 
-For each resolve item:
+**Fetch all.** Call the GitHub MCP to retrieve the full body of every resolve item. Do not rely on the triage agent's summary — the full bodies are needed to reason about scope and overlap across items.
 
-**Fetch.** Call the GitHub MCP to retrieve the full body of the backlog issue. Do not rely on the triage agent's summary — the full body is needed to reason about scope.
+**Reason across the set.** Read the bodies together and propose a set of sprint-ready tasks that covers them:
+- A small, self-contained item maps to a single task.
+- A large item splits into several tasks, each independently executable within a sprint.
+- A single task may draw from several items — record **all** of them as its provenance.
 
-**Reason.** Read the full body and assess scope:
-- If the item is small and well-defined, keep it as a single sprint-ready issue.
-- If it is large or covers multiple distinct concerns, break it into smaller issues that are each independently executable within a sprint.
-
-Suggest labels for each proposed issue:
+Suggest labels for each proposed task:
 - `type:` — one of `type:feature`, `type:bug`, `type:chore`, `type:question`, `type:decision`
-- `epic:` — if the item belongs to a recognisable theme
-- `area:` — if the item has a clear technical layer (`area:infra`, `area:api`, `area:web`, etc.)
+- `epic:` — if the task belongs to a recognisable theme
+- `area:` — if the task has a clear technical layer (`area:infra`, `area:api`, `area:web`, etc.)
 
-**Draft acceptance criteria** for each proposed issue from the backlog body, following the acceptance-criteria rules in the spec (below).
+**Draft acceptance criteria** for each proposed task from the source backlog bodies, following the acceptance-criteria rules in the spec (below).
+
+**Per-item disposition.** Once the task set is settled, each resolve item lands in exactly one state, by how much of it the tasks cover — decided *after* the tasks are approved, not per-iteration:
+- **fully subsumed** — every concern it raised became a task → close it.
+- **partially drawn from** — some concerns became tasks, the remainder is out of this sprint → leave it open.
+- **not drawn from** — reasoning found nothing to pull in this sprint → leave it open (counts as deferred).
 
 ### Issue body template — read the shared spec
 
-Every issue this skill creates follows **`plan-spec.md`** (in this skill's directory, alongside SKILL.md) — the shared spec for the issue body template, the acceptance-criteria rules, the **Definition-of-Done-by-type** rule (the issue's `type:` label × the profile test flags `$HAS_UNIT_TESTS`/`$HAS_E2E` from Step 1), and label conventions. Read it now if not already loaded; `/devloop:replan` reads the same file, which is what keeps sprint amendments format-identical to sprint creation. Issues resolved from a backlog item carry the spec's `Derived from #[backlog-N]` line.
+Every issue this skill creates follows **`plan-spec.md`** (in this skill's directory, alongside SKILL.md) — the shared spec for the issue body template, the acceptance-criteria rules, the **Definition-of-Done-by-type** rule (the issue's `type:` label × the profile test flags `$HAS_UNIT_TESTS`/`$HAS_E2E` from Step 1), and label conventions. Read it now if not already loaded; `/devloop:replan` reads the same file, which is what keeps sprint amendments format-identical to sprint creation. Tasks resolved from backlog item(s) carry the spec's `Derived from #A[, #B]` line, listing **every** source item.
 
-**Human gate — present reasoning and proposal, wait for approval:**
+**Human gate — present the collective proposal, wait for approval:**
 
-> **Resolve #[N] ([X of Y]): [title]**
+> **Backlog resolution → Sprint [N] tasks**
 >
-> [2–4 sentences explaining what this backlog item is about and the reasoning behind the proposed breakdown — or why it stays as one issue.]
+> [2–4 sentences on how the resolve items map onto the proposed tasks — which items combined, which split, where coverage overlaps.]
 >
-> Proposed sprint-ready issue(s):
+> Proposed sprint-ready tasks:
 >
-> | # | Title | type | epic | area |
-> |---|-------|------|------|------|
-> | 1 | Add login page | feature | auth | web |
-> | 2 | Add JWT middleware | feature | auth | api |
+> | # | Title | type | epic | area | From backlog |
+> |---|-------|------|------|------|--------------|
+> | 1 | Add login page | feature | auth | web | #12 |
+> | 2 | Add JWT middleware | feature | auth | api | #12, #34 |
 >
 > Acceptance criteria:
 >
@@ -294,29 +298,35 @@ Every issue this skill creates follows **`plan-spec.md`** (in this skill's direc
 > - [ ] Requests without a valid token receive 401
 > - [ ] A valid token resolves the authenticated user
 >
-> Definition of Done: [per the DoD-by-type rule — list each issue's DoD lines given its type and the profile; group if several share a type]
+> Definition of Done: [per the DoD-by-type rule — list each task's DoD lines given its type and the profile; group if several share a type]
 >
-> Approve to create, or tell me what to change — titles, labels, or criteria:
+> Backlog disposition:
+>
+> | Backlog | Disposition | Why |
+> |---------|-------------|-----|
+> | #12 | close — fully subsumed | Every concern became tasks 1 and 2 |
+> | #34 | stay open — partially drawn | JWT refresh became task 2; rotation deferred |
+>
+> Approve to create, or tell me what to change — titles, labels, criteria, the mapping, or a disposition:
 
 Wait for the user's response:
-- **Approved** — proceed to create.
-- **Adjustments** — apply the changes (titles, labels, split differently, merge into one, add/remove items), show the updated proposal again, wait for re-approval.
+- **Approved** — proceed to create and dispose.
+- **Adjustments** — apply the changes (titles, labels, split/merge differently, re-map provenance, change a disposition, add/remove tasks), show the updated proposal again, wait for re-approval.
 
-**Create and close.** On approval, before creating issues, check whether each `epic:` label in the proposal already exists in `$REPO` via GitHub MCP. For any that are missing, create them now — no separate approval needed since the user already confirmed the label in the proposal table. Announce each new label created:
+**Create and dispose.** On approval, before creating tasks, check whether each `epic:` label in the proposal already exists in `$REPO` via GitHub MCP. For any that are missing, create them now — no separate approval needed since the user already confirmed the label in the proposal table. Announce each new label created:
 
 > Creating new label `epic:auth` in `$REPO`.
 
-Then create each issue via GitHub MCP with the confirmed title, labels, and a body following the **issue body template** above — the approved `## What`, `## Acceptance Criteria`, the profile-derived `## Definition of Done`, and the `Derived from #[backlog-N]` line. Then close the backlog item with a comment: `Resolved into: #[child1], #[child2], ...`
+Then create each task via GitHub MCP with the confirmed title, labels, and a body following the **issue body template** above — the approved `## What`, `## Acceptance Criteria`, the profile-derived `## Definition of Done`, and a `Derived from` line listing **every** source backlog item for that task (e.g. `Derived from #12, #34`).
 
-If this is not the last resolve item, announce and continue:
+Then apply each backlog item's disposition:
+- **fully subsumed** — close it with comment `Resolved into: #[child1], #[child2], …` (every task that drew from it).
+- **partially drawn from** — leave it open, post comment `Partially addressed by #[childX][, #childY]; remainder out of scope for Sprint [N].`
+- **not drawn from** — leave it open, no comment (counted as deferred in the summary).
 
-> #[N] resolved → created #[child1], #[child2]. Moving to next item.
+If a close or comment call fails, report it and offer to retry once; on decline, leave the item as-is and note it in the summary.
 
-If this is the last resolve item, announce completion:
-
-> #[N] resolved → created #[child1], #[child2]. All resolve items done.
-
-After all decisions are applied, report a one-line summary: `Backlog triage: [N auto-deferred] [N resolved] [N deferred] [N closed]`
+Report a one-line summary: `Backlog triage: [N auto-deferred] [N resolved] [N partially resolved] [N deferred] [N closed]`
 
 ---
 
@@ -334,9 +344,9 @@ Wait for response. If the user provides issue numbers, use those as the selectio
 
 If the agent reports zero issues:
 
-> No sprint-ready issues found. Create issues with a type label (type:feature, type:bug, type:chore, type:question, type:decision) and no milestone, then re-run plan.
+> No pre-existing sprint-ready issues found — we'll build Sprint [N] from the goal directly.
 
-Stop.
+Set the confirmed selection to empty and skip the selection gate below — go straight to **Step 4.5**, which authors the sprint's tasks from the goal.
 
 **Human gate — present the agent's result and wait for selection:**
 
@@ -358,6 +368,61 @@ Wait for response. Accept issue numbers, ranges, or natural language ("add #38",
 If the user changes the selection, show the updated list before proceeding:
 
 > Updated selection: #42, #43, #38 — proceed? (y/n)
+
+---
+
+## Step 4.5 — Coverage & gap-fill
+
+Every sprint, check whether the confirmed selection actually **covers** the sprint goal and demo. Step 4 can only pick from issues that already exist, so a goal can need work no issue yet captures. This step runs even when Step 4 found a full selection — it is the one place `plan` authors net-new work.
+
+**Assess coverage** (inline). Reason over `$SPRINT_GOAL` and `$SPRINT_DEMO` against the selected issues — their titles, types, areas, and the selector's rationale; fetch a body only if a title is too thin to judge. Ask: if every selected issue shipped, would the demo be watchable and the goal met? Name any concern the goal/demo implies that no selected issue owns.
+
+If the selection covers the goal, say so and continue:
+
+> Selection covers the Sprint [N] goal and demo — no gap-fill needed.
+
+Proceed to Step 5.
+
+**On a gap — author under the architect's lens.** There is a gap (or Step 4 found zero issues). Net-new tasks must be shaped by design, not invented in a vacuum — so bring a senior architect's judgment into context before drafting: **invoke the `/devloop:architect` skill inline, once**, scoped to the gap (e.g. _"what work does '[goal]' need that the current selection #… doesn't cover?"_). This is a single load of architect's judgment lens to author the gap tasks under — **not** a separate architect Q&A run at the user (no "who edits this? how often?" intake); you apply its method to the authoring yourself. Its judgment structure (leanings → forces → tie-breakers → precedent) and character load into the context window and drive the authoring — and because that character already scales deliberation to reversibility, a trivial gap task gets a fast call under the same lens, not ceremony it doesn't need:
+
+- It reads `.context/decisions/index.md` first, so authored tasks **conform to and cite** any governing ADR.
+- Its concreteness leash keeps each task's scope landing on a real destination (file, boundary, signature) rather than a vague outcome.
+- Where a task rests on a genuine unrecorded decision — a one-way door, a new boundary or contract others will import — architect's own **ADR gate** records it before the task is frozen; a mere preference stays in the chat and gets no ADR. This is architect's threshold; do not lower it to force an ADR per task, and do not raise one for a two-way door.
+
+Architect supplies the judgment and any ADRs; per its own rule it does **not** create issues — `plan` authors them.
+
+**Draft the tasks.** From the architect-informed reasoning, draft each net-new sprint-ready task following the **issue body template** in `plan-spec.md` — `## What`, `## Acceptance Criteria`, and the profile-derived `## Definition of Done` per its `type:`. These tasks carry **no** `Derived from` line (they came from the goal, not a backlog item). Suggest `type:`/`epic:`/`area:` labels as in Step 3.
+
+**Human gate — present the authored tasks, wait for approval:**
+
+> **Sprint [N] gap-fill** — the goal needs work the selection doesn't cover:
+>
+> [1–2 sentences naming the gap and the design reasoning behind the proposed tasks; cite any ADR recorded or followed.]
+>
+> Proposed sprint-ready tasks:
+>
+> | # | Title | type | epic | area |
+> |---|-------|------|------|------|
+> | 1 | Add token refresh endpoint | feature | auth | api |
+>
+> Acceptance criteria:
+>
+> **1. Add token refresh endpoint**
+> - [ ] An expired access token can be exchanged via a valid refresh token
+> - [ ] A revoked refresh token receives 401
+>
+> Definition of Done: [per the DoD-by-type rule — group if several share a type]
+>
+> Approve to create, or tell me what to change — titles, labels, criteria, or scope:
+
+Wait for the response. On adjustments, revise and re-present. On approval:
+- create any missing `epic:`/`area:` labels via GitHub MCP (announce each), as in Step 3.
+- create each task via GitHub MCP with the confirmed title, labels, and template body (**no** `Derived from` line).
+- **add the created issue numbers to the confirmed selection** so Steps 5–8 assign, order, validate, and write them like any other selected issue.
+
+Report:
+
+> Gap-fill: created #[…]. Selection now: #[…].
 
 ---
 
@@ -502,7 +567,10 @@ When done, report:
 > Milestone: Sprint [N] (#[milestone_number]) · Sprint file: `.context/sprints/sprint-[N].md`
 >
 > **Backlog** _(omit this section entirely if Step 3 was skipped)_
-> [N] resolved · [N] deferred · [N] closed · [N] auto-deferred _(omit any counts that are zero)_
+> [N] resolved · [N] partially resolved · [N] deferred · [N] closed · [N] auto-deferred _(omit any counts that are zero)_
+>
+> **Gap-fill** _(omit this section entirely if Step 4.5 authored nothing)_
+> [N] tasks authored from the goal (#…) · [N] ADR(s) recorded (ADR-… — [title]) _(omit the ADR clause if none)_
 >
 > **Execution order**
 >

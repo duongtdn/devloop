@@ -25,12 +25,13 @@ deliver = direct (default): gate-deliver              → merge locally, no PR
 
 Not every phase runs for every issue — the **workflow** (chosen from labels, confirmed at gate-plan) selects which phases are active. The **design** phase is optional: it always runs for the design workflow (and ends there), and runs for a feature/bugfix only when the planner asks for it (a `NEEDS-DESIGN` detour from the plan phase, confirmed at gate-design). The **manual** workflow is reached the same way — when the planner judges an issue has no code to build it returns `MANUAL`, and run carries the issue to done through a single confirmation gate (`gate-manual`) with no branch, tests, or PR.
 
-**Rung — how heavy the phases run.** Orthogonal to the phase set, the **planner** returns a **rung** that sizes the ceremony to the task. The choice turns on one question — *does the change add/alter behavior, and if not, what proves it safe?* — and there are three:
+**Rung — how heavy the phases run.** Orthogonal to the phase set, the **planner** returns a **rung** that sizes the ceremony to the task. The choice turns on two questions — *does the change add/alter behavior — and if not, does it touch any checkable surface at all?* — and there are four:
 - **`STANDARD`** — new or changed behavior. The full path (TDD micro-loop per task, two-pass review); its proof is a **new test, red-verified**.
 - **`EXPRESS`** — no new behavior, safe because *nothing live depends on the touched code* (dead-code removal, constant bump, isolated copy tweak). Proof: a **triviality grep**.
 - **`REFACTOR`** — no new behavior, but the code *is* used and you're restructuring it (extract/inline, rename across call sites, dedup, move a module). Proof: **coverage** — the existing suite exercises the behavior and must stay green across the change.
+- **`TRIVIAL`** — no new behavior **and no checkable surface**: the edit touches only whole inert files that feed no `$CHECKS` command (prose docs, `LICENSE`, `CHANGELOG`). The lightest path — collapsed front half, **no review, no validate, no e2e**, and the back-half trimmed to the checks a touched path actually feeds (usually none). Proof: an **inertness proof**, re-verified against the real post-edit diff. A comment/whitespace edit *inside* executable source is **not** `TRIVIAL` (the file feeds a check) — that's `EXPRESS`.
 
-`EXPRESS` and `REFACTOR` share one [collapsed path](#the-collapsed-path-express-and-refactor) (collapse the test-authoring front half, keep the back half; single-pass review); they differ only in that proof. **No rung flexes verification** — the regression/fitness **back half runs at every rung** ([the back-half rule](#the-back-half-rule--every-rung)), and `validate`/reachability still runs (for the collapsed rungs it is the *primary* evidence). run never picks the rung itself — the planner does, from context, exactly as it decides `NEEDS-DESIGN`; a mis-called `EXPRESS` **auto-bumps to `STANDARD`** the moment its triviality proof fails. The confirmed rung is persisted (`rung:`), so it governs on resume.
+`EXPRESS` and `REFACTOR` share one [collapsed path](#the-collapsed-path) (collapse the test-authoring front half, keep the back half; single-pass review); `TRIVIAL` is lighter still (below). They differ in their proof. **No rung skips a check that can see the change** — the regression/fitness **back half runs at every rung with checkable surface** ([the back-half rule](#the-back-half-rule)), and `validate`/reachability runs for all but `TRIVIAL` (for the collapsed rungs it is the *primary* evidence; `TRIVIAL` has no symbol for a trace to reach). run never picks the rung itself — the planner does, from context, exactly as it decides `NEEDS-DESIGN`; a mis-called rung **auto-bumps up** the moment its proof fails (`TRIVIAL`→`EXPRESS` when a touched path turns out checkable, `EXPRESS`→`STANDARD` when its triviality proof fails) — a one-way ratchet. The confirmed rung is persisted (`rung:`), so it governs on resume.
 
 **Context is sized on demand, not fixed.** The `context` agent self-calibrates retrieval depth to the issue and biases light; if the planner finds Zone 1 too thin it raises `NEEDS-CONTEXT`, and run deepens exactly that gap (bounded). run does not assess how much context an issue needs any more than it assesses complexity — the specialists signal, run reacts.
 
@@ -70,7 +71,7 @@ Only the **human + pr** cell halts for review before merge; every other cell mer
 **Set at invocation, never inferred.** `$AUTONOMY` is `auto` when `--auto` is in `$ARGUMENTS`, else `human`; `$DELIVERY` is `pr` when `--pr` is present, else `direct`. Persist both as `autonomy:` and `delivery:` in the state file (S6). On resume the state file governs — a run keeps the character it started with and never silently switches; flags on a resume that differ from the recorded modes do not switch them (warn if they differ). (The `## Pending gate` block is a human-mode device for re-presenting a panel; auto-mode resolves gates in place and does not rely on it.)
 
 **Decision policy (auto-mode).** At each gate, take the choice the human-mode panel would *recommend* — the agents' own verdict — and record why:
-- accept the agent's structured output as produced (the planner's plan, **rung**, and phase set, a `sound` design, the reviewer's upheld findings). **Accept the planner's rung; never downgrade it on run's own initiative** — the planner chose `EXPRESS`/`STANDARD` from context, and auto-mode has no human to catch an over-eager downgrade. A rung only ever moves *up*: the `EXPRESS`→`STANDARD` **auto-bump** (triviality proof fails, or an EXPRESS blocker/`new` failure surfaces) is automatic and **not** a stop — it converts to full ceremony and continues.
+- accept the agent's structured output as produced (the planner's plan, **rung**, and phase set, a `sound` design, the reviewer's upheld findings). **Accept the planner's rung; never downgrade it on run's own initiative** — the planner chose the rung from context, and auto-mode has no human to catch an over-eager downgrade. A rung only ever moves *up*: the `TRIVIAL`→`EXPRESS` bump (a touched path turns out checkable) and the `EXPRESS`→`STANDARD` bump (triviality proof fails, or an EXPRESS blocker/`new` failure surfaces) are automatic and **not** a stop — each converts to fuller ceremony and continues.
 - **context on demand is mechanical, not a stop.** A planner `NEEDS-CONTEXT` re-invokes `context` in `deepen` mode with no human needed; after the 2-deepen cap, re-invoke the planner with `$CONTEXT_FINAL: true`. Only if it *then* escalates to `NEEDS-DESIGN` (or genuinely cannot plan) does the normal boundary apply.
 - **prefer proof over guessing.** Where a load-bearing choice can be settled empirically, **run a spike** (throwaway `coder` PoC) rather than reasoning to an answer — auto-mode has no human to sanity-check a guess, so evidence is cheaper than a wrong assumption caught later. In the design phase this means running *every* `NEEDS-PROOF` spike the designer raises **and** any spike the critique still recommends before approving; more broadly, when a decision hinges on an untested assumption a spike could verify, spike it and fold the finding in rather than proceeding on reasoning alone. Log the spike and its finding.
 - when a rule is ambiguous, take the safe, reversible option and log the alternative not taken;
@@ -148,7 +149,7 @@ Node is always available (the bundled milestone MCP requires it); the trailing `
 
 issue: N
 workflow: feature | bugfix | design | scaffold | manual
-rung: express | standard | refactor | -   # set at gate-plan from the planner's plan.md; '-' until then / for non-code workflows
+rung: trivial | express | standard | refactor | -   # set at gate-plan from the planner's plan.md; '-' until then / for non-code workflows
 autonomy: human | auto           # set at S6 from $AUTONOMY
 delivery: direct | pr            # set at S6 from $DELIVERY; both govern on resume
 phase: <phase name>
@@ -161,7 +162,7 @@ merge-commit: -      # the squash/merge SHA on $base; set at merge
 history-ref: -       # refs/devloop/issue-N — the branch as built, archived at merge (local only)
 
 ## Plan (confirmed at gate-plan)
-rung:   express | standard | refactor   # STANDARD: full TDD; EXPRESS/REFACTOR: collapsed front half, back-half kept
+rung:   trivial | express | standard | refactor   # STANDARD: full TDD; EXPRESS/REFACTOR: collapsed front half, back-half kept; TRIVIAL: inert edit, no review/validate, subset back-half
 phases: context, [design,] plan, build, e2e, review, validate, <gate-deliver | gate-pr>, merge
 gates:  gate-plan ✓, gate-review, gate-validation, <gate-deliver | gate-pr>
 
@@ -381,11 +382,12 @@ Record `phase: gate-plan`. Continue.
 run owns the phase list. Start from the workflow default (the table in [How this skill works](#how-this-skill-works)), then adjust to the planner's **rung** (`plan.md`'s `Rung:` line) and what it produced:
 
 - **`STANDARD`** — the full path: `build` (TDD loop per task) → e2e → review → validate → deliver.
-- **`EXPRESS`** / **`REFACTOR`** — the [collapsed path](#the-collapsed-path-express-and-refactor): the `build` phase applies the change **without** the test-writer/red front half, running the rung's proof first (**triviality** grep for EXPRESS, **coverage** confirmation for REFACTOR) and the back-half suite; `review` is a **single reviewer pass** (no fresh-instance critique); `validate`/reachability still runs. e2e is dropped unless the profile+plan call for it.
+- **`EXPRESS`** / **`REFACTOR`** — the [collapsed path](#the-collapsed-path): the `build` phase applies the change **without** the test-writer/red front half, running the rung's proof first (**triviality** grep for EXPRESS, **coverage** confirmation for REFACTOR) and the back-half suite; `review` is a **single reviewer pass** (no fresh-instance critique); `validate`/reachability still runs. e2e is dropped unless the profile+plan call for it.
+- **`TRIVIAL`** — the lightest [collapsed path](#the-collapsed-path): the `build` phase applies the inert edit and verifies inertness on the diff (only the checks a target feeds — usually none); **no review, no validate, no e2e**. The only gates are `gate-plan` (now) and the delivery gate. The ACs are prose outcomes the human confirms from the diff at the delivery gate.
 
 Then adjust for what the planner produced:
-- `test-plan.md` has e2e scenarios **and** the profile has an `e2e-test` command → include **e2e**. Otherwise drop it. (`EXPRESS`/`REFACTOR` write no `test-plan.md`.)
-- DoD includes "Code reviewed" → include **review** (single-pass for `EXPRESS`/`REFACTOR`, two-pass for `STANDARD`). The issue has acceptance criteria → include **validate**.
+- `test-plan.md` has e2e scenarios **and** the profile has an `e2e-test` command → include **e2e**. Otherwise drop it. (`TRIVIAL`/`EXPRESS`/`REFACTOR` write no `test-plan.md`; `TRIVIAL` never runs e2e.)
+- DoD includes "Code reviewed" → include **review** (single-pass for `EXPRESS`/`REFACTOR`, two-pass for `STANDARD`; **never** for `TRIVIAL` — an inert edit has no executable surface for the code-review rubric). The issue has acceptance criteria → include **validate** (**except `TRIVIAL`**, whose ACs carry no symbol to trace — they are confirmed at the delivery gate).
 - Count build tasks from `plan.md`.
 
 When the issue doesn't match its archetype, compose the phase set directly from the named phases to fit the real work — e.g. a "test + review existing code" task is `build`-less (review + validate only); an investigation/spike is `context → plan → gate-plan` then done. The phase list can be any sensible subset/order of the named phases — that is what makes the workflow dynamic while keeping every phase predictable. (The design phase is not composed here — it sits *upstream* of this gate and is reached via the planner's `NEEDS-DESIGN` detour or the design workflow.)
@@ -394,18 +396,19 @@ Then compute which **gates** will fire: `gate-plan` (now), `gate-review` (if rev
 
 ### Present
 
-> **Execution plan for #[ISSUE] — [title]  ([workflow] · rung: [EXPRESS | STANDARD | REFACTOR])**
+> **Execution plan for #[ISSUE] — [title]  ([workflow] · rung: [TRIVIAL | EXPRESS | STANDARD | REFACTOR])**
 >
+> [TRIVIAL:] Inert change — [why]. Docs/prose only; no test, no review, no validate — verified by the inertness proof below (the touched files feed no check).
 > [EXPRESS:] Trivial change — [why]. No new test; verified by the triviality proof below + the full check suite.
 > [REFACTOR:] Behavior-preserving restructure — [why]. No new test; the existing suite (coverage below) must stay green.
 >
 > | Stage | What |
 > |---|---|
-> | Code | [STANDARD: TDD loop × [N] tasks (test → code per task)] [EXPRESS/REFACTOR: apply [N] change(s), no test-first] |
-> | Proof | [EXPRESS: what I'll grep to confirm nothing depends on it] [REFACTOR: the existing tests that guard the behavior — coverage adequate/THIN] |
-> | E2E | [scenario list] |  ← omit row if e2e not active
-> | Review | [STANDARD: diff review + critique] [EXPRESS/REFACTOR: single review pass] |  ← omit if not active
-> | Validate | [K] acceptance criteria ([M] need manual check) |
+> | Code | [STANDARD: TDD loop × [N] tasks (test → code per task)] [EXPRESS/REFACTOR: apply [N] change(s), no test-first] [TRIVIAL: apply [N] inert edit(s)] |
+> | Proof | [EXPRESS: what I'll grep to confirm nothing depends on it] [REFACTOR: the existing tests that guard the behavior — coverage adequate/THIN] [TRIVIAL: the inert files + the checks cleared against them — subset to run: [subset or none]] |
+> | E2E | [scenario list] |  ← omit row if e2e not active (always omitted for TRIVIAL)
+> | Review | [STANDARD: diff review + critique] [EXPRESS/REFACTOR: single review pass] |  ← omit if not active (always omitted for TRIVIAL)
+> | Validate | [K] acceptance criteria ([M] need manual check) |  ← omit for TRIVIAL (ACs confirmed at the delivery gate)
 > | Deliver | [branch] → [base] · [merge locally (direct) \| open PR (pr)] |
 >
 > Gates I'll stop at:
@@ -414,13 +417,13 @@ Then compute which **gates** will fire: `gate-plan` (now), `gate-review` (if rev
 > ③ after validate — verify [M] ACs manually
 > ④ [direct: before merge — confirm merging to [base] \| pr: before PR — approve PR content]
 >
-> Approve, or reshape (e.g. "skip e2e", "skip review", "make this STANDARD", "this is a refactor", "open a PR"):
+> Approve, or reshape (e.g. "skip e2e", "skip review", "make this STANDARD", "this is a refactor", "this is just docs", "open a PR"):
 
 Apply any reshaping the user asks for (drop/add a stage, switch workflow, **change the rung**). The user has final say on the rung too — and on the rung, saying so is not the same as being able to run it:
 
-**Changing the rung re-invokes the `planner`.** A rung is a flag *plus* the artifact that licenses it, and **only the planner writes that artifact**: `STANDARD` rests on `test-plan.md`, `EXPRESS` on `plan.md`'s `## Triviality proof`, `REFACTOR` on its `## Coverage` — and a plan carries **at most one**, the one its current rung uses. So *every* rung change leaves the plan without the artifact the new rung runs on. Re-invoke the planner with **`$RUNG`** = the requested rung — the rung is the user's call now, so it is passed as a constraint, not a question (the planner honors `$RUNG` and does not re-derive it; without `$RUNG` it would re-choose from context and hand the reshape straight back) — then re-present the new plan.
+**Changing the rung re-invokes the `planner`.** A rung is a flag *plus* the artifact that licenses it, and **only the planner writes that artifact**: `STANDARD` rests on `test-plan.md`, `EXPRESS` on `plan.md`'s `## Triviality proof`, `REFACTOR` on its `## Coverage`, `TRIVIAL` on its `## Inertness proof` — and a plan carries **at most one**, the one its current rung uses. So *every* rung change leaves the plan without the artifact the new rung runs on. Re-invoke the planner with **`$RUNG`** = the requested rung — the rung is the user's call now, so it is passed as a constraint, not a question (the planner honors `$RUNG` and does not re-derive it; without `$RUNG` it would re-choose from context and hand the reshape straight back) — then re-present the new plan.
 
-This holds in **every** direction, downgrade included. There is no honor-in-place case: an `EXPRESS` whose `## Triviality proof` run invented is run doing the planner's job, and that proof is the entire license for skipping the front half (per the planner's contract, never pick `EXPRESS` without a concrete proof you can name). Same for a `REFACTOR` with no `## Coverage` — [the collapsed path](#the-collapsed-path-express-and-refactor) greps the one and confirms the other as its **first step**, and neither is run's to write.
+This holds in **every** direction, downgrade included. There is no honor-in-place case: an `EXPRESS` whose `## Triviality proof` run invented is run doing the planner's job, and that proof is the entire license for skipping the front half (per the planner's contract, never pick `EXPRESS` without a concrete proof you can name). Same for a `REFACTOR` with no `## Coverage` — [the collapsed path](#the-collapsed-path) greps the one and confirms the other as its **first step**, and neither is run's to write.
 
 The planner still reports honestly *within* the mandated rung — a user-ordered `REFACTOR` over thinly-tested code comes back `Coverage: THIN`, and the collapsed path surfaces it rather than refactoring blind. The user sets the rung; they don't get to assert the evidence for it.
 
@@ -474,7 +477,7 @@ Wait for the user's response.
 
 ## The TDD micro-loop
 
-The four-step cycle that turns one unit of intent into committed, verified code. **run uses it in exactly two places** — once per **task** in a `STANDARD` build phase, and once per **blocker** at gate-review — and it is identical in both. (An `EXPRESS` or `REFACTOR` build phase does not use this cycle: it has no failing test to author, so it runs [the collapsed path](#the-collapsed-path-express-and-refactor) — the collapsed front half plus the same back half — instead.) Only the **seed** differs:
+The four-step cycle that turns one unit of intent into committed, verified code. **run uses it in exactly two places** — once per **task** in a `STANDARD` build phase, and once per **blocker** at gate-review — and it is identical in both. (An `EXPRESS` or `REFACTOR` build phase does not use this cycle: it has no failing test to author, so it runs [the collapsed path](#the-collapsed-path) — the collapsed front half plus the same back half — instead.) Only the **seed** differs:
 
 | Caller | `$SEED` | `test-writer` mode | `coder` mode |
 |---|---|---|---|
@@ -507,9 +510,11 @@ Defining it once is deliberate: the two callers must never drift apart, because 
 
 The coder already ran the suite, so this is usually green — that is expected, and it is not the point. This run does two things the coder's cannot: **classify** failures against the baseline (the coder sees only an exit code; "green" here means *no new failures*, not zero), and **independently verify** a result reported by the one agent that both wrote the code and wanted it to pass. The coder's green is provisional; the test-runner's is the verdict. Believe the test-runner.
 
-### The back-half rule — every rung
+### The back-half rule
 
-Steps 3–4 are the **back-half**: the coder runs the profile's checks `$CHECKS` (build/typecheck/unit/lint — its commit gate), and the `test-runner` independently re-runs the *tests* and classifies them against the baseline. **This back-half runs at every rung.** The rung (`EXPRESS`/`STANDARD`/`REFACTOR`) flexes only the *front half* — steps 1–2, authoring a failing test and verifying it red. The collapsed rungs skip the front half because neither carries new behavior worth pinning — `EXPRESS` because the change is trivial and nothing live depends on it, `REFACTOR` because the behavior already exists and the existing suite already pins it. Neither ever skips the back half, because the *existing* suite and fitness functions can still break. `$CHECKS` is exactly what the profile declares (S3) — a rung never drops one of them. So "green to land" means the same thing at **every** rung: **the profile's checks pass with no `new` failures**; only the question "was a new test authored for this change?" differs.
+Steps 3–4 are the **back-half**: the coder runs the profile's checks `$CHECKS` (build/typecheck/unit/lint — its commit gate), and the `test-runner` independently re-runs the *tests* and classifies them against the baseline. **The back-half runs in full at every rung that has checkable surface** — `STANDARD`, `EXPRESS`, and `REFACTOR` all run the complete `$CHECKS`. For these three the rung flexes only the *front half* — steps 1–2, authoring a failing test and verifying it red: `EXPRESS` and `REFACTOR` skip it because neither carries new behavior worth pinning (`EXPRESS` because the change is trivial and nothing live depends on it, `REFACTOR` because the behavior already exists and the existing suite already pins it), but neither ever skips the back half, because the *existing* suite and fitness functions can still break. For these three, `$CHECKS` is exactly what the profile declares (S3) — a rung never drops one of them.
+
+**`TRIVIAL` is the sole exception, and a principled one — not a hole.** Its entire definition is *no checkable surface*: the edit touches only whole inert files that feed no `$CHECKS` command (see [the collapsed path](#the-collapsed-path)). So it runs exactly the subset of `$CHECKS` whose inputs a touched path actually feeds — **usually empty** — licensed by the planner's `## Inertness proof` and re-verified against the **real post-edit `git diff`** before a single check is skipped. The invariant holds where it bites: **nothing that could observe the change is skipped.** `TRIVIAL` omits only checks that provably cannot see the touched files, and the instant the diff touches a path a check *does* feed, it [auto-bumps to `EXPRESS`](#the-collapsed-path) and runs the full suite. So "green to land" still means **every profile check that can see the change passes with no `new` failures** — which for the other three rungs is all of them, and for `TRIVIAL` is the (usually empty) consuming subset. Only the questions "was a new test authored?" and "can any check even see this?" differ across rungs.
 
 ### Bounds — every loop in this cycle is capped
 
@@ -544,16 +549,17 @@ For the task at `task_index`: run the micro-loop with `$SEED` = the task (test-w
 
 When all tasks are `[x]`, record `phase:` = next active phase (`e2e` if active, else `review`). Continue.
 
-### The collapsed path (EXPRESS and REFACTOR)
+### The collapsed path
 
-Both rungs skip the test-authoring **front half** of the micro-loop (no test-writer, no red-verify) and keep the **back half** in full ([the back-half rule](#the-back-half-rule--every-rung)). They share one execution path; they differ only in the **proof** that licenses skipping the front half — each has exactly one, and it runs *first*:
+`EXPRESS`, `REFACTOR`, and `TRIVIAL` all skip the test-authoring **front half** of the micro-loop (no test-writer, no red-verify). `EXPRESS` and `REFACTOR` keep the **back half** in full ([the back-half rule](#the-back-half-rule)); `TRIVIAL` runs only the inert-file check subset (usually empty) and its verification is empirical on the diff. They differ only in the **proof** that licenses skipping the front half — each has exactly one:
 
-| Rung | The change | Proof (step 1) | If the proof does not hold |
+| Rung | The change | Proof | If the proof does not hold |
 |---|---|---|---|
-| **EXPRESS** | trivial; nothing live depends on the touched code | **triviality** — grep the `## Triviality proof` targets: callers of a removed symbol → zero, readers of a changed constant → none coupled, the named blast radius → empty | the change isn't trivial → **auto-bump to STANDARD** |
-| **REFACTOR** | behavior-preserving restructuring of code that *is* used | **coverage** — the existing suite exercises the behavior being restructured: confirm the tests the planner named in `## Coverage` pass on the **current** code (the green the refactor must preserve) | coverage is `THIN`/absent → can't refactor blind → **surface** (human: add coverage first / accept the risk; auto: **stop-the-line**) |
+| **EXPRESS** | trivial; nothing live depends on the touched code | **triviality** (runs *first*) — grep the `## Triviality proof` targets: callers of a removed symbol → zero, readers of a changed constant → none coupled, the named blast radius → empty | the change isn't trivial → **auto-bump to STANDARD** |
+| **REFACTOR** | behavior-preserving restructuring of code that *is* used | **coverage** (runs *first*) — the existing suite exercises the behavior being restructured: confirm the tests the planner named in `## Coverage` pass on the **current** code (the green the refactor must preserve) | coverage is `THIN`/absent → can't refactor blind → **surface** (human: add coverage first / accept the risk; auto: **stop-the-line**) |
+| **TRIVIAL** | inert; touches only whole files that feed no check | **inertness** (runs *after* the edit) — `git diff --name-only` ⊆ the `## Inertness proof` targets, each a file no `$CHECKS` command consumes | a touched path is checkable, or is outside the named targets → **auto-bump to EXPRESS** (run the full `$CHECKS`) |
 
-Per task in `plan.md`:
+**EXPRESS and REFACTOR** — per task in `plan.md`, prove *first*, then apply:
 
 1. **Run the rung's proof** (table above), capturing output to `$LOG_DIR`. On EXPRESS the proof failing means the rung was mis-called → **auto-bump to `STANDARD`** (re-invoke the `planner` with **`$RUNG`** = `STANDARD` for a `STANDARD` plan — `test-plan.md` and all — set `rung: standard`, log to Zone 2 `Caught by: validation`, restart this phase on the STANDARD path). The bump is a **one-way ratchet** — a rung only ever moves up — so no cap. On REFACTOR, `THIN` coverage is not a bump but a **surface/stop** as in the table (you don't fix under-coverage by adding ceremony to the refactor; you add coverage first).
 2. **Apply the change.** Invoke **`coder`** (`mode: express` — apply the change; there is no authored test to turn green, so success = the profile's checks pass) with `$SEED` = the task, `plan.md`, `context.md`, `$NOW`, `$LOG_DIR`, **`$CHECKS`**, `$ABSENT`, and **`$ACCEPTED`**. It commits only when all `$CHECKS` pass. (The `MISSING: <check>` round-trip applies here too.)
@@ -563,7 +569,14 @@ Per task in `plan.md`:
 
    Then mark the task `[x]`, increment `task_index`, log.
 
-When all tasks are `[x]`, record `phase:` = next active phase (`review` — single-pass for both collapsed rungs — else `validate`). Continue.
+**TRIVIAL** inverts the order — there is no forward proof to run, so it applies *then* proves the diff inert (the proof is empirical on the real diff, not a prediction). Per task:
+
+1. **Apply the inert edit.** Invoke **`coder`** (`mode: express`) with `$SEED` = the task, `plan.md`, `context.md`, `$NOW`, `$LOG_DIR`, `$ABSENT`, `$ACCEPTED`, and — as its check set — **only the `## Inertness proof` `Subset to run`** (usually empty), *not* the full `$CHECKS`. With an empty subset the coder simply applies the edit and commits; running the whole suite on an inert change is exactly the waste `TRIVIAL` exists to avoid. (The full `$CHECKS` returns only on an auto-bump to `EXPRESS`.) If the coder returns `RESULT: blocked` / `NOTE: not-trivial` — the "inert" edit turned out to need real code — that is itself the signal the rung was mis-called → **auto-bump to `EXPRESS`** (below), which runs the full `$CHECKS` and can bump onward to `STANDARD`.
+2. **Verify inertness on the diff.** Run `git diff --name-only` for the task's commit and confirm every touched path is (a) within the `## Inertness proof` targets and (b) a file **no** `$CHECKS` command consumes (per the proof's cleared-checks list). If it holds, run only the checks a target *does* feed — the `## Inertness proof` `Subset to run` (usually empty), via `test-runner` (`mode: unit`) when that subset includes tests. If it does **not** hold — a touched path is checkable, or lands outside the named targets — **auto-bump to `EXPRESS`** (re-invoke the `planner` with **`$RUNG`** = `EXPRESS`, set `rung: express`, log to Zone 2 `Caught by: validation`, restart this phase on the EXPRESS path, which runs the full `$CHECKS`; a check then failing bumps onward to `STANDARD`). One-way ratchet, no cap.
+
+   Then mark the task `[x]`, increment `task_index`, log.
+
+When all tasks are `[x]`, record `phase:` = next active phase. For `EXPRESS`/`REFACTOR`: `review` (single-pass) — else `validate`. For `TRIVIAL`: skip straight to the **delivery gate** (`gate-deliver` / `gate-pr`) — no review, no validate. Continue.
 
 ---
 
@@ -583,7 +596,7 @@ Record `phase: review`. Continue.
 
 ## Phase: review
 
-**Active in:** feature, bugfix. Both reasoning passes are **delegated to agents** so run holds only the structured verdicts, not the diff. `phase_step` tracks position (`reviewed` → `critiqued` → `gated`). *(Human gate: gate-review.)*
+**Active in:** feature, bugfix — at rung `STANDARD` (two passes) or `EXPRESS`/`REFACTOR` (single pass). **Not active at `TRIVIAL`** — an inert edit has no executable surface for the code-review rubric, so the phase is dropped at gate-plan and the human sees the diff at the delivery gate instead. Both reasoning passes are **delegated to agents** so run holds only the structured verdicts, not the diff. `phase_step` tracks position (`reviewed` → `critiqued` → `gated`). *(Human gate: gate-review.)*
 
 **Rung shapes the review depth.** `STANDARD` runs **two passes** (review + fresh-instance critique — steps 1–2). `EXPRESS` and `REFACTOR` run a **single pass** (step 1 only): the change carries no new behavior and its proof already ran (triviality / coverage), so one set of fresh eyes is proportionate — but it is never *zero* eyes for a code change. Skip step 2 for both; go straight from step 1 to the gate with only the pass-1 findings. (If pass 1 on an `EXPRESS` change surfaces a **blocker**, that contradicts the triviality claim → auto-bump to `STANDARD` and re-review with the critique pass. A blocker on a `REFACTOR` change is a real finding to fix in place — the refactor is non-trivial by definition, so it stays `REFACTOR`.)
 
@@ -638,7 +651,7 @@ Record `phase: validate`. Continue.
 
 ## Phase: validate
 
-**Active in:** feature, bugfix. *(Human gate: gate-validation, if manual ACs exist — or if any AC failed its reachability trace, which is an unmet AC and always gets a human in human mode.)*
+**Active in:** feature, bugfix — at rung `STANDARD`, `EXPRESS`, `REFACTOR`. **Not active at `TRIVIAL`** — an inert edit exposes no symbol for a reachability trace to reach, and its ACs are prose outcomes the human confirms from the diff at the delivery gate. *(Human gate: gate-validation, if manual ACs exist — or if any AC failed its reachability trace, which is an unmet AC and always gets a human in human mode.)*
 
 Cross-check the issue's acceptance criteria and Definition of Done against what was delivered. `phase_step`: `auto-checked` → `gated`.
 
@@ -706,10 +719,12 @@ Present:
 >
 > [one-paragraph summary from `plan.md`]
 > [validation checklist — incl. any `needs manual verification` items]
+> [TRIVIAL only — no validate phase ran, so confirm the prose ACs from the diff here:]
+> [- [ ] [acceptance criterion — e.g. "README documents the new env var"]]
 >
 > Merge to [base] now? (y / edit / open a PR instead)
 
-- **y** → record `phase: merge` and continue to the [merge phase](#phase-merge) (direct variant).
+- **y** → record `phase: merge` and continue to the [merge phase](#phase-merge) (direct variant). (For `TRIVIAL`, a `y` also confirms the prose ACs listed above — append a Zone 2 entry recording them as human-confirmed.)
 - **edit** → adjust the summary / merge-commit message, re-present.
 - **open a PR instead** → switch to `delivery: pr` (update the state file), record `phase: gate-pr`, and continue there. The escape hatch when a change turns out to want a PR after all.
 

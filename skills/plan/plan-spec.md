@@ -21,15 +21,31 @@ Every sprint-ready issue created by a devloop skill uses this body:
 ## Definition of Done
 [the lines from the DoD-by-type rule below]
 
-Derived from #[backlog-N]     ← only when resolved from a backlog item
+Derived from #[backlog-A][, #backlog-B, …]   ← only when resolved from one or more backlog items
 Rework of #[N]                ← only for a rework issue (see §4)
 ```
+
+**Provenance.** `Derived from` records which backlog item(s) a task was drawn from — the relationship is
+many-to-many: one task may synthesize several backlog items (list them all), and one backlog item may feed
+several tasks (each cites it). A task authored directly from the sprint goal, not from any backlog item,
+carries **no** `Derived from` line.
 
 **Acceptance criteria rules.** They are the contract `run` reads to plan and validate the work, so:
 - Each criterion is a single user-visible or testable outcome, phrased as a checklist item.
 - Aim for 2–5 per issue. Cover the happy path and the obvious failure/edge cases the item implies.
 - Do not invent scope the source item does not imply. If it is too vague to derive criteria, ask the
   user rather than padding.
+
+**Right-sizing.** A sprint issue should be a unit of work worth tracking on its own — neither a
+multi-day epic nor a one-line edit. **Split** an item that covers several independently-shippable
+concerns (Step 3 already does this for backlog items; apply the same judgment to gap-fill tasks).
+**Don't** mint a standalone issue for a change too small to warrant one — a typo, a single comment,
+a one-line doc tweak — **fold it into the most related issue** unless it is genuinely independent and
+must be tracked separately. (Execution *weight* is a different axis and already handled downstream: a
+legitimately small standalone issue runs cheaply — `run`'s planner sizes it to the lightest rung
+(`TRIVIAL` for an inert docs edit, `EXPRESS` for a trivial code change), so a small issue is never an
+expensive one. Right-sizing here is about whether the work deserves its *own line in the sprint*, not
+about how heavily `run` executes it.)
 
 ## 2. Definition of Done by type
 

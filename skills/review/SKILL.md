@@ -41,6 +41,7 @@ Rungs, phases, gates, agent names (`planner`, `coder`, `test-writer`, `critique`
 | Instead of | Say |
 |---|---|
 | "the planner picked the EXPRESS rung" | "nothing here changed behaviour, so it was checked against the existing tests rather than new ones" |
+| "the planner picked the TRIVIAL rung" | "this was a docs/text-only change that touches nothing the tests run, so it went straight to merge — no tests, no code review" |
 | "the blocker shipped `NOT-REPRODUCIBLE`" | "we fixed the bug, but no test proves it stays fixed" |
 | "Zone 2 has no entry for it" | "the log doesn't say why" |
 | "`critique` caught what pass 1 missed" | "the first review missed this; the second one found it" |
