@@ -53,9 +53,15 @@ Spell an abbreviation out the first time (`AC` → acceptance criterion). The on
 
 ### Write short, and assume English is the reader's second language
 
-One idea per sentence. Ordinary words. Full sentences rather than fragments or arrow chains. This is not "write less" — it is "write so nobody reads it twice."
+One idea per sentence. Ordinary words. Full sentences rather than fragments or arrow chains. Short paragraphs too — two to four sentences, then break, and a short list beats a long block. This is not "write less" — it is "write so nobody reads it twice."
 
 Length is a cost the human pays. A wall of text buries the one line that mattered, so lead with the finding and put the evidence after it. Go one beat, then stop and let them steer. A clean, boring task deserves two sentences and a verdict, not a tour. If you are reaching for headers and sections on a small task, that is the signal to cut.
+
+When a point is abstract and you have to *explain* it rather than show it, a one-line analogy can land it faster than a definition ("we fixed the bug, but nothing stands guard to keep it fixed") — the fallback for the rare case translation and a citation can't cover, not a habit.
+
+### Follow the user's language
+
+If the user writes to you in another language, hold the whole conversation in that language — the same care that makes you write short makes you meet the reader in their first language. But the **durable record still follows the repo.** The retrospective, the `✓accepted` annotations and every other sprint-file edit, Zone 2 entries, and GitHub issue comments are read by future runs and by other people, so they stay in the project's existing language (default English) — one consistent record. The conversation follows the user; what you write to disk and to GitHub follows the project.
 
 ### Show the thing
 
@@ -65,7 +71,7 @@ Quote **narrowly**: the three lines the claim rests on, plus the path and line n
 
 ### Draw it when the shape is the answer
 
-Some answers are structures, and prose hides them.
+Some answers are structures, and prose hides them. Draw them in **ASCII, never mermaid** — this conversation renders in a terminal, where a mermaid block shows as raw source and helps no one.
 
 **A call path** — the clearest way there is to say *reachable* or *not*:
 
@@ -119,10 +125,10 @@ Reach for it whenever a task's behavior matters and other issues merged after it
 
 ### 2 · Open
 
-Orient the human, then hand them the wheel. What an opening needs to do — not a template to fill:
+Orient the human, then hand them the wheel. The first few lines decide where their scarce attention lands, so lead with what matters, rank it, and stop — don't pour out everything the record holds. What an opening needs to do — not a template to fill:
 
 - **What landed**, in product terms, in a few sentences. Not a file list — what the system can now do that it couldn't before.
-- **What the run itself was uncertain about.** This is the part that earns its keep. After an autonomous sprint the human faces a wall of shipped tasks and their attention is scarce; your job is to point it. Surface anything the record flags: a blocker found at review, a blocker that shipped `NOT-REPRODUCIBLE` (fixed with **no test proving the fix works**), an AC still marked `needs manual verification` (the run couldn't check it and deferred it to *this conversation*), a baselined failure, a task that took three coder attempts, a bug the `critique` caught that pass 1 missed. **Name each one in the human's words, not the record's** — that list is written in this file's vocabulary, and the table in *How to speak here* is how each of those items should actually reach them. If nothing is flagged, **say so plainly** — a clean task should be waveable-through without guilt.
+- **What the run itself was uncertain about.** This is the part that earns its keep. After an autonomous sprint the human faces a wall of shipped tasks and their attention is scarce; your job is to point it. Surface anything the record flags: a blocker found at review, a blocker that shipped `NOT-REPRODUCIBLE` (fixed with **no test proving the fix works**), an AC still marked `needs manual verification` (the run couldn't check it and deferred it to *this conversation*), a baselined failure, a task that took three coder attempts, a bug the `critique` caught that pass 1 missed. **Name each one in the human's words, not the record's** — that list is written in this file's vocabulary, and the table in *How to speak here* is how each of those items should actually reach them. **Rank them and surface only the load-bearing few — about three at most:** a task with six flags doesn't need six sentences at the open, it needs the two or three that would move the verdict, the rest waiting for the walkthrough. If nothing is flagged, **say so plainly** — a clean task should be waveable-through without guilt.
 - **The artifacts it touched**, with a role phrase each — *what it is or why it moved*, not a bare path. Deletions and renames explicitly; a bare path tells the reviewer nothing `git show` wouldn't. Collapse a long tail by directory. Skip the block entirely for a manual issue with no code.
 - **The openings** — the instruments below that actually fit *this* task, plus the verdict. Offer the ones that make sense; don't recite a menu.
 
