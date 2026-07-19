@@ -34,6 +34,7 @@ In `express` mode do **not** write tests and do **not** expand scope: "green" is
 **2. Implement.** Write the minimum production code that satisfies the task's acceptance and makes its tests pass. Follow the existing conventions cited in context and the approved `design.md` when present. Reuse existing utilities rather than duplicating.
 
 - Do **not** edit tests to force them green. The only legitimate test edits are fixing a genuine mistake in the test itself — if you believe a test is wrong, say so in your output rather than quietly changing it.
+- **Never name an internal plan task in durable output** — code comments, commit messages, or anything that ships. `$TASK` and the `plan.md` numbering are transient working state that is gone once the sprint closes, so a comment like `// Task 3 wires this up` is a dangling pointer the moment anyone reads the code later. Explain intent by the *behaviour* or by the **GitHub issue** (`#42`), which is durable and trackable. (Zone 2 in `context.md` is the one place a plan-task reference is fine — it is the loop's own timeline, not shipped code.)
 
 **3. Run the checks.** Run exactly the `$CHECKS` commands given — nothing inferred. If a check you genuinely need is **not** in `$CHECKS` **and not in `$ABSENT`** (e.g. the code is typed but no `typecheck` command was provided), stop immediately and return `RESULT: blocked` with a `MISSING: <check name>` line — do **not** guess a command, and do not count this as a failed attempt. The run skill will obtain the command and re-invoke you. A check listed in `$ABSENT` does not exist for this project — proceed without it and never flag it.
 
@@ -45,7 +46,7 @@ In `express` mode do **not** write tests and do **not** expand scope: "green" is
 
 **Your green is provisional.** It is your own report of what you observed, and the calling skill re-verifies it with the `test-runner`, which owns the verdict. So report what you actually ran and saw — never assert a check passed without running it, and never edit a test to make one pass.
 
-**5. Commit** only when all provided checks pass. Use a conventional-commit message referencing the issue, e.g. `feat: add login form (#42)` or `fix: handle expired token (#57)`. One commit per task.
+**5. Commit** only when all provided checks pass. Use a conventional-commit message referencing the **issue** — e.g. `feat: add login form (#42)` or `fix: handle expired token (#57)` — never the internal plan-task number (`Task 3`): the commit outlives `plan.md`, and `git log` must stay meaningful after the sprint's working files are gone. One commit per task.
 
 **6. Record** (only when green). Append **one** entry to `context.md` **Zone 2** (format per that section, stamped with `$NOW`):
 - **Did:** implemented [task] → [sha]. **Attempts: [k]** — with a one-line failure signature for each failed one (not the stack; that's in the log).

@@ -29,6 +29,7 @@ In `regression` mode, ignore the Task section below and follow **Mode: regressio
 **2. Write the tests** at the location implied by `$TEST_GLOBS`, matching the existing test layout and the `$FRAMEWORKS` idioms (imports, helpers, naming). Mirror the structure of neighbouring test files — read one first if any exist. **If `design.md` exists, assert its interfaces** (signatures, types, endpoints) — the tests must encode the approved API, since the coder implements to that same design.
 
 - One assertion target per scenario; name each test after the scenario.
+- **Never name an internal plan task in a test name or comment.** `$TASK` and the `plan.md` numbering are transient working state, gone once the sprint closes — a test called `test task 3 handles retry` or a `// covers Task 4` comment is a dangling pointer in a file that outlives the plan. Name and describe tests by the *behaviour under test*; reference the **GitHub issue** (`#42`) if you need a durable pointer. (Zone 2 in `context.md` is the one place a plan-task reference belongs.)
 - Tests must reference the intended public API/behaviour so they **fail meaningfully** now (red), not error on a syntax/setup problem. This is verified: the calling skill runs the `test-runner` in `red` mode on what you wrote, and a test that fails on a broken import — or passes vacuously — comes straight back to you.
 - Do **not** implement or stub production code to make them pass.
 - Do **not** run the tests.
