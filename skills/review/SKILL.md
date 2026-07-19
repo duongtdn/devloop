@@ -145,7 +145,7 @@ You decide which to offer and when, from the task and the conversation. The huma
 - **Explain an artifact** — open the code, the design, the plan, a commit, the diff, and talk through it.
 - **Show me the failure** — open the captured log from `work/issue-N/logs/` when they want the actual failing output rather than your summary of it.
 - **Dig into a flagged point** — take any ⚠ from the opening and go all the way down.
-- **Verdict** — **accept** / **rework: [feedback]** / **skip**.
+- **Verdict** — **accept** / **rework: [feedback]** / **skip**. **accept** always passes through the explicit confirmation gate first (§6) — never treat conversational approval as the verdict itself.
 
 Follow the human's lead. Go one beat at a time and stop — a few sentences plus citations, then ask. They can bail out of anything (`enough`) and land back at the verdict.
 
@@ -170,6 +170,7 @@ When a demo finds something, it is a **detection event**: record it in Zone 2 wi
 
 Everything above is judgment. These are not.
 
+- **Acceptance is never inferred.** The **accept** verdict — which merges and writes `✓accepted` — fires only on an explicit, unambiguous yes to the accept gate (§6), never on approving language, praise, or silence in the conversation. If you are unsure whether the human meant "accept" or just "I like this so far," it is the latter — ask.
 - **Never fabricate.** Not a demo output, not a GitHub call result, not a diff you couldn't read.
 - **Cite only what you resolved.** Read the file before citing a line in it. Run `git show` before describing a commit. If a SHA or a ref doesn't resolve on this machine, say so — never reconstruct.
 - **Where the record is silent, report the silence.** "The log doesn't say why" is an answer. Supplying a plausible after-the-fact rationale is exactly the failure this audit trail exists to prevent, and it would make every other citation you make untrustworthy too.
@@ -186,6 +187,11 @@ Everything above is judgment. These are not.
 ### 6 · Resolve
 
 **accept** — the human signs off:
+0. **Confirm the verdict explicitly before doing anything.** Accept **merges the PR and writes `✓accepted` — both irreversible-ish, outward-facing** — so it is a human gate like every other, and it never fires on inference. Approving *language* in the conversation ("looks good", "nice", "ok", "ship it", a thumbs-up, silence after a demo) is **not** the accept verdict — it is the human liking what they see mid-conversation, and reading it as sign-off is exactly the misfire this gate exists to stop. Ask, and wait for an unambiguous yes:
+
+   > Accept **#[N]**? This merges [PR #[pr] / the branch] and marks it accepted. (accept / not yet)
+
+   Proceed only on an explicit accept. Anything short of it — a question, a "let me look at X first", more discussion — is **not** consent: stay in the conversation. When in doubt, ask again; never assume.
 1. Derive `$NOW` (`node -e "console.log(new Date().toISOString())"`) and append a Zone 2 entry to `work/issue-N/context.md`: accepted at review, by whom (task/sprint scope), any manual ACs the user confirmed in a demo, notable Q&A outcomes, and what the conversation actually did (walked / demoed / neither) plus anything it surfaced — a gap in the log, a question the artifacts couldn't answer. If a demo found a defect, `Caught by: demo`.
 2. **If the PR is still open** (task-level flow): add the `status:reviewed` label to the PR — the documented solo-dev sign-off `run`'s merge phase recognises — then invoke the **`run` skill** for `#N` (Skill tool): it resumes at `pending-review` → merge, and owns rebase, merge method, issue close, checkbox tick, state archive, lock. If the merge phase reports a conflict or failure, surface it — the acceptance stands recorded in Zone 2; re-run `run` after resolution.
 3. **Mark accepted:** append ` ✓accepted YYYY-MM-DD` (date from `$NOW`) to `#N`'s line in the sprint file, per the spec grammar. Never alter the line's other content.
