@@ -84,7 +84,7 @@ Between issues, nothing else runs — no extra prompts, no plan re-checks; `run`
 > **⏸ Sprint [N] paused at #[BLOCKED]** — [run's one-line reason].
 > Completed before the stop: [list ✓ issues, or "none"]. Not started: [list].
 >
-> The blocker needs you: [the specific ask — e.g. resolve the conflict / decide on the stuck task via `/devloop:run [BLOCKED]` in human mode / complete the manual task and confirm at its gate / `/devloop:abort [BLOCKED]`].
+> The blocker needs you: [the specific ask — e.g. resolve the conflict / decide on the stuck task / complete the manual task and confirm its criteria / abandon it]. Take it up with `/devloop:run [BLOCKED]` — **without `--auto`**, which resumes the issue in human mode at the phase it stopped in and gates it for you — or `/devloop:abort [BLOCKED]` to stand it down.
 > When it's resolved, re-run `/devloop:sprint` to continue from here.
 
 **Interrupted mid-run** (session death, usage limit): nothing is lost — `run`'s state file records the exact phase, and the stale lock auto-clears on the next invocation. Re-running `/devloop:sprint` resumes the in-progress issue first, then continues down the list.

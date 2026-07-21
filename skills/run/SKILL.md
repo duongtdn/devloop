@@ -68,7 +68,7 @@ The two axes give four behaviors:
 
 Only the **human + pr** cell halts for review before merge; every other cell merges within the run. `/devloop:sprint` drives plain `run --auto` (direct) across the whole sprint.
 
-**Set at invocation, never inferred.** `$AUTONOMY` is `auto` when `--auto` is in `$ARGUMENTS`, else `human`; `$DELIVERY` is `pr` when `--pr` is present, else `direct`. Persist both as `autonomy:` and `delivery:` in the state file (S6). On resume the state file governs — a run keeps the character it started with and never silently switches; flags on a resume that differ from the recorded modes do not switch them (warn if they differ). (The `## Pending gate` block is a human-mode device for re-presenting a panel; auto-mode resolves gates in place and does not rely on it.)
+**Set at invocation, never inferred.** `$AUTONOMY` is `auto` when `--auto` is in `$ARGUMENTS`, else `human`; `$DELIVERY` is `pr` when `--pr` is present, else `direct`. Persist both as `autonomy:` and `delivery:` in the state file (S6). On resume the state file governs — a run keeps the character it started with and never silently switches; flags on a resume that differ from the recorded modes do not switch them (warn if they differ). **One exception, in one direction: autonomy may be downgraded `auto` → `human`** on a resume invoked without `--auto`. That is the exit from every auto-mode blocker: what stopped the run was something only a human can resolve, so a resume that could not take the human's seat would re-hit the same wall forever (see [Failure modes](#failure-modes)). A downgrade only *adds* oversight, so it needs no extra authorization; the upgrade `human` → `auto` is the dangerous direction and is never taken on resume — `--auto` on a run recorded `human` warns and stays `human`, because a run's authorization to merge without asking is granted at its start, not retrofitted onto work already half-done. Record the downgrade in the state file (`autonomy: human`) and in a `## Log` line. `$DELIVERY` never switches on resume in either direction. (The `## Pending gate` block is a human-mode device for re-presenting a panel; auto-mode resolves gates in place and does not rely on it — so a downgraded resume rebuilds its gate panel from the artifacts, as a fresh human-mode run would.)
 
 **Decision policy (auto-mode).** At each gate, take the choice the human-mode panel would *recommend* — the agents' own verdict — and record why:
 - accept the agent's structured output as produced (the planner's plan, **rung**, and phase set, a `sound` design, the reviewer's upheld findings). **Accept the planner's rung; never downgrade it on run's own initiative** — the planner chose the rung from context, and auto-mode has no human to catch an over-eager downgrade. A rung only ever moves *up*: the `TRIVIAL`→`EXPRESS` bump (a touched path turns out checkable) and the `EXPRESS`→`STANDARD` bump (triviality proof fails, or an EXPRESS blocker/`new` failure surfaces) are automatic and **not** a stop — each converts to fuller ceremony and continues.
@@ -150,8 +150,9 @@ Node is always available (the bundled milestone MCP requires it); the trailing `
 issue: N
 workflow: feature | bugfix | design | scaffold | manual
 rung: trivial | express | standard | refactor | -   # set at gate-plan from the planner's plan.md; '-' until then / for non-code workflows
-autonomy: human | auto           # set at S6 from $AUTONOMY
-delivery: direct | pr            # set at S6 from $DELIVERY; both govern on resume
+autonomy: human | auto           # set at S6 from $AUTONOMY; rewritten to 'human' on a downgraded resume (S6) — never to 'auto'
+delivery: direct | pr            # set at S6 from $DELIVERY; never rewritten
+                                 # both govern on resume — a resume flag cannot switch them, downgrade excepted
 phase: <phase name>
 phase_step: -        # multi-pass phases (design/review/validate) only; '-' otherwise
 task_index: -        # build-loop position, 0-based; '-' otherwise
@@ -258,12 +259,13 @@ Some issues don't fit a single archetype — "run the suite and review existing 
 
 ### S6 — Acquire lock and dispatch
 
-Write `.context/sprints/state/.lock` with `holder: run`, `issue: $ISSUE`, the current PID (`pid:`), and an ISO `start:` time. The `holder` field distinguishes this from a `pr-fix` lock (`holder: pr-fix`, `pr: N`) on the same file — every reader keys mutual exclusion off the PID, and uses `holder` only to label who holds the tree. If no state file exists yet, create `state/issue-N.md` with the schema above (`phase: context`, branch `-`, `autonomy: $AUTONOMY`, `delivery: $DELIVERY`). When **resuming** an existing state file, `$AUTONOMY` and `$DELIVERY` are read from its `autonomy:`/`delivery:` lines — the started modes govern; flags on a resume that differ from the recorded modes do not switch them (warn if they differ).
+Write `.context/sprints/state/.lock` with `holder: run`, `issue: $ISSUE`, the current PID (`pid:`), and an ISO `start:` time. The `holder` field distinguishes this from a `pr-fix` lock (`holder: pr-fix`, `pr: N`) on the same file — every reader keys mutual exclusion off the PID, and uses `holder` only to label who holds the tree. If no state file exists yet, create `state/issue-N.md` with the schema above (`phase: context`, branch `-`, `autonomy: $AUTONOMY`, `delivery: $DELIVERY`). When **resuming** an existing state file, `$AUTONOMY` and `$DELIVERY` are read from its `autonomy:`/`delivery:` lines — the started modes govern; flags on a resume that differ from the recorded modes do not switch them (warn if they differ). **The one sanctioned switch is the autonomy downgrade** (see [Autonomy and delivery](#autonomy-and-delivery)): recorded `autonomy: auto` + no `--auto` in `$ARGUMENTS` → set `$AUTONOMY = human`, **rewrite the state file's `autonomy:` line to `human`**, and append a `## Log` line (`autonomy downgraded auto → human on resume`). Never the reverse: `--auto` on a state file recording `autonomy: human` warns and leaves it `human`. `$DELIVERY` is never switched by a resume flag in either direction — a `--pr` on a run recorded `direct` (or the absence of one on a run recorded `pr`) warns and changes nothing.
 
 Announce and dispatch:
 
 > **▶ run — Sprint [N] · #[ISSUE] [title] · workflow: [workflow] · mode: [human | auto] · delivery: [direct | pr]**
 > [Starting fresh from context. | Resuming from phase "[phase]".]
+> [downgraded resume only:] Autonomy downgraded auto → human — gates will stop for you from here.
 > [auto only:] Human-on-the-loop — no gates will stop; every decision is logged to context.md for your review. I'll halt only if I hit something I can't decide safely.
 
 Jump to the entry phase. The lock is released on clean exit, at `pending-review`, and at `merge`.
@@ -471,7 +473,9 @@ Wait for the user's response.
 
 **Auto-mode.** A manual issue is outside auto-mode's reach — do not attempt or fake completion. Append a Zone 2 entry and a `## Log` line recording `blocked: manual task requires human action`, leave the issue in-progress (checkbox unticked, issue open), release the lock, and exit:
 
-> ⏸ #[ISSUE] is a manual task — auto-mode can't complete it. Run `/devloop:run [ISSUE]` (human mode) to confirm the criteria.
+> ⏸ #[ISSUE] is a manual task — auto-mode can't complete it. Do the work, then run `/devloop:run [ISSUE]` (no `--auto`) to confirm the criteria.
+
+Plain `run [ISSUE]` is what resumes this: the missing `--auto` downgrades the recorded autonomy to `human` (S6), so the resume lands *here* as a human gate instead of re-taking this same exit. Don't tell the user to re-run with `--auto` — that resumes as auto and blocks again.
 
 ---
 
@@ -932,4 +936,4 @@ Write only the confirmed fields; never overwrite an existing non-empty field wit
 - **Rebase/merge conflict** — surface, stop, ask the user to resolve or `/devloop:abort`.
 - **GitHub MCP failure** — report; retry once on the user's go-ahead, otherwise note it and continue where the step is non-critical (e.g. an optional label), or exit where it is critical (PR creation, merge).
 - **Crash mid-run** — leaves the lock and state file. The next invocation's stale-PID check clears the lock; the recorded `phase` resumes the work.
-- **Auto-mode blocker** — where human-mode would escalate to the user (coder stuck after 3 attempts, unfixable `new` failures, a design still `needs-work` after one iteration, a rebase/merge conflict, an agent `ERROR:`, a manual-workflow issue), auto-mode does not ask: it appends the blocker to Zone 2 + `## Log`, releases the lock, and **exits** with the issue left in-progress. A later `run [ISSUE]` (auto or human) resumes from the recorded phase. See [Autonomy](#autonomy-and-delivery) for the full boundary list.
+- **Auto-mode blocker** — where human-mode would escalate to the user (coder stuck after 3 attempts, unfixable `new` failures, a design still `needs-work` after one iteration, a rebase/merge conflict, an agent `ERROR:`, a manual-workflow issue), auto-mode does not ask: it appends the blocker to Zone 2 + `## Log`, releases the lock, and **exits** with the issue left in-progress. A later `run [ISSUE]` resumes from the recorded phase — and **invoked without `--auto` it resumes in human mode** (the sanctioned autonomy downgrade, S6). That is the intended exit from every blocker on this list: each one stopped precisely because it needs a judgment auto-mode isn't entitled to make, so a resume that stayed auto would re-take the same exit forever. Re-running with `--auto` keeps it auto and re-blocks — correct, and occasionally what you want (a transient conflict resolved out-of-band), but it is never the way to *answer* the blocker. See [Autonomy](#autonomy-and-delivery) for the full boundary list.
