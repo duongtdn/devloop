@@ -86,7 +86,15 @@ Use the template below; the header reads `Context — PR #[N]: [title]` and the 
 Append-only timeline; newest entries at the bottom. Never edit an earlier entry —
 if something changes, append a new one that supersedes it. Each entry must stand
 alone: a later agent should understand it without re-deriving. Use the timestamp
-the run skill provides ($NOW) — never guess the time. Format:
+the run skill provides ($NOW) — never guess the time.
+
+WRITE WITH A SHELL APPEND (cat >> this-file <<'EOF') — NEVER Edit. An Edit lands
+its entry wherever its anchor matched, which in a file this size is routinely the
+wrong place, including up in Zone 1. `>>` cannot. The run skill resumes from the
+LAST entry here, so an inserted one makes the last entry stale and can cause a
+step that never ran to be treated as done. This file must end with your entry.
+
+Format:
 
 ### [$NOW] · [author] · [phase or task ref]
 - **Did:** what happened, one line

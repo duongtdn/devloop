@@ -90,7 +90,7 @@ Both are the same insight the scope rules above already apply to test helpers �
 
 **3. Classify each finding** as **blocker** (must fix before merge) or **refactor** (optional quality improvement). Every finding needs a `file:line`, a one–two sentence explanation, and a concrete suggested fix. No vague or stylistic nits without a rationale.
 
-**4. Record.** Append **one** entry to `context.md` **Zone 2** (format per that section, stamped with `$NOW`):
+**4. Record.** Append **one** entry to `context.md` **Zone 2** (format per that section, stamped with `$NOW`) — **with a shell append (`cat >> $WORK_DIR/context.md <<'EOF'`), never `Edit`**: an `Edit` lands the entry wherever its anchor matched, and `run` resumes from the *last* entry in the file, so a misplaced one can make it skip a step that never ran. The file must end with your entry:
 - **Did:** reviewed `$BASE...$HEAD`; [count] findings (ids listed).
 - **For next:** which findings are blockers vs refactors, so critique and validation can check against them.
 
@@ -128,7 +128,7 @@ The scope rules from `review` mode apply here too: **test helpers and fixtures a
 
 Also quote the **exact source text of that line** as an `anchor:` — a line number can be miscounted, but the text can be verified against the file. The skill re-anchors by this snippet, so it must be copied verbatim from the line you mean.
 
-**4. Record.** If a `$WORK_DIR` was given, append **one** Zone 2 entry (stamped with `$NOW`): **Did:** reviewed PR diff `$BASE...$HEAD`, [count] findings (ids); **For next:** the blockers vs suggestions vs nits, so pr-fix can act on them. If no `$WORK_DIR` (light PR), skip the append — just return the findings.
+**4. Record.** If a `$WORK_DIR` was given, append **one** Zone 2 entry (stamped with `$NOW`; shell append (`cat >>`), never `Edit` — the file must end with your entry): **Did:** reviewed PR diff `$BASE...$HEAD`, [count] findings (ids); **For next:** the blockers vs suggestions vs nits, so pr-fix can act on them. If no `$WORK_DIR` (light PR), skip the append — just return the findings.
 
 ### Output (`pr-review`)
 
@@ -163,7 +163,7 @@ This channel is **deliberately narrow**, and the narrowness is the point:
 - **If you are not confident it is a genuine bug, do not raise it.** Uncertainty is not a blocker. Say nothing.
 - Each new finding needs the same rigour as a first-pass one: a `file:line`, a one–two sentence explanation grounded in the real code (`Read` it, don't infer from the diff), and a concrete suggested fix.
 
-Append a Zone 2 entry (`$NOW`) summarising your verdicts and any new findings.
+Append a Zone 2 entry (`$NOW`) summarising your verdicts and any new findings — shell append (`cat >>`), never `Edit`; the file must end with your entry.
 
 ### Output (`critique`)
 
@@ -189,7 +189,7 @@ You **verify a fix**, you do not re-review the PR. The calling skill (`pr-fix`) 
 
 **3. Regression check — correctness only.** Within the fix delta (and its bounded blast radius), raise **only** new **correctness** problems the fixes introduced: bugs, broken edge cases, wrong logic, unhandled errors, a fix that breaks an existing caller, or a fix that contradicts `$DESIGN`. Classify each as a **blocker**. **Do not** raise simplicity, DRY, reuse, consistency, style, or test-adequacy findings here, and **do not** re-raise anything from the original review — those were the first review's job. If the fixes are clean, return zero regressions. Each regression needs a `file:line` (HEAD numbering), an `anchor:` (exact source text of that line), a one–two sentence explanation, and a concrete fix — same anchoring rules as `pr-review`.
 
-**4. Record.** If a `$WORK_DIR` was given, append **one** Zone 2 entry (`$NOW`): **Did:** fix-review of `$FIX_RANGE`; [k] resolved / [u] unresolved targets, [r] regressions; **For next:** which targets are still open and any regression ids, so pr-fix can route them back.
+**4. Record.** If a `$WORK_DIR` was given, append **one** Zone 2 entry (`$NOW`; shell append (`cat >>`), never `Edit` — the file must end with your entry): **Did:** fix-review of `$FIX_RANGE`; [k] resolved / [u] unresolved targets, [r] regressions; **For next:** which targets are still open and any regression ids, so pr-fix can route them back.
 
 ### Output (`fix-review`)
 

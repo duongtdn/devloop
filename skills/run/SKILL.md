@@ -35,7 +35,18 @@ Not every phase runs for every issue — the **workflow** (chosen from labels, c
 
 **Context is sized on demand, not fixed.** The `context` agent self-calibrates retrieval depth to the issue and biases light; if the planner finds Zone 1 too thin it raises `NEEDS-CONTEXT`, and run deepens exactly that gap (bounded). run does not assess how much context an issue needs any more than it assesses complexity — the specialists signal, run reacts.
 
-**Resume.** On every invocation, run **Startup** first. Startup either starts fresh from the workflow's entry phase, or — if a state file exists — jumps directly to the recorded phase and continues. **Never re-run a completed phase on resume.** When jumping, go straight to that phase's section.
+**Resume.** On every invocation, run **Startup** first. Startup either starts fresh from the workflow's entry phase, or — if a state file exists — jumps directly to the recorded phase and continues. **Never re-run a completed phase — or a completed step within one — on resume.** When jumping, go straight to that phase's section and to the step after the one `phase_step` / `task_index` records as done.
+
+**Re-running a reasoning agent is not a retry.** It shares no memory with the first call and returns a *different* result — a second pass-1 review yields a different finding set, which then has to be reconciled against the first by a merge rule this skill does not define. So an unnecessary re-run does not merely cost tokens; it puts an ad-hoc union of two opinions in front of a gate that decides what ships. Treat a re-run as a defect to avoid, not a safe default.
+
+**When the recorded position is ambiguous, read the last Zone 2 entry — not the whole file.** A crash can land between an agent returning and run persisting that fact, so a `phase_step` of `-` inside a multi-pass phase means *either* "the step hasn't run" *or* "it ran and the write was lost". Resolve it with one bounded read: `tail` `context.md` for the **last** `### [ts] · author · ref` header. Appending agents write their entry *before* they return, so that entry is a receipt the agent produced itself — strictly more durable than run's own bookkeeping, and the reason the [append-only rule](#contextmd-zone-2--the-shared-timeline) is mechanically enforced rather than merely stated: if entries could land mid-file, the last one would not be the latest and this read would lie.
+
+| Last Zone 2 entry | Verdict |
+|---|---|
+| author = this step's agent, in this step's mode, timestamp **≥** the phase's start line in `## Log` | the step ran — record it done, rebuild any gate panel from that entry, continue to the next step |
+| anything else (older, different author, none) | the step did not run — invoke it |
+
+Never widen this into a scan of Zone 2 or a reconstruction from `git log`, `plan.md`, and the diff. The check fails **toward re-running**, never toward skipping: an unnecessary re-run is expensive, but a skipped review phase ships unreviewed code and nothing downstream notices.
 
 **Agents communicate only through artifacts.** Agents are stateless specialists. They share nothing in memory — only files (durable) and their final return message (the immediate decision payload run parses). run is the sole writer of `state/issue-N.md`, and the writer of `.lock` for a run (the short-lived `pr-fix` skill also takes `.lock`, tagged `holder: pr-fix`). The durable cross-agent channel for decisions is `context.md` Zone 2 — an append-only timeline (see [Reference](#contextmd-zone-2--the-shared-timeline)).
 
@@ -114,6 +125,8 @@ A manual *acceptance criterion* (at gate-validation) is **not** a hard stop: aut
 
 Zone 2 is an **append-only timeline**: agents and gates add entries in execution order; nobody edits or deletes a prior entry. It carries decisions — not just artifacts — between phases. Each entry stands alone (a later reader understands it without re-deriving) and follows the format embedded in the file's Zone 2 header (`### [time] · [author] · [ref]` with `Did` / `Decisions` / `For next` / `Artifacts`).
 
+**Append with a shell append (`cat >> …/context.md <<'EOF'`) — never `Edit`.** This is the mechanism, not a style preference. "Append-only" as prose forbids *editing a prior entry*; it does not stop a targeted `Edit` from landing its new entry wherever its anchor happened to match — which in a 100 KB file is routinely next to similar-looking prose, including inside Zone 1. `>>` physically cannot write anywhere but the end. Everything downstream depends on this: `run` resumes from the **last** entry (see [Resume](#how-this-skill-works)), and an inserted entry makes the last one stale — so the read that is supposed to prevent a duplicate agent call would instead skip one that never ran. The file must end with your entry; if you cannot append, say so rather than editing one in.
+
 Agents are not limited to the standard files — a step may create its own supplementary artifact (a generated schema, a scratch analysis, a data sample). When it does, it lists the path under **Artifacts** with a one-line "load this if…" hint, so a later agent (or run) chooses whether to read it instead of everyone loading everything.
 
 ### Detection provenance — `Caught by:` and the log trail
@@ -142,6 +155,8 @@ node -e "console.log(new Date().toISOString())"
 
 Node is always available (the bundled milestone MCP requires it); the trailing `Z` is the timezone designator. Pass `$NOW` into the agent invocation — the agent uses it verbatim. **Never** use a date from the prompt or session context; it may be stale.
 
+**One derivation per invocation — never reuse a `$NOW` across two agent calls**, however close together. Timestamps are what make the timeline *ordered*, and the ordering is load-bearing: resume compares the last entry's timestamp against the phase's start line, and the retro reads elapsed time per phase. A batch of entries sharing one stamp carries no order at all, and an out-of-place entry among them is undetectable. Reuse it verbatim inside a single agent's own entry and log filenames, and nowhere else — including the `$LOG_DIR` filenames, which must render the same instant the same way every time.
+
 ### State file schema
 
 ```markdown
@@ -154,8 +169,9 @@ autonomy: human | auto           # set at S6 from $AUTONOMY; rewritten to 'human
 delivery: direct | pr            # set at S6 from $DELIVERY; never rewritten
                                  # both govern on resume — a resume flag cannot switch them, downgrade excepted
 phase: <phase name>
-phase_step: -        # multi-pass phases (design/review/validate) only; '-' otherwise
-task_index: -        # build-loop position, 0-based; '-' otherwise
+phase_step: -        # multi-pass phases (design/review/validate): the last step COMPLETED, written after
+                     #   that step's agent returns; '-' = nothing completed yet / not a multi-pass phase
+task_index: -        # build-loop position, 0-based: the next task to run, incremented after one completes; '-' otherwise
 branch: <branch>     # '-' until created
 base: <base branch>
 pr: -                # set once PR created
@@ -181,7 +197,14 @@ payload: |
 - <ISO timestamp> <event>
 ```
 
-Append a `## Log` line at every phase boundary and human decision. Update `phase` / `phase_step` / `task_index` **before** invoking the agents for that step, so a crash resumes correctly.
+Append a `## Log` line at every phase boundary and human decision.
+
+**`phase:` is written on entry; `phase_step:` and `task_index:` are written on completion.** They answer different questions and a crash must read them differently:
+
+- **`phase:`** is set *before* the phase runs, so a crash resumes into the right phase instead of redoing the previous one.
+- **`phase_step:` / `task_index:`** name **what is finished** — every step value is past-tense (`drafted`, `reviewed`, `critiqued`, `auto-checked`, `gated`) — so each is written *immediately after* the agent returns: the **first** thing you do with a return, before parsing it, reasoning about it, or presenting anything. Write it together with the `## Pending gate` payload in the same edit when a gate follows.
+
+Writing a step marker *before* invoking makes "about to run the reviewer" and "the reviewer finished" the identical value on disk, and a resume then re-runs the most expensive agent in the loop. (The build loop already records position this way — `task_index` increments *after* the task is marked `[x]`.)
 
 ---
 
@@ -211,8 +234,10 @@ Read `.context/sprints/state/.lock` if it exists. Determine PID liveness with `k
 |---|---|
 | live PID, `holder: run` | `⚙ run is already in progress for #M (PID alive). Finish or /devloop:abort it first.` → **exit**. (A live process owns the run regardless of `$ISSUE`.) |
 | live PID, `holder: pr-fix` | `⚙ pr-fix is working the tree on PR #[pr] (PID alive). Let it finish before starting a run.` → **exit**. |
-| dead PID | `⚠ Found a stale lock from a previous session — clearing it.` → delete `.lock`, proceed. (Read `holder` if present; a missing `holder` predates the field — treat as `run`.) |
+| dead PID | **Read the file's fields before deleting it** — `holder` (missing predates the field; treat as `run`) and, on a `run` lock, `issue:` captured as **`$LOCK_ISSUE`**. Then `⚠ Found a stale lock from a previous run on #[issue] — clearing it.` → delete `.lock`, proceed. |
 | absent | proceed |
+
+**Capture `issue:` before the delete, not after.** A stale lock is the only artifact that names the issue that was in flight, and S4 needs it to resolve a no-arg resume. Deleting the file first destroys that answer and leaves S4 reconstructing it — which is how a one-line lookup turns into a search. (`/devloop:abort` reads the same field for the same reason.)
 
 ### S3 — Read project profile and baseline
 
@@ -228,13 +253,28 @@ Read `.context/devloop-baseline.md` if it exists (the accepted-failing allowlist
 
 ### S4 — Resolve the target issue and entry point
 
-| Invocation | State file `issue-N.md` | Action |
-|---|---|---|
-| `run N` | exists | Check GitHub: if the issue is already closed (its PR merged, or a direct merge landed) → set entry = **merge** (cleanup only). Else set entry = the recorded `phase` (resume). |
-| `run N` | none | Entry = the workflow entry phase (fresh). Warn if N is not in `$SPRINT_FILE`, but allow. |
-| `run` (no arg) | exactly one in-progress | issue closed → entry = **merge** (cleanup); else entry = recorded `phase` (resume). |
-| `run` (no arg) | multiple in-progress | List them; ask which to resume or abort. |
-| `run` (no arg) | none | Pick the first unchecked issue in `$SPRINT_FILE`; entry = workflow entry phase (fresh). |
+Two questions, in order — **which issue**, then **where in it**. Both are answered by named files; neither is answered by searching.
+
+**1. Resolve `$ISSUE`.** Take the first row that applies:
+
+| Condition | `$ISSUE` |
+|---|---|
+| an issue number in `$ARGUMENTS` | that number (it wins over everything below — an explicit target is never overridden by a stale lock) |
+| `$LOCK_ISSUE` was captured in [S2](#s2--concurrency-guard) | `$LOCK_ISSUE` |
+| `ls .context/sprints/state/issue-*.md` → exactly one | that issue |
+| `ls .context/sprints/state/issue-*.md` → more than one | list them; ask which to resume or abort |
+| `ls .context/sprints/state/issue-*.md` → none | the first unchecked issue in `$SPRINT_FILE` |
+
+**"In progress" means exactly one thing: a file matching `.context/sprints/state/issue-*.md`.** An empty `state/` is a *complete answer* — no run is in progress, start fresh — not a gap to go investigate. A finished issue's state file was moved to `work/issue-N/run-state-final.md` at [cleanup](#cleanup); that archive is for post-mortem reading by `/devloop:review` and is **never** consulted here.
+
+**Startup never spawns a search agent.** Every fact it needs is at a path named in S1–S4 (`master-plan.md`, `.lock`, `state/issue-*.md`, `devloop-profile.md`, `$SPRINT_FILE`). If one of those is missing, that absence *is* the answer — take the row that says so. Fanning out a subagent to work out where to resume burns more context than the phase it is trying to avoid re-running.
+
+**2. Resolve the entry point** from `$ISSUE`'s state file:
+
+| State file `issue-N.md` | Action |
+|---|---|
+| exists | Check GitHub: if the issue is already closed (its PR merged, or a direct merge landed) → entry = **merge** (cleanup only). Else entry = the recorded `phase` (resume) — and within it, the position recorded in `phase_step` / `task_index`, per [Resume](#how-this-skill-works). |
+| none | Entry = the workflow entry phase (fresh). Warn if `$ISSUE` is not in `$SPRINT_FILE`, but allow. |
 
 If no unchecked issue remains:
 
@@ -607,6 +647,8 @@ Record `phase: review`. Continue.
 **This bump is the one rung change that does *not* re-invoke the planner** — the deliberate exception to [the rule at gate-plan](#gate-gate-plan), and it is an exception because there is nothing left for the planner to write. That rule exists because a rung is a flag *plus* its licensing artifact, and the artifact governs the **front half**: a plan re-planned as `STANDARD` yields a `test-plan.md` for the test-writer. Here the build phase has already run and committed — there is no front half left to license. What this bump buys is the *back* half only: a second pair of eyes (the critique pass), and the blocker itself is pinned by [the mini-TDD loop](#the-tdd-micro-loop) at step 4, which writes its own red-verified regression test. So set `rung: standard` for the review depth, log the bump, and do **not** re-plan; `plan.md` keeps its now-falsified `## Triviality proof`, which is the honest record — the proof was wrong, and Zone 2 says so.
 
 1. **Review** (`phase_step: reviewed`). Derive `$NOW` and invoke **`reviewer`** (`mode: review`), passing **`$BASE`** = the state file's `base:` branch, **`$HEAD`** = the issue branch tip, `$WORK_DIR` (absolute, per [S1](#s1--resolve-the-active-sprint) — it reads `plan.md`/`context.md` and appends its Zone 2 entry there), **`$CHECKS`** (reference only — the reviewer never runs a build or the suite), the `design.md` path as **`$DESIGN`** if a design phase ran, and `$NOW`.
+
+   **Record it done before you read it.** The moment the reviewer returns, write `phase_step: reviewed` and the findings into `## Pending gate` — before parsing the findings or doing anything with them. This pass is the most expensive call in the loop and it is **not idempotent**: a second instance returns a different finding set, and merging two pass-1 results is not a thing this skill defines. On resume, if `phase_step` is ambiguous, settle it with the last-Zone-2-entry check in [Resume](#how-this-skill-works) — never by re-reviewing "to confirm".
 
    **Enumerate the range; never leave it to be inferred.** run holds the verdicts, not the diff — the reviewer computes the diff itself, so `$BASE`/`$HEAD` *are* the review's scope, exactly as `$CHECKS` is the coder's. And this parameter fails the way a guessed MCP tool name does, not the way a missing file does: an improvised range returns confident, well-formed findings about the wrong code — or `FINDINGS: 0` on an empty diff — and nothing distinguishes either from a clean review. The reviewer diffs **three-dot** (`$BASE...$HEAD`), so only this issue's commits are in scope; anything merged into `$base` since the branch split stays out (run doesn't rebase until [merge](#phase-merge), so a branch reaching review *is* routinely behind).
 

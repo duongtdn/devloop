@@ -100,7 +100,7 @@ If `$HAS_UNIT_TESTS` is `false`, omit Unit and note the project has no unit test
 
 ## Record
 
-Append **one** entry to `context.md` **Zone 2** (format per that section, stamped with `$NOW`):
+Append **one** entry to `context.md` **Zone 2** (format per that section, stamped with `$NOW`) — **with a shell append (`cat >> …/context.md <<'EOF'`), never `Edit`**: an `Edit` lands the entry wherever its anchor matched, and `run` resumes from the *last* entry in the file, so a misplaced one can make it skip a step that never ran. The file must end with your entry:
 - **Did:** plan written at rung `[TRIVIAL|EXPRESS|STANDARD|REFACTOR]` (or `NEEDS-CONTEXT` / `NEEDS-DESIGN` / `MANUAL` raised).
 - **Decisions:** why the tasks are split this way; **why this rung** (for `TRIVIAL`, the inert targets + cleared checks; for `EXPRESS`, the triviality proof; for `REFACTOR`, the coverage you're resting on); what's out of scope. When raising `MANUAL`, record why the issue has no code to build.
 - **For next:** shared interfaces and ordering the coder/test-writer must respect. (For `MANUAL`, omit — there is no next build phase.)

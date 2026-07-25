@@ -51,7 +51,7 @@ In `express` mode do **not** write tests and do **not** expand scope: "green" is
 
 **If `$NO_COMMIT` is set, do not commit** — not even when everything is green, and not "to be safe". Leave the edits in the working tree, list the files you touched (marking any you *created*, so the caller can discard them cleanly), and stop. A human is about to read this diff and may reject it; a commit you made turns their "no" into a history rewrite on the base branch.
 
-**6. Record** (only when green, and **not at all when `$NO_COMMIT` is set** — the caller writes the Zone 2 entry there, so one from you would double-count the event). Append **one** entry to `context.md` **Zone 2** (format per that section, stamped with `$NOW`):
+**6. Record** (only when green, and **not at all when `$NO_COMMIT` is set** — the caller writes the Zone 2 entry there, so one from you would double-count the event). Append **one** entry to `context.md` **Zone 2** (format per that section, stamped with `$NOW`) — **with a shell append (`cat >> …/context.md <<'EOF'`), never `Edit`**: an `Edit` lands the entry wherever its anchor matched, and `run` resumes from the *last* entry in the file, so a misplaced one can make it skip a step that never ran. The file must end with your entry:
 - **Did:** implemented [task] → [sha]. **Attempts: [k]** — with a one-line failure signature for each failed one (not the stack; that's in the log).
 - **Decisions:** non-obvious implementation choices and why (omit if none).
 - **Caught by:** for each defect you hit and fixed along the way, which check surfaced it — `test-red`, `typecheck`, or `lint` (omit if the task went green first try with nothing to fix).
@@ -84,7 +84,7 @@ A spike is a **throwaway experiment** to answer `$QUESTION` with evidence — no
 - Write the minimum throwaway code under `$WORK_DIR/spike/` (the per-issue work area). Do **not** touch the real source tree, do **not** follow `plan.md`, do **not** write or modify tests, and do **not** commit anything.
 - Run it (Bash) to actually measure/observe the answer — real output, not a guess. Capture the concrete result (numbers, error, behaviour).
 - Keep it small and focused on `$QUESTION`. If the question can't be answered by a quick experiment, say so rather than building something elaborate.
-- Append a Zone 2 entry (`$NOW`): **Did** spiked `$QUESTION`; **For next** the finding and what it implies for the design; **Artifacts** the `spike/` path (reference only — safe to delete).
+- Append a Zone 2 entry (`$NOW`; shell append (`cat >>`), never `Edit` — the file must end with your entry): **Did** spiked `$QUESTION`; **For next** the finding and what it implies for the design; **Artifacts** the `spike/` path (reference only — safe to delete).
 
 ### Output (`spike`)
 

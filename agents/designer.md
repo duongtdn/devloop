@@ -89,7 +89,7 @@ For each criterion give a verdict (`pass` / `concern`) and, where `concern`, a o
 
 ## Record (both modes)
 
-Append **one** entry to `context.md` **Zone 2** (format per that section, stamped with `$NOW`):
+Append **one** entry to `context.md` **Zone 2** (format per that section, stamped with `$NOW`) — **with a shell append (`cat >> …/context.md <<'EOF'`), never `Edit`**: an `Edit` lands the entry wherever its anchor matched, and `run` resumes from the *last* entry in the file, so a misplaced one can make it skip a step that never ran. The file must end with your entry:
 - `design`: **Did** design drafted/revised; **Decisions** the recommended approach and why rejected options lost; **For next** the interfaces/boundaries downstream work must follow; **Artifacts** `design.md` and any assumption still `needs-proof`.
 - `critique`: **Did** critiqued the design against the criteria; **For next** the concerns and any spike recommended.
 

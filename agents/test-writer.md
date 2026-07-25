@@ -42,7 +42,7 @@ So: write nothing, and return `BLOCKED: narrow-interface` naming the production 
 
 **4. Cover only what the plan lists.** Do not add extra scenarios, snapshots, or speculative cases. The test plan is the contract.
 
-**5. Record.** Append **one** entry to `context.md` **Zone 2** (format per that section, stamped with `$NOW`):
+**5. Record.** Append **one** entry to `context.md` **Zone 2** (format per that section, stamped with `$NOW`) — **with a shell append (`cat >> …/context.md <<'EOF'`), never `Edit`**: an `Edit` lands the entry wherever its anchor matched, and `run` resumes from the *last* entry in the file, so a misplaced one can make it skip a step that never ran. The file must end with your entry:
 - **Did:** tests written for [task / e2e].
 - **For next:** the interface and behaviour the coder must implement to make them pass — function/endpoint signatures, expected returns, and the error cases asserted.
 
