@@ -371,15 +371,17 @@ Build this panel from the agents' return summaries and **link** the document —
 > Spikes run: [assumption → finding]   ← omit if none
 >
 > Critique (verdict: [sound | needs-work]):
-> | criterion | verdict |
-> | requirement-coverage | pass/concern — [issue] |
-> | soundness | … |
-> | interface-clarity | … |
-> | alternatives | … |
-> | simplicity | … |
-> | testability | … |
-> | consistency | … |
->
+
+| criterion | verdict |
+|---|---|
+| requirement-coverage | pass/concern — [issue] |
+| soundness | … |
+| interface-clarity | … |
+| alternatives | … |
+| simplicity | … |
+| testability | … |
+| consistency | … |
+
 > Full design: `.context/sprints/work/issue-N/design.md`
 >
 > Approve the design, request changes, run another spike, or skip design and plan directly:
@@ -443,16 +445,16 @@ Then compute which **gates** will fire: `gate-plan` (now), `gate-review` (if rev
 > [TRIVIAL:] Inert change — [why]. Docs/prose only; no test, no review, no validate — verified by the inertness proof below (the touched files feed no check).
 > [EXPRESS:] Trivial change — [why]. No new test; verified by the triviality proof below + the full check suite.
 > [REFACTOR:] Behavior-preserving restructure — [why]. No new test; the existing suite (coverage below) must stay green.
->
-> | Stage | What |
-> |---|---|
-> | Code | [STANDARD: TDD loop × [N] tasks (test → code per task)] [EXPRESS/REFACTOR: apply [N] change(s), no test-first] [TRIVIAL: apply [N] inert edit(s)] |
-> | Proof | [EXPRESS: what I'll grep to confirm nothing depends on it] [REFACTOR: the existing tests that guard the behavior — coverage adequate/THIN] [TRIVIAL: the inert files + the checks cleared against them — subset to run: [subset or none]] |
-> | E2E | [scenario list] |  ← omit row if e2e not active (always omitted for TRIVIAL)
-> | Review | [STANDARD: diff review + critique] [EXPRESS/REFACTOR: single review pass] |  ← omit if not active (always omitted for TRIVIAL)
-> | Validate | [K] acceptance criteria ([M] need manual check) |  ← omit for TRIVIAL (ACs confirmed at the delivery gate)
-> | Deliver | [branch] → [base] · [merge locally (direct) \| open PR (pr)] |
->
+
+| Stage | What |
+|---|---|
+| Code | [STANDARD: TDD loop × [N] tasks (test → code per task)] [EXPRESS/REFACTOR: apply [N] change(s), no test-first] [TRIVIAL: apply [N] inert edit(s)] |
+| Proof | [EXPRESS: what I'll grep to confirm nothing depends on it] [REFACTOR: the existing tests that guard the behavior — coverage adequate/THIN] [TRIVIAL: the inert files + the checks cleared against them — subset to run: [subset or none]] |
+| E2E | [scenario list] |  ← omit row if e2e not active (always omitted for TRIVIAL)
+| Review | [STANDARD: diff review + critique] [EXPRESS/REFACTOR: single review pass] |  ← omit if not active (always omitted for TRIVIAL)
+| Validate | [K] acceptance criteria ([M] need manual check) |  ← omit for TRIVIAL (ACs confirmed at the delivery gate)
+| Deliver | [branch] → [base] · [merge locally (direct) \| open PR (pr)] |
+
 > Gates I'll stop at:
 > ① now — approve this plan [STANDARD: + test strategy]
 > ② after review — approve findings before fixes  ← list only active gates

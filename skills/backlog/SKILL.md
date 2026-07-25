@@ -56,13 +56,13 @@ Stop.
 **Human gate — present the candidates and wait for approval:**
 
 > **Backlog candidates from this conversation** _(N items)_
->
-> | # | Title | Hint | Notes |
-> |---|-------|------|-------|
-> | 1 | Add rate limiting to API | feature | Came up when discussing auth — need to cap login attempts |
-> | 2 | Decide on token expiry policy | decision | Unresolved: short-lived tokens vs. refresh token flow |
-> | 3 | Fix flaky email send in CI | bug | Mentioned as intermittent; not investigated yet |
->
+
+| # | Title | Hint | Notes |
+|---|-------|------|-------|
+| 1 | Add rate limiting to API | feature | Came up when discussing auth — need to cap login attempts |
+| 2 | Decide on token expiry policy | decision | Unresolved: short-lived tokens vs. refresh token flow |
+| 3 | Fix flaky email send in CI | bug | Mentioned as intermittent; not investigated yet |
+
 > For each row: **keep** (default), **edit**, or **drop**.
 > You can also **add** items not listed above.
 >
@@ -80,12 +80,12 @@ Wait for the user's response.
 After applying changes, if anything was changed, show the updated table and ask for final confirmation:
 
 > Updated list:
->
-> | # | Title | Hint | Notes |
-> |---|-------|------|-------|
-> | 1 | Add login rate limiting | feature | Came up when discussing auth — need to cap login attempts |
-> | 3 | Fix flaky email send in CI | bug | Mentioned as intermittent; not investigated yet |
->
+
+| # | Title | Hint | Notes |
+|---|-------|------|-------|
+| 1 | Add login rate limiting | feature | Came up when discussing auth — need to cap login attempts |
+| 3 | Fix flaky email send in CI | bug | Mentioned as intermittent; not investigated yet |
+
 > Confirm to create these as backlog issues, or keep editing:
 
 This loop repeats — apply any further changes, show the updated table again, and wait for confirmation — until the user explicitly confirms. Only then proceed to Step 3.
@@ -156,12 +156,12 @@ After each successful creation, announce and continue:
 When all items are processed, report:
 
 > **Backlog updated** — [N] issues created in `$REPO`.
->
-> | GitHub issue | Title |
-> |-------------|-------|
-> | #[N] | Add login rate limiting |
-> | #[N] | Fix flaky email send in CI |
->
+
+| GitHub issue | Title |
+|-------------|-------|
+| #[N] | Add login rate limiting |
+| #[N] | Fix flaky email send in CI |
+
 > These will appear in `/devloop:plan` backlog triage when you start the next sprint.
 
 If any items were dropped or skipped due to creation failure, list them:

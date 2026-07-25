@@ -403,15 +403,15 @@ Present a read-only snapshot (no gate yet):
 > ## Sprint [N] review — _"[SPRINT_GOAL]"_
 >
 > Repo: [owner/repo] · Milestone #[number] ([MILESTONE_CLOSED] closed / [MILESTONE_OPEN] open · due [MILESTONE_DUE]) · Created [date]
->
-> | # | Title | Area | Class | PR | Reviewed | ⚠ |
-> |---|-------|------|-------|----|----------|---|
-> | #44 | Add session persistence | infra | shipped | #10 | ✓accepted 07-08 | — |
-> | #43 | Add JWT middleware | api | shipped | #12 | pending | **bug fixed but not covered by a test · 1 criterion needs your eyes** |
-> | #45 | Add rate limiting | api | shipped | #13 | pending | — |
-> | #46 | Cache warm-up | infra | **blocked ⏸** | — | — | got stuck building it — 3 tries, then stopped |
-> | #42 | Add login page | web | unfinished | — | — | — |
->
+
+| # | Title | Area | Class | PR | Reviewed | ⚠ |
+|---|-------|------|-------|----|----------|---|
+| #44 | Add session persistence | infra | shipped | #10 | ✓accepted 07-08 | — |
+| #43 | Add JWT middleware | api | shipped | #12 | pending | **bug fixed but not covered by a test · 1 criterion needs your eyes** |
+| #45 | Add rate limiting | api | shipped | #13 | pending | — |
+| #46 | Cache warm-up | infra | **blocked ⏸** | — | — | got stuck building it — 3 tries, then stopped |
+| #42 | Add login page | web | unfinished | — | — | — |
+
 > **[K] shipped · [B] blocked · [M] unfinished · [D] done ⚠** ([X] of [T] complete) · **[A] accepted · [P] awaiting review**
 > Known-failing debt still open: [count] ([list tracking issues] — or "none")
 >
@@ -461,15 +461,15 @@ Only runs if there are **blocked ⏸**, **unfinished**, or **done ⚠** issues. 
 Present the gate with proposed defaults:
 
 > **Reconcile Sprint [N] — [n] issue(s) need a decision**
->
-> | # | Title | Class | Why | Proposed |
-> |---|-------|-------|-----|----------|
-> | #46 | Cache warm-up | blocked ⏸ | got stuck on the second build step after 3 tries | **resume** |
-> | #42 | Add login page | unfinished | never started | carry over |
-> | #52 | Fix toast on slow networks (rework of #44) | unfinished | never started | carry over |
-> | #51 | Update readme | unfinished | never started | backlog |
-> | #44 | Add session persistence | done ⚠ | merged without a `closes` keyword | close on GitHub |
->
+
+| # | Title | Class | Why | Proposed |
+|---|-------|-------|-----|----------|
+| #46 | Cache warm-up | blocked ⏸ | got stuck on the second build step after 3 tries | **resume** |
+| #42 | Add login page | unfinished | never started | carry over |
+| #52 | Fix toast on slow networks (rework of #44) | unfinished | never started | carry over |
+| #51 | Update readme | unfinished | never started | backlog |
+| #44 | Add session persistence | done ⚠ | merged without a `closes` keyword | close on GitHub |
+
 > Decide each: **resume** (blocked only) / **carry over** / **backlog** / **close** / **keep**.
 > Reply with bulk or per-issue decisions (e.g. "resume #46, carry over the rest"):
 

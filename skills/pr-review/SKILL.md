@@ -144,11 +144,11 @@ Present grouped by severity, blockers first.
 **Light tier — one panel,** then a comment preview:
 
 > **Review — [repo]#[pr]** ([n] findings)
->
-> | id | severity | location | finding | suggested fix |
-> |---|---|---|---|---|
-> | F1 | blocker | file:line | … | … |
->
+
+| id | severity | location | finding | suggested fix |
+|---|---|---|---|---|
+| F1 | blocker | file:line | … | … |
+
 > [Plus: behind base by N / conflicts in X — noted for merge]  ← if stale
 >
 > Accept all, or list which to **decline** / mark as **note** / **edit**:

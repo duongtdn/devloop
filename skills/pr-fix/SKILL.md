@@ -138,12 +138,12 @@ A `blocker` under a `CHANGES_REQUESTED` review is recommended `fix` regardless (
 Present grouped by severity, **blockers first**, with the recommendation and rationale visible:
 
 > **Review comments — [repo]#[pr]** ([n] findings)
->
-> | id | severity | location | finding | rec | why | thread |
-> |---|---|---|---|---|---|---|
-> | F1 | blocker | file:line | … | **fix** | upheld — real null-deref | gh#123 |
-> | F2 | suggestion | file:line | … | ignore | dropped — speculative, not worth the churn | (zone2) |
->
+
+| id | severity | location | finding | rec | why | thread |
+|---|---|---|---|---|---|---|
+| F1 | blocker | file:line | … | **fix** | upheld — real null-deref | gh#123 |
+| F2 | suggestion | file:line | … | ignore | dropped — speculative, not worth the churn | (zone2) |
+
 > [Plus: behind base by N — noted for the push]   ← if stale
 >
 > Defaults: **fix** the recommended ones, **ignore** the rest (each ignored finding gets a thread reply with the reason). Confirm, or override any row (`fix F2`, `ignore F1`, re-rank a severity):

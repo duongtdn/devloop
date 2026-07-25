@@ -227,13 +227,13 @@ Otherwise the agent returns:
 > [N] items auto-deferred (clearly out of scope for this sprint). ← omit this line if AUTO_DEFERRED is 0
 >
 > [M] items need your attention:
->
-> | # | Title | Bucket | Rationale |
-> |---|-------|--------|-----------|
-> | #12 | Add JWT middleware | relevant | Core piece of the auth flow |
-> | #34 | Refactor DB pool | uncertain | May unblock auth but not strictly required |
-> | #56 | Update onboarding copy | uncertain | Could relate to post-login UX |
->
+
+| # | Title | Bucket | Rationale |
+|---|-------|--------|-----------|
+| #12 | Add JWT middleware | relevant | Core piece of the auth flow |
+| #34 | Refactor DB pool | uncertain | May unblock auth but not strictly required |
+| #56 | Update onboarding copy | uncertain | Could relate to post-login UX |
+
 > Decide for each: **resolve** / **defer** / **close**
 > You can reply with bulk decisions (e.g. "defer all uncertain, resolve #12") or item-by-item.
 
@@ -281,12 +281,12 @@ Every issue this skill creates follows **`plan-spec.md`** (in this skill's direc
 > [2–4 sentences on how the resolve items map onto the proposed tasks — which items combined, which split, where coverage overlaps.]
 >
 > Proposed sprint-ready tasks:
->
-> | # | Title | type | epic | area | From backlog |
-> |---|-------|------|------|------|--------------|
-> | 1 | Add login page | feature | auth | web | #12 |
-> | 2 | Add JWT middleware | feature | auth | api | #12, #34 |
->
+
+| # | Title | type | epic | area | From backlog |
+|---|-------|------|------|------|--------------|
+| 1 | Add login page | feature | auth | web | #12 |
+| 2 | Add JWT middleware | feature | auth | api | #12, #34 |
+
 > Acceptance criteria:
 >
 > **1. Add login page**
@@ -301,12 +301,12 @@ Every issue this skill creates follows **`plan-spec.md`** (in this skill's direc
 > Definition of Done: [per the DoD-by-type rule — list each task's DoD lines given its type and the profile; group if several share a type]
 >
 > Backlog disposition:
->
-> | Backlog | Disposition | Why |
-> |---------|-------------|-----|
-> | #12 | close — fully subsumed | Every concern became tasks 1 and 2 |
-> | #34 | stay open — partially drawn | JWT refresh became task 2; rotation deferred |
->
+
+| Backlog | Disposition | Why |
+|---------|-------------|-----|
+| #12 | close — fully subsumed | Every concern became tasks 1 and 2 |
+| #34 | stay open — partially drawn | JWT refresh became task 2; rotation deferred |
+
 > Approve to create, or tell me what to change — titles, labels, criteria, the mapping, or a disposition:
 
 Wait for the user's response:
@@ -351,14 +351,14 @@ Set the confirmed selection to empty and skip the selection gate below — go st
 **Human gate — present the agent's result and wait for selection:**
 
 > **Sprint [N] goal:** _"[SPRINT_GOAL]"_
->
-> | # | Title | Type | Epic | Area | Suggestion | Rationale |
-> |---|-------|------|------|------|------------|-----------|
-> | #43 | Add JWT middleware | feature | auth | api | include | Core requirement for the auth flow |
-> | #42 | Add login page | feature | auth | web | include | Primary deliverable this sprint |
-> | #38 | Fix CORS on preflight | bug | — | api | consider | Needed for web↔API calls but may be pre-existing |
-> | #51 | Update readme | chore | — | — | skip | Documentation, unrelated to auth goal |
->
+
+| # | Title | Type | Epic | Area | Suggestion | Rationale |
+|---|-------|------|------|------|------------|-----------|
+| #43 | Add JWT middleware | feature | auth | api | include | Core requirement for the auth flow |
+| #42 | Add login page | feature | auth | web | include | Primary deliverable this sprint |
+| #38 | Fix CORS on preflight | bug | — | api | consider | Needed for web↔API calls but may be pre-existing |
+| #51 | Update readme | chore | — | — | skip | Documentation, unrelated to auth goal |
+
 > Suggested selection: #42, #43 (and #38 if the CORS issue is actively blocking).
 >
 > Confirm, or adjust — add/remove issue numbers, or tell me what to change:
@@ -400,11 +400,11 @@ Architect supplies the judgment and any ADRs; per its own rule it does **not** c
 > [1–2 sentences naming the gap and the design reasoning behind the proposed tasks; cite any ADR recorded or followed.]
 >
 > Proposed sprint-ready tasks:
->
-> | # | Title | type | epic | area |
-> |---|-------|------|------|------|
-> | 1 | Add token refresh endpoint | feature | auth | api |
->
+
+| # | Title | type | epic | area |
+|---|-------|------|------|------|
+| 1 | Add token refresh endpoint | feature | auth | api |
+
 > Acceptance criteria:
 >
 > **1. Add token refresh endpoint**
@@ -467,14 +467,14 @@ Collect all distinct `area:*` labels from the selected issues (strip the `area:`
 > **Execution order for Sprint [N]**
 >
 > [1–2 sentences explaining the proposed ordering logic — e.g. "infra first to set up the database layer, then api to implement the endpoints, then web to wire up the UI."]
->
-> | Order | # | Title | Area |
-> |-------|---|-------|------|
-> | 1 | #44 | Add session persistence | infra |
-> | 2 | #43 | Add JWT middleware | api |
-> | 3 | #42 | Add login page | web |
-> | 4 | #45 | Password reset flow | web |
->
+
+| Order | # | Title | Area |
+|-------|---|-------|------|
+| 1 | #44 | Add session persistence | infra |
+| 2 | #43 | Add JWT middleware | api |
+| 3 | #42 | Add login page | web |
+| 4 | #45 | Password reset flow | web |
+
 > Confirm, or adjust — reorder by listing issue numbers (e.g. `44 43 45 42`), or describe what to change:
 
 Wait for confirmation or adjustment. Apply any reordering the user provides. If adjusted, show the updated table once more before proceeding.
@@ -573,12 +573,12 @@ When done, report:
 > [N] tasks authored from the goal (#…) · [N] ADR(s) recorded (ADR-… — [title]) _(omit the ADR clause if none)_
 >
 > **Execution order**
->
-> | Order | # | Title | Area |
-> |-------|---|-------|------|
-> | 1 | #44 | Add session persistence | infra |
-> | 2 | #43 | Add JWT middleware | api |
-> | 3 | #42 | Add login page | web |
-> | 4 | #45 | Password reset flow | web |
->
+
+| Order | # | Title | Area |
+|-------|---|-------|------|
+| 1 | #44 | Add session persistence | infra |
+| 2 | #43 | Add JWT middleware | api |
+| 3 | #42 | Add login page | web |
+| 4 | #45 | Password reset flow | web |
+
 > Run `/devloop:run` to start executing.

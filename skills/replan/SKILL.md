@@ -121,12 +121,12 @@ Only **unstarted** issues may move (checked-off work is history; an in-flight is
 After all requested operations, print a one-line-per-change summary and the current issue table:
 
 > **Sprint [N] replanned** — [n] change(s): [add #43 · rework #44→#52 · drop #51 → backlog]
->
-> | Order | # | Title | State |
-> |---|---|---|---|
-> | 1 | #44 | Add session persistence | done ✓accepted |
-> | 2 | #52 | Fix toast on slow networks (rework of #44) | not started |
->
+
+| Order | # | Title | State |
+|---|---|---|---|
+| 1 | #44 | Add session persistence | done ✓accepted |
+| 2 | #52 | Fix toast on slow networks (rework of #44) | not started |
+
 > [If a run/sprint is idle:] `/devloop:run` or `/devloop:sprint` picks up the new work in order.
 
 ---

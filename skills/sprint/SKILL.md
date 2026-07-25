@@ -39,12 +39,12 @@ Stop.
 One confirmation before an unattended run that will merge to `[base]`:
 
 > **▶ Sprint [N] — autonomous execution** · _"[SPRINT_GOAL]"_
->
-> | Order | # | Title | State |
-> |---|---|---|---|
-> | 1 | #43 | Add JWT middleware | resume (phase: build) |
-> | 2 | #42 | Add login page | fresh |
->
+
+| Order | # | Title | State |
+|---|---|---|---|
+| 1 | #43 | Add JWT middleware | resume (phase: build) |
+| 2 | #42 | Add login page | fresh |
+
 > Mode: **auto** — no gates will stop; each issue merges into `[base]` locally (no PR) when it lands. Every decision is logged for `/devloop:review`. I stop at the first blocker I can't resolve safely and never skip past it.
 >
 > Execute [n] issue(s)? (y / n)
@@ -71,12 +71,12 @@ Between issues, nothing else runs — no extra prompts, no plan re-checks; `run`
 **All issues completed:**
 
 > **✅ Sprint [N] executed** — [n]/[n] issues merged to `[base]`.
->
-> | # | Title | Landed |
-> |---|---|---|
-> | #43 | Add JWT middleware | ✓ |
-> | #42 | Add login page | ✓ |
->
+
+| # | Title | Landed |
+|---|---|---|
+| #43 | Add JWT middleware | ✓ |
+| #42 | Add login page | ✓ |
+
 > Every decision is logged in each issue's `context.md` (Zone 2). **Next: `/devloop:review`** — walk through each task, demo it, accept or spawn rework.
 
 **Stopped on a blocker:**

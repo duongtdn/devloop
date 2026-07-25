@@ -231,12 +231,12 @@ If no repo was established from context, skip this step silently.
 If a repo is known, offer to sync epic labels:
 
 > **Epic labels** — derive one label per sprint theme: lowercase, spaces to hyphens, `epic:` prefix (e.g. "Core Feature" → `epic:core-feature`).
->
-> | Theme | Label |
-> |-------|-------|
-> | Foundation | `epic:foundation` |
-> | Auth | `epic:auth` |
->
+
+| Theme | Label |
+|-------|-------|
+| Foundation | `epic:foundation` |
+| Auth | `epic:auth` |
+
 > Create any missing labels in `[owner/repo]`? (y/n — or list specific ones to skip):
 
 Wait for response. On yes (or a subset), use the **`github-extras` MCP**: call `list_labels` (`owner`, `repo`) to see which labels already exist, then `create_label` (`owner`, `repo`, `name`, optional `color`/`description`) for only the missing ones. Skip existing labels silently. (The official GitHub MCP has no list- or create-label tool — only `get_label` reads one by name — which is why label management lives in the bundled server.) Report:

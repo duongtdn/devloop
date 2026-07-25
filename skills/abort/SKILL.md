@@ -80,14 +80,14 @@ Determine PR state: if `pr` is set, fetch it via the GitHub MCP to confirm it is
 Present the summary (read-only — no gate yet):
 
 > **Aborting #[N] — [title]  ([workflow])**
->
-> | | |
-> |---|---|
-> | Stopped at | phase `[phase]`[ · step `[phase_step]`][ · task [task_index+1]] |
-> | Branch | `[branch]` — [local exists] · [K] commit(s) ahead of `[base]` · [pushed / not pushed] |
-> | PR | [#pr (open) / #pr (draft) / none] |
-> | Working tree | [clean / ⚠ has uncommitted changes] |
->
+
+| | |
+|---|---|
+| Stopped at | phase `[phase]`[ · step `[phase_step]`][ · task [task_index+1]] |
+| Branch | `[branch]` — [local exists] · [K] commit(s) ahead of `[base]` · [pushed / not pushed] |
+| PR | [#pr (open) / #pr (draft) / none] |
+| Working tree | [clean / ⚠ has uncommitted changes] |
+
 > I'll now ask what to do with the branch and the run state. I will **not** close the issue, change the sprint checkbox, or touch the milestone.
 
 Fetch the issue title via the GitHub MCP for the heading; fall back to the branch slug if unavailable. If `branch` is `-` (aborted before a branch was ever created — e.g. during context or plan), say so and **skip Step 3** entirely (nothing to decide), going straight to Step 4.
