@@ -1,5 +1,5 @@
 ---
-description: "The outer-loop review conversation, at two scopes. Pass an issue number (e.g. /devloop:review 42) for a task review — the AI orients you on what shipped and what's worth your attention, then follows your lead: demo the change by running it through the real system, walk the build decision by decision, explain any artifact, or open the captured failures. Then accept it (merging its PR if still open) or request rework as a new linked issue. Pass nothing (or a sprint number) for a sprint review — walk every not-yet-accepted task the same way, then reconcile remaining issues, write the retrospective, tag the release, close the GitHub milestone, and mark the sprint completed. Conversational — pauses at every human gate."
+description: "The outer-loop review conversation, at two scopes. Pass an issue number (e.g. /devloop:review 42) for a task review — the AI orients you on what shipped and what's worth your attention, then follows your lead: demo the change by running it through the real system, walk the build decision by decision, explain any artifact, or open the captured failures. Then accept it (merging its PR if still open) or request rework as a new linked issue — or, when the fix is small and changes no behaviour, patch it on the spot: a coder applies it, you read the real diff, review commits. Pass nothing (or a sprint number) for a sprint review — walk every not-yet-accepted task the same way, then reconcile remaining issues, write the retrospective, tag the release, close the GitHub milestone, and mark the sprint completed. Conversational — pauses at every human gate."
 ---
 
 You are running **devloop:review**. This is the **outer loop** of devloop's human-on-the-loop workflow: the autonomous inner loop (`run --auto`, `sprint`) executes and logs; here the human inspects the result in conversation and passes judgment. It is scope-aware:
@@ -11,7 +11,9 @@ You are running **devloop:review**. This is the **outer loop** of devloop's huma
 
 **Conversational.** Pause at every human gate and wait for explicit confirmation. Closing a milestone, merging a PR, and relabelling/closing issues are outward-facing GitHub actions — confirm before each.
 
-**Scope of writes.** review owns the **acceptance verdicts** (`✓accepted` in the sprint file, per `plan-spec.md` §3), the retro document, the git tag, the milestone state, and the master-plan `Status`. It does **not** execute work or change the sprint's composition itself — rework and plan changes route through `/devloop:replan`, backlog ideas through `/devloop:backlog`, and a merge through `run`'s merge phase. Never fabricate a GitHub call result — if a tool can't be found or a call fails, stop and report.
+**Scope of writes.** review owns the **acceptance verdicts** (`✓accepted` in the sprint file, per `plan-spec.md` §3), the retro document, the git tag, the milestone state, and the master-plan `Status`. It does **not** change the sprint's composition — rework and plan changes route through `/devloop:replan`, backlog ideas through `/devloop:backlog`, and a merge through `run`'s merge phase. Never fabricate a GitHub call result — if a tool can't be found or a call fails, stop and report.
+
+**You never edit source yourself.** Not a typo, not a one-character fix, not "while I'm here" — no `Edit` or `Write` on the project's code, ever. The one way a change reaches the code from this skill is the **patch gate** (§4.5), where a `coder` agent applies it, the human approves the real diff, and review commits. That split is the point: the skill that judges the work is not the skill that writes it.
 
 Parse `$ARGUMENTS`: an issue reference (`42`, `#42`) → **task scope** with `$ISSUE`; `sprint-3` / `s3` / empty → **sprint scope** (number = `$SPRINT_N` if given). A bare number is a *task* review if `.context/sprints/work/issue-N/` or a sprint-file line for `#N` exists, else treat it as a sprint number and warn.
 
@@ -153,6 +155,7 @@ You decide which to offer and when, from the task and the conversation. The huma
 - **Explain an artifact** — open the code, the design, the plan, a commit, the diff, and talk through it.
 - **Show me the failure** — open the captured log from `work/issue-N/logs/` when they want the actual failing output rather than your summary of it.
 - **Dig into a flagged point** — take any ⚠ from the opening and go all the way down.
+- **Patch it** — for a small fix that changes no behaviour, apply it here instead of spawning a rework issue. See §4.5; it has preconditions and a gate.
 - **Verdict** — **accept** / **rework: [feedback]** / **skip**. **accept** always passes through the explicit confirmation gate first (§6) — never treat conversational approval as the verdict itself.
 
 Follow the human's lead. Go one beat at a time and stop — a few sentences plus citations, then ask. They can bail out of anything (`enough`) and land back at the verdict.
@@ -174,12 +177,87 @@ Demoing the new module directly is the natural move and it is the wrong one. It 
 
 When a demo finds something, it is a **detection event**: record it in Zone 2 with `Caught by: demo`, so the sprint retro's Loop calibration table can show whether this gate is earning its keep.
 
+### 4.5 · The patch
+
+Review turns up small things: a wrong error message, a stale comment, a missing guard. Sending each one through a new issue → `replan` → a full `run` costs far more than the change is worth — that run rebuilds from scratch exactly the context and judgment the human is holding right now.
+
+So review can commission **one small edit**, here, in the conversation. Review still writes no code: the `coder` applies it, the human reads the real diff, review commits.
+
+This is not a thinner gate than the inner loop's. That machinery exists to stand in for an **absent** human — here the human is present and reading the actual diff, which is more oversight than `run --auto` gives an ordinary task, on a far smaller change.
+
+#### When it qualifies
+
+All of these. If any one fails, it is not a patch — take it to **rework** (§6).
+
+1. **The change adds no behaviour.** Nothing new to test; the existing suite stays the whole check. This is the same line the planner draws between the collapsed rungs and a full one, and it is the only judgment that matters here. **Ask it out loud and get an answer** — never settle it silently from how small the diff looks.
+2. **No run is in flight** — `.context/sprints/state/.lock` is absent, or its PID is dead.
+3. **The working tree is clean** (`git status --porcelain` prints nothing) — otherwise the commit sweeps up somebody else's changes.
+4. **The task shipped and is not yet accepted** — its sprint-file checkbox is `[x]` and the line carries no `✓accepted`. Patch first, accept after.
+5. **The task belongs to the active sprint.** A task from a closed sprint is out of scope: its milestone is closed and its record is sealed. Make it an issue.
+
+A patch commits **straight to the base branch** — no branch, no PR. If the change needs a PR, it is not a patch.
+
+#### The gate
+
+Show what will happen before anything runs, in the human's words:
+
+> **Patch #[N]?**
+> [one sentence: what is wrong, and what will change]
+> Files: `src/auth/errors.ts`
+> This changes no behaviour — the existing tests still have to pass. Is that right?
+> It commits straight to `[base]`. (patch / make it an issue instead / cancel)
+
+Wait for an explicit yes. A question, a "hmm, maybe", more discussion — none of those is consent.
+
+#### Applying it
+
+1. Derive `$NOW` (`node -e "console.log(new Date().toISOString())"`).
+2. Invoke the **`coder`** agent with `$MODE: express` and **`$NO_COMMIT` set**, `$WORK_DIR` and `$LOG_DIR` as **absolute** paths under `.context/sprints/work/issue-N/`, `$CHECKS` from `.context/devloop-profile.md`, `$ACCEPTED` from `.context/devloop-baseline.md`, and `$TASK` as the fix stated inline — there is no `plan.md` entry for it — naming the exact files it may touch.
+3. It runs the checks and leaves the change **uncommitted**.
+4. **Show the real diff** — `git diff` as it printed, not your description of it — plus which checks passed.
+5. Confirm:
+
+   > Commit this to `[base]`? (commit / retry: [what to change] / discard)
+
+**retry** — re-invoke the coder with the correction. **Two coder attempts in total, no more**; after that, discard and escalate.
+
+**discard** — restore the tracked files the coder listed (`git checkout -- <files>`) and delete the ones it marked as new. Nothing was committed, so there is nothing to revert. **Never `git clean` broadly and never `git reset`** — touch only the files the coder named. Anything wider is the patch reaching outside its own scope, on a branch other people's work sits on.
+
+#### Escalate instead
+
+Stop the patch and go to **rework** (§6) the moment any of these shows up. Do not push through it:
+
+- the coder returns `RESULT: blocked`, or `NOTE: not-trivial` — the change was not what it looked like
+- the checks still fail after the second attempt
+- the coder touched, or says it needs to touch, a file outside the ones named at the gate
+- a design or architecture question appears — that belongs to `/devloop:architect` or a planned issue, never to a gate in a conversation
+
+Say plainly what happened, then offer the alternative: "this turned out bigger than a patch — [why]. Make it an issue?"
+
+#### Recording it
+
+Only after the human says commit, and all three:
+
+1. **Commit** — review runs it, not the coder. Conventional subject referencing the issue, plus a body line saying where it came from, so `git log` explains why a closed issue got touched twice:
+
+   ```
+   fix: correct the expired-token message (#43)
+
+   Patch of #43, applied at review.
+   ```
+
+2. **Zone 2** — append one entry to `work/issue-N/context.md` stamped `$NOW`: what was wrong, what changed, the SHA, and **`Caught by: human`** (or `Caught by: demo` if a demo turned it up). A patch is a detection event like any other, and this is what puts it in the retro's Loop calibration.
+3. **Comment on the issue** on GitHub: what was patched, and the SHA. The issue is usually closed by now, and this comment is the only thing that makes the second touch visible to someone reading GitHub instead of this repo's `.context/`. In the project's language, not the conversation's.
+
+Then carry on. A patched task is still **un-accepted** — the human gives the verdict as usual, and `✓accepted` still only fires at §6.
+
 ### 5 · Rules that don't bend
 
 Everything above is judgment. These are not.
 
 - **Acceptance is never inferred.** The **accept** verdict — which merges and writes `✓accepted` — fires only on an explicit, unambiguous yes to the accept gate (§6), never on approving language, praise, or silence in the conversation. If you are unsure whether the human meant "accept" or just "I like this so far," it is the latter — ask.
 - **Never fabricate.** Not a demo output, not a GitHub call result, not a diff you couldn't read.
+- **You do not edit the project's code.** No `Edit`, no `Write` on source — not for a typo, not for one character, not while you happen to have the file open. A change reaches the code only through the patch gate (§4.5): the `coder` writes it, the human approves the real diff, review commits. And a patch is never inferred either — it fires on an explicit yes to its own gate, exactly like **accept**.
 - **Cite only what you resolved.** Read the file before citing a line in it. Run `git show` before describing a commit. If a SHA or a ref doesn't resolve on this machine, say so — never reconstruct.
 - **Where the record is silent, report the silence.** "The log doesn't say why" is an answer. Supplying a plausible after-the-fact rationale is exactly the failure this audit trail exists to prevent, and it would make every other citation you make untrustworthy too.
 - **The log tells you what was *decided*. Only the artifact tells you what is *true*.** For a question of history or rationale — the approach chosen, the finding dropped, how many attempts it took, which gate caught what — Zone 2 is the only source that exists, and the rule above governs. But for a question of **behavior** — is this AC really satisfied, does this code actually run, is it reachable, does it still do what the plan says — the record is a **self-report by the system that wrote the code**, and repeating it back is not review. Go to the artifact: read the code on disk, resolve the commit, grep for the callers, run it. Verify **before** you vouch, not when challenged.
@@ -206,6 +284,11 @@ Everything above is judgment. These are not.
 4. Report: `✓ #[N] accepted[ — PR #[pr] merged]`.
 
 **rework: [feedback]** — the shipped thing needs changes:
+0. **Is it a patch instead?** If the fix changes no behaviour and the task still meets §4.5's preconditions, offer that first — a new issue and a full run for a one-line fix is the cost this gate exists to avoid. Say what you'd do and let them pick:
+
+   > That's a small one — no behaviour changes. I can patch it here (a coder applies it, you read the diff, I commit), or track it as a rework issue. (patch / issue)
+
+   Offer it; don't assume it. Anything with new behaviour, or any doubt about that, goes on as a rework issue.
 1. Confirm the feedback in one sentence ("So the rework is: [restated]. Right?").
 2. Invoke the **`replan` skill** (Skill tool) with `rework #N: [feedback]` — it drafts the linked issue (`Rework of #N` body line, backlink comment on `#N`, milestone, sprint-file line) and confirms with the user before creating.
 3. The original's disposition: if its PR is **merged/closed**, it stays shipped — do **not** mark `✓accepted` (the rework issue carries the open question; this line simply stays un-accepted with its history in Zone 2). If its PR is still **open**, ask: leave the PR open pending the rework, or close PR + branch (the rework supersedes it)?
@@ -567,6 +650,7 @@ Then suggest the next step:
 - **Blocked issue** (state file in `state/`, no live lock — a run that stopped rather than fake a judgment) — task scope: report the blocker and hand back to `run`/`abort`; there is nothing shipped to review. Sprint scope: class **blocked ⏸**, default disposition **resume**, which pauses the close. Never silently reconcile a blocked issue as if nobody had started it — the logged reason is the most useful thing an autonomous run produces when it fails.
 - **A recorded SHA or ref doesn't resolve** — `history-ref: refs/devloop/issue-N` is written by `run` on the machine that executed the sprint and is never pushed, so it is absent in a fresh clone; a run that predates the archive step has none at all. Say so, work from the merge commit and Zone 2, and never reconstruct a diff you could not read.
 - **The demo can't be run** — no entry point, credentials the environment doesn't have, or an issue with no runtime surface (design, manual, scaffold). Say why and continue without it. Never illustrate output you did not observe.
+- **A patch turns out not to be one** (§4.5) — the coder reports `blocked` / `not-trivial`, the checks fail twice, it needs a file nobody named, or a design question surfaces. Discard the working-tree change (only the files the coder listed), say what happened, and offer a rework issue. Never commit a half-working patch, and never widen its file list to make it work.
 - **Merge fails during a task accept** — the acceptance is already recorded in Zone 2; surface the failure and re-run `run [N]` after the user resolves it. Don't mark `✓accepted` until the merge lands.
 - **Master-plan entry missing for Sprint [N]** — append a minimal `### Sprint [N]` entry with `Status: completed` rather than failing.
 - **Tag already exists / detached HEAD** — surface it in Step 4 and ask for a new name or which commit to tag; never force-move an existing tag.
