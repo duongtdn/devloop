@@ -64,7 +64,7 @@ Otherwise write **`plan.md`**:
 
 ## Triviality proof            ← EXPRESS only, in place of test-plan.md scenarios
 - [what run must grep, and the result that confirms triviality — e.g.
-  "grep -rn resolveTier across src/ (non-test) → expect zero callers"]
+  "grep -rn legacyFormat across src/ (non-test) → expect zero callers"]
 
 ## Coverage                    ← REFACTOR only, in place of test-plan.md scenarios
 - Adequate | THIN — [the behavior being restructured, and the existing tests that guard it]
@@ -79,6 +79,10 @@ Otherwise write **`plan.md`**:
 (A plan carries **at most one** of `Triviality proof` / `Coverage` / `Inertness proof` / `test-plan.md` — the one its rung uses.)
 
 Order tasks by dependency (data layer → logic → interface). For **bugfix**, task 1 is always root-cause identification; later tasks fix and guard against regression. (A bugfix is rarely `EXPRESS` or `REFACTOR` — a bug fix changes behavior and wants a regression test, which is `STANDARD`.)
+
+**At `STANDARD`, a task is a unit of *behavior*, not a step — and the test is what tells them apart.** Run executes the full TDD micro-loop once per task, so a task you cannot write a single `test-plan.md` scenario for has nowhere to go: the test-writer is seeded with nothing, the red check comes back `GREEN` (vacuous) or `RED-SETUP`, and after two bounces the run escalates — or stop-the-lines in auto mode — on the smallest item in the plan. The alternative failure is worse: inventing a scenario to fill the slot puts a test that proves nothing into the suite, where it will be trusted forever.
+
+So **before you emit a `STANDARD` task, write its scenario.** If you cannot, it is not a task — it is a step of the task it serves (the barrel export belongs to the task that added the symbol; the config field belongs to the code that reads it), so **fold it in** and let the scenario cover both. Granularity is yours to choose; the constraint is only that each thing you call a task carries its own behavior. Run checks this at the plan gate and will send a scenario-less task back.
 
 When `$DESIGN` exists, the tasks must implement its **interfaces and boundaries** — those are the binding part. Its **code blocks are illustrative sketches**, not text to transcribe: they were reasoned about, never run, never typechecked, never reviewed. **Never write a task that says "copy this verbatim from `design.md`"** (or any equivalent). That instruction converts an unreviewed sketch into shipped code and tells everyone downstream it has already been decided — a defect in the design then propagates precisely *because* the document is trusted. Point the task at the interface it must satisfy and let the coder write the code.
 
@@ -100,7 +104,13 @@ If `$HAS_UNIT_TESTS` is `false`, omit Unit and note the project has no unit test
 
 ## Record
 
-Append **one** entry to `context.md` **Zone 2** (format per that section, stamped with `$NOW`) — **with a shell append (`cat >> …/context.md <<'EOF'`), never `Edit`**: an `Edit` lands the entry wherever its anchor matched, and `run` resumes from the *last* entry in the file, so a misplaced one can make it skip a step that never ran. The file must end with your entry:
+Append **one** entry to `context.md` **Zone 2**, opening with exactly this header — `###`, never `##` (a `##` starts a new section and drops the author `run`'s resume matches on):
+
+```
+### [$NOW] · planner · plan
+```
+
+Write it **with a shell append (`cat >> …/context.md <<'EOF'`), never `Edit`** — an `Edit` lands the entry wherever its anchor matched, and `run` resumes from the *last* entry in the file, so a misplaced one can make it skip a step that never ran. The file must end with your entry:
 - **Did:** plan written at rung `[TRIVIAL|EXPRESS|STANDARD|REFACTOR]` (or `NEEDS-CONTEXT` / `NEEDS-DESIGN` / `MANUAL` raised).
 - **Decisions:** why the tasks are split this way; **why this rung** (for `TRIVIAL`, the inert targets + cleared checks; for `EXPRESS`, the triviality proof; for `REFACTOR`, the coverage you're resting on); what's out of scope. When raising `MANUAL`, record why the issue has no code to build.
 - **For next:** shared interfaces and ordering the coder/test-writer must respect. (For `MANUAL`, omit — there is no next build phase.)

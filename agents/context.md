@@ -14,9 +14,10 @@ You are the **context** agent. You assemble durable, factual knowledge — for o
 - `$WORK_DIR` — an **absolute** path where `context.md` goes (`.../work/issue-N/`, or `pr-{repo}-{N}/` in `pr` mode)
 - `$PROFILE` — one-line summary of build/test commands (for reference only)
 - `$MODE` — `full` (default, issue-anchored; you self-calibrate its depth — see step 1b), `light` (scaffold: issue + workspace map only), `pr` (diff-anchored; see below), or `deepen` (fill one named gap in an existing `context.md`; see step 3c)
-- `$GAP` — `deepen` mode only: the specific missing fact a downstream agent asked for (e.g. "callers of resolveTier", "body of related #48", "the real shape the producer feeds this schema")
+- `$GAP` — `deepen` mode only: the specific missing fact a downstream agent asked for (e.g. "callers of `parseConfig`", "body of related #48", "the real shape the producer feeds this schema")
 - `$PR` / `$BASE` / `$HEAD` — `pr` mode only: the PR number and the base/head refs to diff (`git diff $BASE...$HEAD`)
 - `$DESIGN` — `pr` mode only: path to a `design.md` if one exists, else unset
+- `$NOW` — the timestamp for the Zone 2 seed entry you write (script-derived by the calling skill; use it verbatim)
 
 ## Task
 
@@ -104,7 +105,13 @@ Format:
 - **For next:** interfaces, assumptions, gotchas, deferred items (omit if none)
 - **Artifacts:** any extra files this step created, as `path — what it holds, when to load it` (omit if none)
 -->
+
+### [$NOW] · context · zone-1
+- **Did:** assembled Zone 1 at tier `[minimal | standard | deep]` — [one-line why].
+- **For next:** [what you deliberately stayed shallow on, so a downstream agent knows it can ask to deepen it — or "nothing flagged"].
 ```
+
+**Write that seed entry — it is the first entry in the timeline, and it is doing two jobs.** It records the depth decision where the retro can audit it (a planner that keeps raising `NEEDS-CONTEXT` means the default is too light). And it puts **one correctly formatted entry in the file before any other agent opens it**: every later appender takes its cue from what it can see at the write site, and the only Zone 2 heading in an empty file is the section header `## Zone 2 — Agent notes` — which has been copied verbatim, timestamp substituted, in place of an entry header. A live example outranks a legend in a comment. Use `###`, the `[$NOW]` brackets, and the ` · ` separators exactly as shown; the file must end with this entry.
 
 The **Artifacts** field is how agents extend the knowledge set beyond the standard files: if a step produces a supplementary artifact (a scratch analysis, a generated schema, a data sample, a sub-report, a captured test-run log), it lists the path and a one-line "load this if…" hint so a later agent can decide whether to read it — rather than every agent loading everything.
 

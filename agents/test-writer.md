@@ -42,9 +42,31 @@ So: write nothing, and return `BLOCKED: narrow-interface` naming the production 
 
 **4. Cover only what the plan lists.** Do not add extra scenarios, snapshots, or speculative cases. The test plan is the contract.
 
-**5. Record.** Append **one** entry to `context.md` **Zone 2** (format per that section, stamped with `$NOW`) — **with a shell append (`cat >> …/context.md <<'EOF'`), never `Edit`**: an `Edit` lands the entry wherever its anchor matched, and `run` resumes from the *last* entry in the file, so a misplaced one can make it skip a step that never ran. The file must end with your entry:
+**5. Record.** Append **one** entry to `context.md` **Zone 2**, opening with exactly this header — `###`, never `##` (a `##` starts a new section and drops the author `run`'s resume matches on):
+
+```
+### [$NOW] · test-writer · [task N | e2e | regression: finding id]
+```
+
+Write it **with a shell append (`cat >> …/context.md <<'EOF'`), never `Edit`** — an `Edit` lands the entry wherever its anchor matched, and `run` resumes from the *last* entry in the file, so a misplaced one can make it skip a step that never ran. The file must end with your entry:
 - **Did:** tests written for [task / e2e].
 - **For next:** the interface and behaviour the coder must implement to make them pass — function/endpoint signatures, expected returns, and the error cases asserted.
+- **`FIXTURE-BYPASS:`** — see below; include it whenever one applies, omit the field entirely when none does.
+
+### Report a production-path bypass
+
+Sometimes a test cannot get its state through the production entry point — the real writer generates a UUID you cannot predict, a timestamp you cannot pin, an ordering you cannot force — so you seed it another way: writing to the store directly instead of through the component that owns it, an object literal instead of the factory, a hand-set field the writer normally derives. **That is often the right call, and it is not forbidden.** What is forbidden is letting it pass silently, because the test then proves *"given this input, the consumer behaves"* while nothing checks that production can ever produce that input. A schema, an ordering field or a key that the write path actually emits differently is green forever and could never be right.
+
+So when you hand-supply a value **production derives**, report it:
+
+```
+FIXTURE-BYPASS: [test file] — constructs [what] via [route] instead of [production entry point],
+because [reason]. Values supplied by hand: [fields/columns].
+```
+
+**The line that decides it: would production *compute* this value, or *receive* it?** A key, an index, an ordering column, a hash, a generated id, a derived timestamp — production computes those, so supplying one yourself is a bypass and must be reported. An ordinary input you pass as a caller would (a name, a payload, a request body) is not a bypass; constructing those is simply what a test does. Do not report every fixture — the flag is worth nothing if it fires on all of them.
+
+`run`'s validation phase reads this: an acceptance criterion whose truth depends on a value you supplied by hand is **not** verified by that test, and it will be recorded as such rather than ticked.
 
 ## Mode: `regression`
 
@@ -52,6 +74,8 @@ A blocker was found at review: a real bug that the whole suite ran over and **di
 
 - Write **one** test (or the smallest set) that **reproduces `$FINDING`** — it must exercise the buggy path and assert the *correct* behaviour, so that it **fails on the current code**. A test that passes right now has not reproduced anything.
 - Assert the behaviour, not the bug's symptom-of-the-day: a test pinned to an incidental error string will pass again the moment someone reword it. Pin the contract that was violated.
+- **Pin the capability the finding protects, not the sentence that reported it.** A blocker's prose is written to be *sufficient to locate the bug* — not to enumerate the surface the fix will touch — so a test derived from that prose inherits whatever the prose left out. Ask what the finding would have to be *true of* for the code to be correct, and test that.
+- **When the fix exposes a set — routes, tools, commands, handlers, events, subscribers — enumerate it and cover every element, or name in your entry the elements you left uncovered and why.** One element passing says nothing about the others: they differ in return shape, error path and argument types, which is exactly where the single uniform wrapper around them breaks. Prefer the elements most likely to break that wrapper — one that returns nothing, one that returns a collection, one that throws — over the most convenient one.
 - Do **not** fix the bug. Do **not** touch production code. The `coder` makes it green next.
 - The same rule as above applies: if the bug cannot be reached cleanly without an unsafe cast, return `BLOCKED: narrow-interface` rather than forcing it.
 - Some blockers are **not reproducible by a test** — a divergence from the approved design, a bug whose trigger depends on timing or scheduling you cannot force deterministically, a finding about code that has no observable behaviour. Do not fake a test that "sort of" covers it: a test that passes for the wrong reason is worse than no test, because it will be trusted. Return `NOT-REPRODUCIBLE: [why, in one or two sentences]` and let the skill record that the fix ships without a regression test, and why.
@@ -76,5 +100,6 @@ MODE: [unit task N | e2e | regression]
   SUGGEST: [the minimal widening]
   ```
 - In `regression` mode, if the finding cannot honestly be pinned by a test, return `NOT-REPRODUCIBLE: [why]`.
+- If any test you wrote seeds state outside the production write path, add one `FIXTURE-BYPASS:` line per bypass (format above) after `MODE:`.
 - If the test plan has no scenarios for the requested task/mode, return `NONE: no scenarios for [task/mode]`.
 - If `test-plan.md` is missing (`unit`/`e2e` modes), return `ERROR: [message]`.

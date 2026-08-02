@@ -36,6 +36,7 @@ In `express` mode do **not** write tests and do **not** expand scope: "green" is
 
 - Do **not** edit tests to force them green. The only legitimate test edits are fixing a genuine mistake in the test itself — if you believe a test is wrong, say so in your output rather than quietly changing it.
 - **Never name an internal plan task in durable output** — code comments, commit messages, or anything that ships. `$TASK` and the `plan.md` numbering are transient working state that is gone once the sprint closes, so a comment like `// Task 3 wires this up` is a dangling pointer the moment anyone reads the code later. Explain intent by the *behaviour* or by the **GitHub issue** (`#42`), which is durable and trackable. (Zone 2 in `context.md` is the one place a plan-task reference is fine — it is the loop's own timeline, not shipped code.)
+- **Governance ids belong in comments, not in runtime strings.** An identifier for a decision record, RFC, or numbered rule, cited inside an error message, log line, or API response, is aimed at the wrong reader: that text reaches a caller, an operator, or another service, none of whom hold the document. It also rots silently — such records are *designed* to be superseded, and no test pins a message's prose, so the citation quietly becomes a stale pointer. Put the rule's **content** in the message (the constraint that was actually violated, stated in domain terms) and the **citation** in the docblock, where the maintainer reads it. Match whatever the surrounding throw sites in this codebase already do.
 
 **3. Run the checks.** Run exactly the `$CHECKS` commands given — nothing inferred. If a check you genuinely need is **not** in `$CHECKS` **and not in `$ABSENT`** (e.g. the code is typed but no `typecheck` command was provided), stop immediately and return `RESULT: blocked` with a `MISSING: <check name>` line — do **not** guess a command, and do not count this as a failed attempt. The run skill will obtain the command and re-invoke you. A check listed in `$ABSENT` does not exist for this project — proceed without it and never flag it.
 
@@ -51,7 +52,13 @@ In `express` mode do **not** write tests and do **not** expand scope: "green" is
 
 **If `$NO_COMMIT` is set, do not commit** — not even when everything is green, and not "to be safe". Leave the edits in the working tree, list the files you touched (marking any you *created*, so the caller can discard them cleanly), and stop. A human is about to read this diff and may reject it; a commit you made turns their "no" into a history rewrite on the base branch.
 
-**6. Record** (only when green, and **not at all when `$NO_COMMIT` is set** — the caller writes the Zone 2 entry there, so one from you would double-count the event). Append **one** entry to `context.md` **Zone 2** (format per that section, stamped with `$NOW`) — **with a shell append (`cat >> …/context.md <<'EOF'`), never `Edit`**: an `Edit` lands the entry wherever its anchor matched, and `run` resumes from the *last* entry in the file, so a misplaced one can make it skip a step that never ran. The file must end with your entry:
+**6. Record** (only when green, and **not at all when `$NO_COMMIT` is set** — the caller writes the Zone 2 entry there, so one from you would double-count the event). Append **one** entry to `context.md` **Zone 2**, opening with exactly this header — `###`, never `##` (a `##` starts a new section and drops the author `run`'s resume matches on):
+
+```
+### [$NOW] · coder · [task N | fix: finding id]
+```
+
+Write it **with a shell append (`cat >> …/context.md <<'EOF'`), never `Edit`** — an `Edit` lands the entry wherever its anchor matched, and `run` resumes from the *last* entry in the file, so a misplaced one can make it skip a step that never ran. The file must end with your entry:
 - **Did:** implemented [task] → [sha]. **Attempts: [k]** — with a one-line failure signature for each failed one (not the stack; that's in the log).
 - **Decisions:** non-obvious implementation choices and why (omit if none).
 - **Caught by:** for each defect you hit and fixed along the way, which check surfaced it — `test-red`, `typecheck`, or `lint` (omit if the task went green first try with nothing to fix).
@@ -84,7 +91,7 @@ A spike is a **throwaway experiment** to answer `$QUESTION` with evidence — no
 - Write the minimum throwaway code under `$WORK_DIR/spike/` (the per-issue work area). Do **not** touch the real source tree, do **not** follow `plan.md`, do **not** write or modify tests, and do **not** commit anything.
 - Run it (Bash) to actually measure/observe the answer — real output, not a guess. Capture the concrete result (numbers, error, behaviour).
 - Keep it small and focused on `$QUESTION`. If the question can't be answered by a quick experiment, say so rather than building something elaborate.
-- Append a Zone 2 entry (`$NOW`; shell append (`cat >>`), never `Edit` — the file must end with your entry): **Did** spiked `$QUESTION`; **For next** the finding and what it implies for the design; **Artifacts** the `spike/` path (reference only — safe to delete).
+- Append a Zone 2 entry opening with exactly `### [$NOW] · coder · spike` — `###`, never `##` (shell append (`cat >>`), never `Edit`; the file must end with your entry): **Did** spiked `$QUESTION`; **For next** the finding and what it implies for the design; **Artifacts** the `spike/` path (reference only — safe to delete).
 
 ### Output (`spike`)
 

@@ -197,9 +197,15 @@ Numbering: next `NNN` from `index.md` (zero-padded, global — not per sprint).
 ## Rejected options
 - [option] — [why it lost]   ← include "do nothing" whenever it lost
 
+## Enforcement blind spot
+[only when the decision proposes or leans on a fitness function / lint rule / CI check —
+ what that check *cannot* see, and what tool would be needed to see it; omit otherwise]
+
 ## Tripwire
 [deferral decisions only — the observable event that reopens this question; omit otherwise]
 ```
+
+**On the blind spot.** A green check is read as evidence the decision is holding — by the reviewer, by the next architect conversation, by whoever inherits this. So when a decision rests on a check, say what the check misses, or the silence gets read as coverage. Two shapes to test the proposed check against. **Mechanism instead of intent** — the check looks for the *form* a violation usually takes, so anything violating the rule by some other form never reaches it, and the cases that most need catching are exactly the ones that took the other form. **Wrong granularity** — the rule is about a finer unit than the tool can address, so the tool sees every case as identical and has nothing left to tell them apart. In both, the check passes correctly and proves nothing about the decision. Naming the gap costs one line and converts "the lint passes" from an answer into a scoped one.
 
 ### The index
 

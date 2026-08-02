@@ -39,6 +39,7 @@ Write **`design.md`** as an implementation guide (or, for the design workflow, a
 
 ## Interfaces & data model
 [key types, signatures, endpoints, schema, module boundaries the implementation will use]
+[where this design declares a boundary pattern, name BOTH surfaces as separate lists — see below]
 
 ## Options considered
 ### A — [name] (recommended)
@@ -62,6 +63,8 @@ Write **`design.md`** as an implementation guide (or, for the design workflow, a
 
 Emphasis shifts by purpose: a decision issue leans on Options/Recommendation/Follow-ups; an implementation guide leans on Approach/Interfaces/Requirement coverage. Either way, **Requirement coverage must address every acceptance criterion / open question**, and any load-bearing assumption you cannot reason to a conclusion goes under **Open assumptions** marked `needs-proof`.
 
+**Name both surfaces of any boundary pattern you declare.** If the design says ports/adapters, client/server, driving/driven, core/plugin, producer/consumer — then *both* sides get named, as separate lists: what callers invoke, **and** what the module requires from infrastructure. Leaving one to be inferred is the expensive kind of silence, because a silence trips no conformance check downstream: everything the document says is accurate, so the reviewer, the critique and the tests all pass over it, and the build has to invent the missing half. The cheapest invention is to copy the half that exists — mirroring one surface onto the other name-for-name, which is almost never the right shape, because the two sides answer to different masters. If they genuinely *are* identical here, say so and say why the core is a pass-through; that sentence is a decision, and the silence is not.
+
 ### What in this document is binding
 
 `design.md` is read by the `planner`, the `test-writer`, the `coder`, and the `reviewer`, and **they treat it as authoritative** — that is what makes a design govern the code rather than merely precede it. But it means anything wrong inside it propagates untouched, because everyone downstream believes it is already-decided. So be explicit about which parts are actually decisions:
@@ -80,6 +83,7 @@ You are an **independent second opinion** on the `$DESIGN` document — you did 
 - **Requirement coverage** — every acceptance criterion / open question is addressed.
 - **Soundness / feasibility** — the approach actually works; load-bearing assumptions are either reasoned through or flagged `needs-proof`; key risks named.
 - **Interface clarity** — interfaces and data model are concrete enough to implement against.
+- **Interface completeness** — where the design declares a boundary pattern (ports/adapters, client/server, driving/driven, core/plugin), **both sides are named, and they differ**. This is a separate question from clarity, and it is the one that gets missed: a design can specify one surface perfectly — concrete, implementable, correct — and never state what the module needs *from* infrastructure. Concrete is not complete. A design that leaves one half unstated forces the build to invent it, and the cheapest invention is to mirror the half that exists — which collapses the distinction the pattern was chosen for. If the two sides are genuinely identical, the design must say so and say why the core is a pass-through.
 - **Alternatives** — real options were weighed and the recommendation is justified.
 - **Simplicity / proportionality** — complexity matches the problem; not over-engineered.
 - **Testability / provability** — claims that need empirical validation are correctly flagged for a spike rather than assumed.
@@ -89,7 +93,13 @@ For each criterion give a verdict (`pass` / `concern`) and, where `concern`, a o
 
 ## Record (both modes)
 
-Append **one** entry to `context.md` **Zone 2** (format per that section, stamped with `$NOW`) — **with a shell append (`cat >> …/context.md <<'EOF'`), never `Edit`**: an `Edit` lands the entry wherever its anchor matched, and `run` resumes from the *last* entry in the file, so a misplaced one can make it skip a step that never ran. The file must end with your entry:
+Append **one** entry to `context.md` **Zone 2**, opening with exactly this header — `###`, never `##` (a `##` starts a new section and drops the author `run`'s resume matches on):
+
+```
+### [$NOW] · designer · [design | critique]
+```
+
+Write it **with a shell append (`cat >> …/context.md <<'EOF'`), never `Edit`** — an `Edit` lands the entry wherever its anchor matched, and `run` resumes from the *last* entry in the file, so a misplaced one can make it skip a step that never ran. The file must end with your entry:
 - `design`: **Did** design drafted/revised; **Decisions** the recommended approach and why rejected options lost; **For next** the interfaces/boundaries downstream work must follow; **Artifacts** `design.md` and any assumption still `needs-proof`.
 - `critique`: **Did** critiqued the design against the criteria; **For next** the concerns and any spike recommended.
 
