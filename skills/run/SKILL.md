@@ -357,7 +357,7 @@ Record the next phase and continue: **design** workflow → `phase: design`; **f
 
    For each chosen assumption, invoke **`coder`** (`mode: spike`, pass the `$QUESTION` and `$NOW`). The coder writes throwaway code under `work/issue-N/spike/`, runs it, and returns an evidence-backed `FINDING` — committing nothing. Collect the findings, then re-invoke **`designer`** (`mode: design`, pass `$SPIKE_FINDINGS`) to fold the evidence in and resolve those assumptions. Skip this step entirely when there are no `NEEDS-PROOF` assumptions, or the user declines.
 
-3. **Critique** (`phase_step: critiqued`). Invoke **`designer`** again as a **fresh instance** (`mode: critique`), passing the `design.md` path and `$NOW`. No shared memory → an independent second opinion. It scores the design against the **named criteria** — requirement-coverage, soundness, interface-clarity, alternatives, simplicity, testability, consistency — returning a `pass`/`concern` per criterion, any spike still recommended, and a `sound`/`needs-work` verdict. run collects the scorecard; it does not reason about the design itself.
+3. **Critique** (`phase_step: critiqued`). Invoke **`designer`** again as a **fresh instance** (`mode: critique`), passing the `design.md` path and `$NOW`. No shared memory → an independent second opinion. It scores the design against the **named criteria** — requirement-coverage, soundness, interface-clarity, interface-completeness, alternatives, simplicity, testability, consistency — returning a `pass`/`concern` per criterion, any spike still recommended, and a `sound`/`needs-work` verdict. run collects the scorecard; it does not reason about the design itself.
 
 Record `phase: gate-design`. Continue.
 
@@ -383,6 +383,7 @@ Build this panel from the agents' return summaries and **link** the document —
 | requirement-coverage | pass/concern — [issue] |
 | soundness | … |
 | interface-clarity | … |
+| interface-completeness | … |
 | alternatives | … |
 | simplicity | … |
 | testability | … |

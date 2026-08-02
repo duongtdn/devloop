@@ -126,6 +126,7 @@ Return to run — nothing else:
   - requirement-coverage: pass|concern [— issue]
   - soundness: pass|concern [— issue]
   - interface-clarity: pass|concern [— issue]
+  - interface-completeness: pass|concern [— issue]
   - alternatives: pass|concern [— issue]
   - simplicity: pass|concern [— issue]
   - testability: pass|concern [— issue]
