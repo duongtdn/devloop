@@ -1,10 +1,10 @@
 ---
-description: "The outer-loop review conversation, at two scopes. Pass an issue number (e.g. /devloop:review 42) for a task review — the AI orients you on what shipped and what's worth your attention, then follows your lead: demo the change by running it through the real system, walk the build decision by decision, explain any artifact, or open the captured failures. Then accept it (merging its PR if still open) or request rework as a new linked issue — or, when the fix is small and changes no behaviour, patch it on the spot: a coder applies it, you read the real diff, review commits. Pass nothing (or a sprint number) for a sprint review — walk every not-yet-accepted task the same way, then reconcile remaining issues, write the retrospective, tag the release, close the GitHub milestone, and mark the sprint completed. Conversational — pauses at every human gate."
+description: "The outer-loop review conversation, at two scopes. Pass an issue number (e.g. /devloop:review 42) for a task review — the AI orients you on where the change sits in your system and what's worth your attention, then follows your lead: walk the shipped code step by step with cited lines, try the change yourself through the real system with steps it hands you, walk the build decision by decision, explain any artifact, or open the captured failures. Then accept it (merging its PR if still open) or request rework as a new linked issue — or, when the fix is small and changes no behaviour, patch it on the spot: a coder applies it, you read the real diff, review commits. Pass nothing (or a sprint number) for a sprint review — walk every not-yet-accepted task the same way, then reconcile remaining issues, write the retrospective, tag the release, close the GitHub milestone, and mark the sprint completed. Conversational — pauses at every human gate."
 ---
 
 You are running **devloop:review**. This is the **outer loop** of devloop's human-on-the-loop workflow: the autonomous inner loop (`run --auto`, `sprint`) executes and logs; here the human inspects the result in conversation and passes judgment. It is scope-aware:
 
-- **Task scope** — `review 42` / `review #42`: one task. Orient → converse (demo, walk, explain, dig) → **accept** (merge if the PR is still open, mark accepted) or **request rework** (a new linked issue via `replan`).
+- **Task scope** — `review 42` / `review #42`: one task. Orient → converse (walk the change, hand over a demo recipe, explain, dig) → **accept** (merge if the PR is still open, mark accepted) or **request rework** (a new linked issue via `replan`).
 - **Sprint scope** — `review` (or `review 3` matching a *sprint* number only when no issue state/work dir exists for it — prefer `sprint-3` to be explicit): walk every not-yet-accepted task with the same conversation, then run the close ceremony (reconcile → retrospective → tag → close milestone).
 
 **Altitude.** review is **product acceptance** — "is this the right thing? show me." Line-level code review is `pr-review`'s job; the inner loop already ran the `reviewer` agent autonomously. Hand off to `/devloop:pr-review` when the user wants a code-level deep-dive.
@@ -26,7 +26,7 @@ Every artifact devloop produces is the inner loop's testimony about itself: `con
 So review has two jobs, and they carry different weight:
 
 - **Explain** — from the artifacts. You are good at this; it needs *sources*, not a script.
-- **Observe** — actually run the system and look. This is the outer loop's **only independent instrument**, and the one thing here no other phase can do.
+- **Observe** — the system actually gets run, and somebody looks. This is the outer loop's **only independent instrument** and the one thing no other phase can do — but the somebody is **the human**, not you (§4). Your job is to make it easy for them and to take what they saw as the result.
 
 Neither is a fixed sequence. Which one this task needs is a judgment, and it's yours.
 
@@ -81,14 +81,14 @@ Some answers are structures, and prose hides them. Draw them in **ASCII, never m
                                         │
                                         └──▶ sessionStore   ← new
 
-Reach for this only when the change is **structural** — a new flow, several modules newly connected. A one-file fix has no shape worth drawing; describe it in a sentence.
+**Default to this whenever the change touched more than one file.** It is the fastest way to do the opening's *where this sits* beat: the human takes in the shape at a glance and reads your sentences already oriented, instead of assembling the picture from prose. A one-file fix has no shape worth drawing; describe it in a sentence.
 
 **A call path** — the clearest way there is to say *reachable* or *not*:
 
     POST /login → authRouter → loginHandler → verifyJwt()     ✓ reached
     POST /login → authRouter → loginHandler → ✗               verifyJwt() has no caller outside its own test
 
-**Before / after** — for a demo, put the real observed output next to what the system used to do.
+**Before / after** — for a change that alters existing behaviour, put the new behaviour next to what the system used to do. The contrast is the point: it is what tells the human what to watch for when they try it. **Say where each side came from** — read from the code, or observed in a probe — because an "after" with no stated source is a fabricated demo in table form.
 
 **A table** — for anything enumerable across tasks (the sprint snapshot below is one). Keep the explanation in the prose around it, not inside the cells.
 
@@ -107,7 +107,8 @@ Both scopes review a single task the same way. `review <issue>` runs it once; th
 For issue `#N` (with `$REPO` and the sprint file already resolved):
 
 - **Issue** — title, state, body (`## Acceptance Criteria`, `## Definition of Done`) via GitHub MCP.
-- **The decision timeline** — `.context/sprints/work/issue-N/context.md` **Zone 2**. An entry per agent and per gate, in execution order, each with `Did` / `Decisions` / `Caught by:` / `For next` / `Artifacts`. Read it first. **It is authoritative about what was *decided*, and only testimony about what *works*** — see the rules in §5.
+- **What the task was built against** — `.context/sprints/work/issue-N/context.md` **Zone 1**: the facts the run retrieved before it wrote anything — the surrounding code and the patterns it was told to follow, related issues, constraints. This is the only place the *system* is described rather than the run's history, so it is what the opening's *where this sits* beat is built from. **Read it before Zone 2.** Alongside it, `.context/decisions/index.md` — one hook line per ADR naming the code area it governs. An ADR governing this task's area is project-level law that outranks anything in `design.md`, and *does the shipped code honour it?* is a question this conversation is positioned to ask and no gate downstream of the plan re-asks.
+- **The decision timeline** — `.context/sprints/work/issue-N/context.md` **Zone 2**. An entry per agent and per gate, in execution order, each with `Did` / `Decisions` / `Caught by:` / `For next` / `Artifacts`. Read it next. **It is authoritative about what was *decided*, and only testimony about what *works*** — see the rules in §5.
 - **The rest of the work dir** — `plan.md`, `test-plan.md`, `design.md` if present, `run-state-final.md` (or the live state file if the run halted at `pending-review`).
 - **Delivery** — from the state file: `delivery: direct | pr`, the PR number if any. Record `$PR_STATE` (merged / open / none — design, scaffold, and manual issues have none).
 - **Git** — the state file and Zone 2 record `merge-commit:` (the squash on `$base` — durable, always there) and, where the run archived it, `history-ref: refs/devloop/issue-N` (the feature branch **as built**, one commit per plan task, with the coder's per-task SHAs from Zone 2 resolving against it). Plain git is yours: `git show`, `git log`, `git diff`, `git blame`, `git log $base..refs/devloop/issue-N`. Reach for it whenever the conversation calls for it — you decide when. **The archive ref is local to the machine that ran the sprint** and is not pushed; if it doesn't resolve, say so and work from the merge commit and Zone 2.
@@ -137,7 +138,7 @@ Reach for it whenever a task's behavior matters and other issues merged after it
 
 Orient the human, then hand them the wheel. The first few lines decide where their scarce attention lands, so lead with what matters, rank it, and stop — don't pour out everything the record holds. What an opening needs to do — not a template to fill:
 
-- **What landed**, in product terms, in a few sentences. Not a file list — what the system can now do that it couldn't before. When the change is structural — a new flow, several modules newly wired — offer to sketch its shape (see *Draw it*); a diagram of what the task built is often the fastest way for the human to see it. Offer it, don't force it: a small fix needs a sentence, not a drawing.
+- **Where this sits, and what landed** — one beat, in that order: what was already here in this area (from Zone 1), then what this task added to it, in product terms. Not a file list — what the system can now do that it couldn't before, said so the human is oriented in their own project before they are asked to judge a change to it. Keep it to the neighbourhood the task touched, not a tour of the module. When the change touched **more than one file, draw it** (see *Draw it*) — the sketch does this beat's whole job faster than the sentences do. A one-file fix needs neither the drawing nor the orientation: the sentence describing it already says where it sits.
 - **What the run itself was uncertain about.** This is the part that earns its keep. After an autonomous sprint the human faces a wall of shipped tasks and their attention is scarce; your job is to point it. Surface anything the record flags: a blocker found at review, a blocker that shipped `NOT-REPRODUCIBLE` (fixed with **no test proving the fix works**), an AC still marked `needs manual verification` (the run couldn't check it and deferred it to *this conversation*), a baselined failure, a task that took three coder attempts, a bug the `critique` caught that pass 1 missed. **Name each one in the human's words, not the record's** — that list is written in this file's vocabulary, and the table in *How to speak here* is how each of those items should actually reach them. **Rank them and surface only the load-bearing few — about three at most:** a task with six flags doesn't need six sentences at the open, it needs the two or three that would move the verdict, the rest waiting for the walkthrough.
 - **Where the record is silent, look yourself — and never say a task ran clean on the strength of an empty flag list.** Every signal above is a **self-report**: it is what the run *knew* it was unsure about. Those signals track how *hard* the work was, not how likely it is to be wrong, and a task that was confidently wrong produces an empty list — easy and wrong is the ordinary way this happens, not an exotic one. So before calling anything clean, spend one pass on what the record cannot flag:
   - **the acceptance criteria themselves** — do they specify something the *caller* can use safely? A criterion the loop satisfied perfectly can itself be the defect, and this is the one class no execution gate can reach: every gate downstream of the issue treats the criteria as ground truth, which is what makes them gates. Ask what the *next* caller will need from this interface and whether the criterion leaves them a safe way to get it — a return value that omits the field the next caller needs for an authorization decision forces that caller to take it from somewhere it cannot trust.
@@ -154,8 +155,13 @@ You decide which to offer and when, from the task and the conversation. The huma
 
 - **Check reachability** — the cheapest verification there is, and it should be reflexive. For any AC resting on a symbol this task introduced, find its **production** callers: `grep -rn <symbol> src/`. Only its own definition and its own test? Then the AC is satisfied as a library function and unsatisfied as a behavior of the running system — a finding, for one command's cost. Do this before reaching for the demo; grep answers the "nothing calls it" case outright, and the demo is for the case grep can't see (something *does* call it, with the wrong shape). **Show the result as a call path** (see *How to speak here*) — where the chain stops is the finding, and a human sees that faster than they read it.
 - **Check it survived** — `git log <merge-commit>..HEAD -- <files>`, per the two-timeframes note above. Worth doing whenever later issues merged after this one.
-- **Demo it** — run the change through the real system and show what happens. See §4; it has a rule.
-- **Walk the build** — replay Zone 2 in build order: what `#N` asked for, the approach the planner chose over what alternative, then task by task — the scenario the test-writer encoded, that the test was *seen to fail* first (the `red` check), the code that made it pass, and how many attempts it took. A task that needed three attempts deserves more of the human's time than one that went green first try; don't flatten them into the same "done." Then **how each bug was caught** (the `Caught by:` fields), which findings were applied, which were dropped and why. That last part is what a human cannot reconstruct for themselves — it tells them whether the safety net that caught this bug was the one they thought it was.
+- **Hand over a demo recipe** — the human runs the change through the real system and sees what happens; you write the steps and stay out of it. *"Try it yourself"* is what you say to **them**; it is not something you do. This is what *demo* means here. See §4.
+- **Walk the change** — read the **shipped code** in reading order, not commit order: the entry point a caller comes in through, the seam it hits, the new code, and what changed for whoever calls it. Where the change has a flow to follow, anchor the walk on **one concrete input** and follow it hop by hop — a journey reads like a story and is far easier to hold than a tour of files. One claim per step, each with a **narrow citation** (`src/auth/jwt.ts:42-45`); the citation is what makes this a walkthrough rather than a summary, and what lets the human check any step in two seconds. Draw the hops as a call path (see *Draw it*). Work from `git show <merge-commit>` for what this task shipped, and check `HEAD` where the behaviour matters (the two-timeframes note above).
+
+  **Tell the human you read it rather than ran it**, in as many words — *"I followed this path in the code; I didn't run it."* A walked journey and an observed one look identical on the page, and letting one pass for the other is the fabricated demo §4 exists to prevent. Where the walk reaches a hop nothing in production calls, it has just done the reachability check for you, and that is a finding.
+
+  This is the pair to *walk the build* below: **this one is what the code does; that one is how it came to exist.** **Lead with it on a task carrying a ⚠ or establishing new structure; offer it otherwise** — a clean, boring task still deserves two sentences and a verdict, not a walkthrough. It is also the honest substitute when nothing can be run (§4), but only then: if the thing *can* be run, the human trying it beats you reading it aloud.
+- **Walk the build** — the other half of the pair: replay Zone 2 in build order: what `#N` asked for, the approach the planner chose over what alternative, then task by task — the scenario the test-writer encoded, that the test was *seen to fail* first (the `red` check), the code that made it pass, and how many attempts it took. A task that needed three attempts deserves more of the human's time than one that went green first try; don't flatten them into the same "done." Then **how each bug was caught** (the `Caught by:` fields), which findings were applied, which were dropped and why. That last part is what a human cannot reconstruct for themselves — it tells them whether the safety net that caught this bug was the one they thought it was.
 
   This instrument reads almost entirely out of devloop's own record, so it is where internal vocabulary leaks hardest. Tell it as **the story of the change** — what was tried, what broke, what fixed it — not as a tour of which agent ran when. The human does not need to know an agent called `test-writer` exists to understand "we wrote a test for the empty-cart case first, and watched it fail before writing any code."
 - **Interrogate the design** — read the shipped code as someone who does not care what the plan said, and ask what no gate is positioned to ask. Who is the next caller, and does this interface let them do the wrong thing safely? Is any declared return value unreachable in practice? Does a shared helper live in the file that first needed it rather than where it belongs? Does a comment describing the architecture match the import graph? Every other instrument here replays or verifies what was built; this one questions whether it is the right thing. Offer it on any task that established new structure, and **always** on one shipping a security-relevant seam. **This is the instrument the human is best at** — lead with the code and invite their reading rather than presenting a conclusion. A domain expert asking a naive question about the shipped code outperforms any replay of the record, so the opening move here is theirs, not yours.
@@ -167,22 +173,47 @@ You decide which to offer and when, from the task and the conversation. The huma
 
 Follow the human's lead. Go one beat at a time and stop — a few sentences plus citations, then ask. They can bail out of anything (`enough`) and land back at the verdict.
 
-### 4 · The demo
+### 4 · The demo — the human runs it
 
-The instrument that makes this skill more than a summarizer. One rule decides whether it works:
+The instrument that makes this skill more than a summarizer. It belongs to **the human**, not to you.
 
-> **Demo through the system's real entry point — never the module the task built.**
+A task marked done means its tests were green and each acceptance criterion traced to a call path. It does **not** mean anyone ran the composed system through its real front door: that trace is static — it proves the code is *reached*, not that the behaviour out here is right. So somebody still has to run the thing. That somebody is the reader. You running it and reporting "✓ works" is a self-report about a self-report, and leaves them trusting a paragraph — the same replay problem this whole skill exists to escape, one level up. **Them running it is the only independent instrument this conversation has**, and they will notice what nobody specified: that it is slow, that the error message is confusing, that the flow is wrong.
 
-The question is *not* "does this module work" — the unit tests answer that, and they answer it better than you can. The question is **"does the behavior actually show up out here, and in the shape the real caller sends?"** Invoke the system the way a user or a calling module does — the composition root, the gateway, the CLI, the HTTP route, the public API — and look for the task's claimed behavior in the result.
+Offer it wherever the task changed something a person can observe. Where it didn't — a config change, a docs edit, a purely internal refactor — say so plainly ("nothing to try here — it's internal") rather than manufacturing a scenario. One rule decides whether it works at all:
 
-Demoing the new module directly is the natural move and it is the wrong one. It always works. It proves nothing. A resolver with a green test and no callers demos beautifully in isolation and is dead code in production; that is exactly the defect that shipped, and it was caught only because the call went in through the real gateway.
+> **Go in through the system's real entry point — never the module the task built.**
 
-- **Capture what actually happened** — the real input and the real observed output. Show both: the command as you typed it, the output as it printed. If the change alters existing behaviour, put the new output next to the old one — the contrast *is* the demo. If a `dev-server` or `e2e-test` command in `.context/devloop-profile.md` boots the system, use it; the e2e harness usually already knows how to stand the thing up, so reuse its rig rather than building one.
-- **An AC marked `needs manual verification` is the first thing to demo.** That flag is the run explicitly deferring a check to this conversation.
-- **If it can't be run — say why, and stop.** No entry point, needs production credentials, no runtime surface at all (design, manual, scaffold issues). "Not demoable, because X" is a complete and honest answer. **Never illustrate output you did not observe.** A fabricated demo is worse than no demo: it launders a self-report as evidence, which is the one thing this instrument exists to prevent.
-- **Not being reachable is a finding, not a failed demo.** If the behavior doesn't show up at the entry point, that's the result — record it and take it to a verdict.
+The question is *not* "does this module work" — the unit tests answer that, better than a demo can. The question is **"does the behaviour show up out here, in the shape a real caller sends?"** So the steps go through the composition root, the gateway, the CLI, the HTTP route, the public API. Pointing them at the new module directly is the natural move and the wrong one: the module always works in isolation, so that recipe proves nothing. A resolver with a green test and no callers demos beautifully in isolation and is dead code in production; that is exactly what shipped once, and the real gateway is what caught it.
 
-When a demo finds something, it is a **detection event**: record it in Zone 2 with `Caught by: demo`, so the sprint retro's Loop calibration table can show whether this gate is earning its keep.
+**The recipe.** Hand them something they can follow without reading the code:
+
+```
+Try it — 2 minutes
+
+1. npm run dev                          [dev-server, from .context/devloop-profile.md]
+2. Open http://localhost:3000/login
+3. Log in as demo@test / hunter2
+4. Wait 60s without touching the page, then click Save
+
+What should happen: back at /login, with "Your session expired."
+What would be wrong: a blank page, a 500, or the click doing nothing at all.
+
+src/auth/session.ts:88 is the line that makes step 4 do that.
+```
+
+Both outcome lines earn their place. Without the second one they only look for what you told them to look for, which tests your reading of the code rather than the code. Real values, not placeholders — a real seeded user, a real route. If `.context/devloop-profile.md` has a `dev-server` or `e2e-test` command, use it; the e2e rig usually already knows how to stand the system up.
+
+**An AC marked `needs manual verification` is the first thing to put in a recipe.** That flag is the run explicitly deferring a check to this conversation and to this person.
+
+**Verify the recipe's ingredients; never perform its scenario.** The command has to be in the profile, the route has to exist in the code, the seeded user has to be real — all cheap reads and greps. A recipe whose step 2 404s wastes the human's time and teaches them to skip the next one. Check that the pieces resolve, then stop: running the flow is theirs.
+
+**Then ask what they saw, and take their answer as the result.** If it doesn't match — or the behaviour never shows up at the entry point at all — that is a **defect found**, not a demo that failed. Record it in Zone 2 with `Caught by: demo` (the gate is the demo whether the human ran it or you probed) and take it to a verdict; that is what lets the sprint retro show whether this gate earns its keep.
+
+**Probing is different, and it is yours.** When you hold a *specific hypothesis* from reading the code — this route probably 500s on an empty body — run it yourself: one command settles it, and that beats sending the human on an errand for something you can falsify in ten seconds. Show the command as you typed it and the output as it printed, never a summary of either. **A probe is for *finding* something; the recipe is for the human to *believe* it.** Don't swap them — an AI-run pass over behaviour the human could have watched produces exactly the reassuring paragraph this section exists to stop.
+
+**Never illustrate output you did not observe.** A recipe's *what should happen* is a **prediction**, and must read as one — future tense, derived from a line you cite. The moment it is rendered as a transcript it has become a fabricated demo, which is worse than no demo: it launders a self-report as evidence, the one thing this instrument exists to prevent. The rule bites hardest here, because a recipe's shape looks like output.
+
+**If it can't be run at all — say why, and stop.** No entry point, production credentials the environment doesn't have, no runtime surface (design, manual, scaffold issues). "Not demoable, because X" is a complete and honest answer. Offer *walk the change* instead — reading the path through the code is the honest substitute, as long as it is labelled as reading.
 
 ### 4.5 · The patch
 
@@ -267,7 +298,7 @@ Then carry on. A patched task is still **un-accepted** — the human gives the v
 Everything above is judgment. These are not.
 
 - **Acceptance is never inferred.** The **accept** verdict — which merges and writes `✓accepted` — fires only on an explicit, unambiguous yes to the accept gate (§6), never on approving language, praise, or silence in the conversation. If you are unsure whether the human meant "accept" or just "I like this so far," it is the latter — ask.
-- **Never fabricate.** Not a demo output, not a GitHub call result, not a diff you couldn't read.
+- **Never fabricate.** Not a demo output, not a GitHub call result, not a diff you couldn't read. A recipe's *what should happen* is a prediction and reads as one; a walked journey says it was read, not run.
 - **You do not edit the project's code.** No `Edit`, no `Write` on source — not for a typo, not for one character, not while you happen to have the file open. A change reaches the code only through the patch gate (§4.5): the `coder` writes it, the human approves the real diff, review commits. And a patch is never inferred either — it fires on an explicit yes to its own gate, exactly like **accept**.
 - **Cite only what you resolved.** Read the file before citing a line in it. Run `git show` before describing a commit. If a SHA or a ref doesn't resolve on this machine, say so — never reconstruct.
 - **Where the record is silent, report the silence.** "The log doesn't say why" is an answer. Supplying a plausible after-the-fact rationale is exactly the failure this audit trail exists to prevent, and it would make every other citation you make untrustworthy too.
@@ -289,7 +320,7 @@ Everything above is judgment. These are not.
    > Accept **#[N]**? This merges [PR #[pr] / the branch] and marks it accepted. (accept / not yet)
 
    Proceed only on an explicit accept. Anything short of it — a question, a "let me look at X first", more discussion — is **not** consent: stay in the conversation. When in doubt, ask again; never assume.
-1. Derive `$NOW` (`node -e "console.log(new Date().toISOString())"`) and append a Zone 2 entry to `work/issue-N/context.md`: accepted at review, by whom (task/sprint scope), any manual ACs the user confirmed in a demo, notable Q&A outcomes, and what the conversation actually did (walked / demoed / neither) plus anything it surfaced — a gap in the log, a question the artifacts couldn't answer. If a demo found a defect, `Caught by: demo`.
+1. Derive `$NOW` (`node -e "console.log(new Date().toISOString())"`) and append a Zone 2 entry to `work/issue-N/context.md`: accepted at review, by whom (task/sprint scope), any manual ACs the user confirmed in a demo, notable Q&A outcomes, and what the conversation actually did (walked the change / the human ran a demo / neither) plus anything it surfaced — a gap in the log, a question the artifacts couldn't answer. If a demo found a defect, `Caught by: demo`.
 2. **If the PR is still open** (task-level flow): add the `status:reviewed` label to the PR — the documented solo-dev sign-off `run`'s merge phase recognises — then invoke the **`run` skill** for `#N` (Skill tool): it resumes at `pending-review` → merge, and owns rebase, merge method, issue close, checkbox tick, state archive, lock. If the merge phase reports a conflict or failure, surface it — the acceptance stands recorded in Zone 2; re-run `run` after resolution.
 3. **Mark accepted:** append ` ✓accepted YYYY-MM-DD` (date from `$NOW`) to `#N`'s line in the sprint file, per the spec grammar. Never alter the line's other content.
 4. Report: `✓ #[N] accepted[ — PR #[pr] merged]`.
@@ -439,9 +470,11 @@ Runs when any executed issue (shipped / done ⚠) is **pending review**. Skip si
 **Open with the sprint demo.** If the sprint file has a `**Demo:**` line:
 
 > **Promised demo:** _"[SPRINT_DEMO]"_
-> Want to trial it now? I can start the app ([dev-server from the profile]) and walk you through it — or we go task by task first.
+> Want to trial it now? I'll give you the steps to run it yourself ([dev-server from the profile]) and you tell me what you see — or we go task by task first.
 
 Record informally how the increment held up — it feeds the retro's **Increment delivered** line.
+
+**Then draw the sprint's shape, once.** Before walking any task, orient the human in the area the sprint touched as a whole: what was there when it started, what the sprint added, one sketch marking the new pieces. Each task's own *where this sits* beat then only has to cover the neighbourhood it touched. Drawing the same system picture eight times is how a walkthrough turns into something the human skims instead of reads.
 
 **Walk each pending issue in execution order**, running the **task conversation** (shared core above) for each. Between tasks, keep a one-line progress trail (`3 of 5 reviewed · 2 accepted · 1 rework`). Let the ⚠ column set the pace: the clean ones should go fast.
 
@@ -469,7 +502,7 @@ Only runs if there are **blocked ⏸**, **unfinished**, or **done ⚠** issues. 
 - **resume** *(default)* — the blocker is one a human can clear (answer the question, unstick the task, do the manual step). **Pause the review here** and hand off: `/devloop:run [N]` picks up from the recorded phase; re-run `/devloop:review` to finish. review does not execute work — same fork as the rework path in Step 1.5.
 - **carry over** / **backlog** / **close** — as for unfinished, below. Choosing one of these on a blocked issue **abandons the run**: say so, and point at `/devloop:abort [N]` to tear down its branch and state cleanly rather than leaving them orphaned.
 
-**unfinished** — open and never started (including rework issues you chose not to execute now, and skipped-verdict issues that never executed). Offer a disposition per issue:
+**unfinished** — open and never started (including rework issues the user chose not to execute now, and skipped-verdict issues that never executed). Offer a disposition per issue:
 - **carry over** — keep open; **remove it from this milestone** so the next sprint can select it (the `issue-selector` only sees issues with no milestone).
 - **backlog** — relabel `type:backlog` and remove it from this milestone, sending it back to the backlog pool for `/devloop:plan` to re-triage.
 - **close** — close on GitHub as out of scope, with a comment.
@@ -570,8 +603,8 @@ catches most of the bugs is the one to invest in. Neither is knowable without th
 | reviewer (pass 1) | first read of the diff | [n] |
 | critique (pass 2) | re-reads pass 1, and can raise what it missed | [n] |
 | validation | traces each acceptance criterion to code that actually runs | [n] |
-| demo (at review) | runs the change through the real entry point | [n] |
-| human (at review) | you, in this conversation | [n] |
+| demo (at review) | found by **running** it through the real entry point — usually you, sometimes a check I ran | [n] |
+| human (at review) | found by **reading or asking**, no run needed — you, in this conversation | [n] |
 
 - **Never fired:** [gates with zero catches this sprint — or "none"]
 - **Bugs fixed with no test proving the fix holds:** [blockers recorded NOT-REPRODUCIBLE, with the reason — or "none"]
@@ -668,7 +701,7 @@ Then suggest the next step:
 - **Active run on this sprint** — task scope: only blocks reviewing the locked issue. Sprint scope: stop in Step 1; a sprint can't be sealed while an issue is executing.
 - **Blocked issue** (state file in `state/`, no live lock — a run that stopped rather than fake a judgment) — task scope: report the blocker and hand back to `run`/`abort`; there is nothing shipped to review. Sprint scope: class **blocked ⏸**, default disposition **resume**, which pauses the close. Never silently reconcile a blocked issue as if nobody had started it — the logged reason is the most useful thing an autonomous run produces when it fails.
 - **A recorded SHA or ref doesn't resolve** — `history-ref: refs/devloop/issue-N` is written by `run` on the machine that executed the sprint and is never pushed, so it is absent in a fresh clone; a run that predates the archive step has none at all. Say so, work from the merge commit and Zone 2, and never reconstruct a diff you could not read.
-- **The demo can't be run** — no entry point, credentials the environment doesn't have, or an issue with no runtime surface (design, manual, scaffold). Say why and continue without it. Never illustrate output you did not observe.
+- **The demo can't be run** — no entry point, credentials the environment doesn't have, or an issue with no runtime surface (design, manual, scaffold). Say why, offer *walk the change* as the read-only substitute, and continue without it. Never illustrate output you did not observe, and never render a walked journey as though it were run.
 - **A patch turns out not to be one** (§4.5) — the coder reports `blocked` / `not-trivial`, the checks fail twice, it needs a file nobody named, or a design question surfaces. Discard the working-tree change (only the files the coder listed), say what happened, and offer a rework issue. Never commit a half-working patch, and never widen its file list to make it work.
 - **Merge fails during a task accept** — the acceptance is already recorded in Zone 2; surface the failure and re-run `run [N]` after the user resolves it. Don't mark `✓accepted` until the merge lands.
 - **Master-plan entry missing for Sprint [N]** — append a minimal `### Sprint [N]` entry with `Status: completed` rather than failing.
