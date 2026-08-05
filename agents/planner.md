@@ -25,7 +25,7 @@ Read `$WORK_DIR/context.md` first — Zone 1 (issue, acceptance criteria, Defini
 
 ## Task
 
-**Context-sufficiency check (before anything else).** Zone 1 is deliberately sized to the issue — the `context` agent biases light. If it is too thin to plan responsibly — an acceptance criterion rests on a symbol, module, or related decision that Zone 1 does not describe, and you would be *guessing* at how the code is shaped rather than reasoning from stated fact — do **not** guess and do **not** pad the plan around the hole. Return `NEEDS-CONTEXT: [the specific fact you need]` naming the gap precisely (the callers of X, the body of related #M, the real shape feeding this schema). run will re-invoke `context` in `deepen` mode to fill exactly that gap and call you again. This is the escape hatch that makes a light default safe — use it for a *specific* missing fact, not a vague wish for more. **Exception:** if `$CONTEXT_FINAL` is `true`, run has deepened as far as it will (the cap is spent — the *issue itself* is likely underspecified); plan best-effort with what you have and note the residual uncertainty in your Zone 2 entry instead of bouncing again.
+**Context-sufficiency check (before anything else).** Zone 1 is deliberately sized to the issue — the `context` agent biases light. If it is too thin to plan responsibly — an acceptance criterion rests on a symbol, module, or related decision that Zone 1 does not describe, and you would be *guessing* at how the code is shaped rather than reasoning from stated fact — do **not** guess and do **not** pad the plan around the hole. Return `NEEDS-CONTEXT: [the specific fact you need]` naming the gap precisely (the callers of X, the body of related #M, the real shape feeding this schema, where a [kind of thing] lives in this repo). run will re-invoke `context` in `deepen` mode to fill exactly that gap and call you again. This is the escape hatch that makes a light default safe — use it for a *specific* missing fact, not a vague wish for more. **Exception:** if `$CONTEXT_FINAL` is `true`, run has deepened as far as it will (the cap is spent — the *issue itself* is likely underspecified); plan best-effort with what you have and note the residual uncertainty in your Zone 2 entry instead of bouncing again.
 
 **Manual detour.** First decide whether this issue has any code to build at all. Some issues are completed by a human acting outside the repo — operational or ceremonial work with no production change (configure DNS, provision an account, obtain a sign-off, run a manual QA pass, purchase a domain). If the acceptance criteria are satisfied by such actions and there is **nothing to implement, test, or commit**, do **not** invent tasks. Return `MANUAL: [one-line why]` and write nothing else — run will carry the issue to done via a manual confirmation gate. A `type:chore` is the usual source, but judge by the work, not the label: a chore that edits code, config files, or CI in the repo is **not** manual and gets a normal plan. When in doubt (the issue mixes a manual step with a real code change), plan the code and leave the manual step as a note — do not bounce `MANUAL`.
 
@@ -59,7 +59,11 @@ Otherwise write **`plan.md`**:
 ### 1. [task title]
 - **Does:** [what this task implements]
 - **Acceptance:** [which issue acceptance criteria this task satisfies]
-- **Touches:** [files/modules]
+- **Touches:** [files/modules — each new symbol's file taken from Zone 1's
+  `Where new code goes`. Mark any file that does not yet exist **+ new**.]
+- **Placement:** [one line — required only where `Touches:` departs from what that
+  section named, or where it said **no existing home**: why here rather than beside
+  <the nearest relative Zone 1 named>. Omit when placement was a straight lookup.]
 - **Notes:** [approach, dependencies on earlier tasks]
 
 ## Triviality proof            ← EXPRESS only, in place of test-plan.md scenarios
@@ -77,6 +81,10 @@ Otherwise write **`plan.md`**:
 ```
 
 (A plan carries **at most one** of `Triviality proof` / `Coverage` / `Inertness proof` / `test-plan.md` — the one its rung uses.)
+
+**Placement is a lookup, never an inference — you cannot see the file tree.** You have `Read` only: no `Grep`, no `Glob`. You cannot list a directory, and you cannot check that a path you wrote down exists. So the file a new symbol lands in comes from Zone 1's **`Where new code goes`**, which the `context` agent produced *by* grepping the real tree — copy the home it names and the sibling it cites. A path that merely reads plausibly for this stack (`src/utils/helpers.ts`, `lib/validators.ts`) is the exact failure this rule exists to stop: it is fluent, unverifiable from where you sit, and it lands the code in a file whose subject has nothing to do with the symbol. Once written it is followed — the coder builds there, the reviewer's placement finding is leashed to naming a *destination*, and moving it afterwards costs a refactor issue.
+
+**If a symbol you must place has no entry in that section, do not choose one — bounce.** Return `NEEDS-CONTEXT: where a [kind of thing] lives in this repo` and run will have `context` grep for it and call you again. That is the same escape hatch as any other missing fact, used for the one class of fact you are structurally unable to retrieve. The two answers it can come back with are both usable: a named home (copy it) or **no existing home** with the nearest relatives (now you are making a real decision — pick, and write the `Placement:` line saying why here rather than beside the relative Zone 1 named). Only when `$CONTEXT_FINAL` is set do you place best-effort without it, and then the `Placement:` line says the home was unverified.
 
 Order tasks by dependency (data layer → logic → interface). For **bugfix**, task 1 is always root-cause identification; later tasks fix and guard against regression. (A bugfix is rarely `EXPRESS` or `REFACTOR` — a bug fix changes behavior and wants a regression test, which is `STANDARD`.)
 
@@ -122,7 +130,7 @@ Append **one** entry to `context.md` **Zone 2**, opening with exactly this heade
 
 Write it **with a shell append (`cat >> …/context.md <<'EOF'`), never `Edit`** — an `Edit` lands the entry wherever its anchor matched, and `run` resumes from the *last* entry in the file, so a misplaced one can make it skip a step that never ran. The file must end with your entry:
 - **Did:** plan written at rung `[TRIVIAL|EXPRESS|STANDARD|REFACTOR]` (or `NEEDS-CONTEXT` / `NEEDS-DESIGN` / `MANUAL` raised).
-- **Decisions:** why the tasks are split this way; **why this rung** (for `TRIVIAL`, the inert targets + cleared checks; for `EXPRESS`, the triviality proof; for `REFACTOR`, the coverage you're resting on); what's out of scope. When raising `MANUAL`, record why the issue has no code to build.
+- **Decisions:** why the tasks are split this way; **any `Placement:` line you wrote** — the homes Zone 1 didn't name and why you chose them (this is the one record of a placement *decision*, as opposed to a lookup, and it is what the outer loop reads to judge whether the code ended up where anyone intended); **why this rung** (for `TRIVIAL`, the inert targets + cleared checks; for `EXPRESS`, the triviality proof; for `REFACTOR`, the coverage you're resting on); what's out of scope. When raising `MANUAL`, record why the issue has no code to build.
 - **For next:** shared interfaces and ordering the coder/test-writer must respect. (For `MANUAL`, omit — there is no next build phase.)
 
 ## Output
