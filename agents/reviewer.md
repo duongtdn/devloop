@@ -109,6 +109,8 @@ FINDINGS: [count]
 
 If the diff is clean, return `FINDINGS: 0`. If the diff cannot be read, return `ERROR: [message]`.
 
+**A `blocker`'s explanation states what breaks and on what input** — the triggering input or state, and the wrong result — not only the defect. A human decides at run's review gate whether to uphold or drop each blocker, and that is a judgment about cost; "guard clause unreachable" withholds exactly what the judgment needs, while "an already-expired token skips the invite check and is accepted" supplies it. Write the scenario you can support from the code you read; if you cannot construct one, the finding is a `refactor`, not a blocker.
+
 ## Mode: `pr-review`
 
 For a senior-developer review of a PR that is a merge candidate. **Reasoning only — you never post to GitHub; the pr-review skill curates your findings at a human gate and posts the approved set itself.**
@@ -181,7 +183,7 @@ NEW: [count]
 - [nid] blocker [dimension] [file:line] — [explanation] → [suggested fix]
 ```
 
-`NEW: 0` when the first pass missed nothing — which is the normal, expected case.
+`NEW: 0` when the first pass missed nothing — which is the normal, expected case. A `NEW` finding is blocker-class by construction, so its explanation carries the same **what breaks, on what input** as a `review` blocker — it reaches the human at the same gate, marked as the one the first pass missed.
 
 ## Mode: `fix-review`
 

@@ -367,7 +367,15 @@ Record `phase: gate-design`. Continue.
 
 **Active in:** design (always); feature/bugfix when a design phase ran. *(Human gate.)* `phase_step: gated`.
 
-Build this panel from the agents' return summaries and **link** the document — do not load the full `design.md` into run's context to present it; the user opens the file themselves.
+**Read `design.md` before presenting this gate** — this is the one gate where run loads the document rather than linking it, and the exception is deliberate. Everywhere else, run holds structured verdicts and lets the artifact stay on disk. Here the artifact *is* the decision: every later issue measures conformance against this document, and what it fails to say is never checked by anything again (a diff always conforms to a silence). A criteria table plus a link asks the human to approve a document they have not read, and the honest answer to that is `y`. The cost is one file in context, once, at the gate whose approval cannot be revisited.
+
+Then present it as **three beats, one message each**, waiting for a reply between them — the same three rules as [gate-plan](#gate-gate-plan): each beat ends in a question the human can settle from what they just read, "not sure" is free and expands the beat, and it is said in the project's words (never *rung*, *phase_step*, *interface-completeness*). Never name a file, symbol or interface that isn't in `design.md`.
+
+**Beat 1 · What it decides.** The approach in two or three sentences, and the shape it puts into the codebase — ASCII, `← new`, wherever it introduces or moves a boundary. Not the alternatives it rejected; those come up only if the human asks. → *Is that the right approach for what you want here?*
+
+**Beat 2 · What it commits us to.** The interfaces and boundaries — the **binding** half of the document (code blocks are sketches and are not presented as decisions). Name **both sides** of any boundary it declares. → *Does this interface let the next caller do the wrong thing?* — the question the human is better placed to answer than any agent here, and the one nothing downstream re-asks.
+
+**Beat 3 · What it doesn't cover, and what the critique found.** Lead with the gaps: requirement coverage, open `concern` rows, any assumption still resting on reasoning rather than a spike. Then the panel below and the decision. A silence surfaced here costs a sentence; discovered after the build, it is the shape of everything built on top of it.
 
 > **Design — #[ISSUE]: [title]**
 >
@@ -462,6 +470,20 @@ This is the only gate positioned to catch it. Everything downstream measures con
 
 ### Present
 
+**Pace the panel to the rung.** A gate that arrives as one wall of text gets a `y`, because the only question it asks — *approve?* — has no answer the human can reach from what they were shown. Collapsed rungs are small enough to take in at once and stay a single panel. `STANDARD` is presented as **three beats, one message each**, and run waits for a reply between them.
+
+Three rules hold at every beat, and they are what make the pacing worth its round trips:
+
+- **End each beat with a question the human can settle from what they just read** — "does `validateInvite()` belong in `lib/auth/session.ts`?", not "approve?". A question they cannot answer is answered `y`.
+- **"Not sure" is a first-class answer and costs them nothing** — it expands that beat (open the file, show the surrounding code, name what else lives there) and re-asks. If "not sure" is more effort than "yes", the two collapse into one keystroke and the gate is decorative.
+- **Say it in the project's words.** *Rung*, *phase*, *phase_step*, *micro-loop*, *Zone 2* are this plugin's vocabulary for its own machinery; the person at this gate owns the product, not the loop. "5 tasks, test-first each" — not "STANDARD rung, TDD micro-loop × 5".
+
+And never name a file, symbol, or scenario that isn't in `plan.md` / `test-plan.md` — everything a beat shows is read from those two files. A plausible invented filename is exactly what this gate exists to catch, and it is indistinguishable from a real one on the page.
+
+The human can cut the pacing short at any beat ("just go", "approve"). Honor it and move to **On approval** — same flexibility valve as reshaping.
+
+#### One panel — `TRIVIAL` · `EXPRESS` · `REFACTOR`
+
 > **Execution plan for #[ISSUE] — [title]  ([workflow] · rung: [TRIVIAL | EXPRESS | STANDARD | REFACTOR])**
 >
 > [TRIVIAL:] Inert change — [why]. Docs/prose only; no test, no review, no validate — verified by the inertness proof below (the touched files feed no check).
@@ -484,6 +506,37 @@ This is the only gate positioned to catch it. Everything downstream measures con
 > ④ [direct: before merge — confirm merging to [base] \| pr: before PR — approve PR content]
 >
 > Approve, or reshape (e.g. "skip e2e", "skip review", "make this STANDARD", "this is a refactor", "this is just docs", "open a PR"):
+
+#### Three beats — `STANDARD`
+
+**Beat 1 · Where this lands.** What exists here now, and what this issue adds to it — from `context.md` Zone 1 (the surrounding code and patterns) plus `plan.md`'s `Touches:` lines. Two or three sentences. **Draw it** (ASCII, `← new`) when the change spans more than a couple of files: the sketch does this beat's job faster than sentences and leaves the human oriented for the two that follow.
+
+> **#[ISSUE] — [title]**
+>
+> [what's already here, and where this change sits in it]
+>
+> [ASCII sketch, `← new` on what this issue adds]  ← when it spans >2 files
+>
+> Does that match how you think about this part of the system?
+
+**Beat 2 · The tasks, and where the code goes.** One line per task from `plan.md`, in plain language, each with its `Touches:` files. **Mark every new *home*** — a file that does not yet exist (`+ new`), **and** a symbol landing in an existing file that Zone 1's `Where new code goes` did not name as its home (`+ new home`). Both are placement decisions, and this beat is the last moment either is free to move. Once code exists, moving it is a refactor, and the `reviewer`'s placement finding is [leashed to a named destination file](#phase-review) — it stays silent on precisely the drift a human recognises on sight. The second marker is there because the commonest drift creates **no new file at all**: a function appended to whichever existing file was nearest. A panel that only flags new files cannot show it, and asks about the case that was least likely to be wrong.
+
+> | # | Task | Files |
+> |---|---|---|
+> | 1 | [what it does, in the project's words] | `path/to/file.ts` |
+> | 2 | … | `path/new-file.ts` **+ new** |
+> | 3 | … | `path/existing.ts` **+ new home** |
+>
+> [one line per marked row — `plan.md`'s `Placement:` field verbatim: why here
+>  rather than beside the nearest relative]
+>
+> Does that land where you'd put it? (or: not sure — I'll show you what's already there)
+
+**The rationale line is quoted, never composed.** It is `plan.md`'s `Placement:` field, which the planner wrote against Zone 1's `Where new code goes`; run does not have the file tree in hand at this gate and a justification it invents here is unfalsifiable at exactly the moment the human is being asked to trust one. If a marked row carries **no** `Placement:` line, say so plainly (*"the plan doesn't say why this file"*) — that absence is itself the answer to the beat's question, and it is the planner's to fill, not run's.
+
+If the human moves something, re-invoke the `planner` with the destination as a constraint and re-present this beat — run does not rewrite `plan.md` itself, for the same reason it never writes a rung's licensing artifact. Log the move to Zone 2 with the **user as author**.
+
+**Beat 3 · How it gets proven, and where you'll be asked again.** The stage table and gate list from the panel above, then the approve/reshape line. By this point the human has settled the shape and the placement, so this beat is about process depth only — and it is the beat to keep short.
 
 Apply any reshaping the user asks for (drop/add a stage, switch workflow, **change the rung**). The user has final say on the rung too — and on the rung, saying so is not the same as being able to run it:
 
@@ -700,16 +753,22 @@ Record `phase: review`. Continue.
    >
    > **Upheld ([n])** — both passes agree; will be addressed
    > - [blocker|refactor] [file:line] [finding]
+   >   ↳ [blockers only: what breaks, and on what input — one line]
    >
    > **New from critique ([n])** ⚠ — the second pass caught these; pass 1 missed them
    > - [blocker] [file:line] [finding]
+   >   ↳ [what breaks, and on what input]
    >
    > **Dropped ([n])** — critique judged these not worth acting on: [reasoning]
    > **Disputed ([n])** ⚠ — review flagged, critique disagreed (or vice-versa); your call
+   > - [blocker|refactor] [file:line] [finding] — [each side's one-line reasoning]
+   >   ↳ [blockers only: what breaks, and on what input]
    >
    > Override any verdict, or confirm to proceed:
 
    "Disputed" = the two passes disagree; surface these for the user, who has final say on everything. Omit any bucket with no findings.
+
+   **Blockers and disputed findings carry a failure scenario; the other buckets stay lists.** A finding is written agent-to-agent — it names the defect, not what it costs — and a human deciding *uphold or drop* is being asked for exactly the judgment that line withholds. So each blocker gets one added line: the input or state that triggers it, and what the system does wrong. Take it from the reviewer's return; if the return does not support one, say so rather than inventing a scenario (a plausible invented failure is unfalsifiable at this gate and gets upheld on sight). Upheld refactors and dropped findings need no scenario — the first are being applied anyway and the second are being left, so neither turns on a decision the human is making here. Present in the project's words: "the invite check is skipped when the token has already expired", not "guard clause unreachable in `validateInvite`".
 
 4. **Apply.** There is no separate refactor agent — fixing is the coder's job in `fix` mode. But the two classes of finding are applied differently, because they mean different things:
 
