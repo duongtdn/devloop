@@ -136,6 +136,7 @@ A long conversation is the real threat. After many turns your attention to these
 
 - **one** concrete move — a file, a boundary, a signature;
 - every **name** in it — path, symbol, module, ADR number — resolved against the repo, or stated as new (silently, per rule 2; a verdict built on a file that isn't there is worse than no verdict, because it is actionable);
+- the **ADRs governing the area** re-checked against `index.md` — scanned at entry once, and the conversation has moved since. State the verdict as **follows** / **distinguishes** / **supersedes** one: silently when nothing is nearby, named in the verdict itself when one is. A verdict that contradicts an accepted ADR is a **supersession** and is offered as one — never slipped in as a fresh call, because the human reads a proposal that cites no ADR as one that clashes with none;
 - the **evidence** it rests on, labeled verified / claimed / needs-proof;
 - **both costs** — carried and avoided (if both won't fill, it is a preference, not a verdict);
 - a **tripwire** if the move is "leave it alone."
