@@ -6,6 +6,8 @@ A Claude Code plugin that runs a full **sprint lifecycle** — plan, execute, re
 
 Devloop's north star isn't "let the AI build it for you." It's **move fast *without outsourcing your understanding* of your own software.**
 
+That north star has two shapes. For developers, it's the sprint loop below. For someone who wants a small app and isn't going to write it, it's [`/devloop:vibe`](#a-third-way-in--devloopvibe) — same principle, different vocabulary: you never approve something you couldn't judge, and you run the demo yourself.
+
 ---
 
 ## The idea of Fast and Slow
@@ -123,6 +125,51 @@ The conversational skills aren't locked to any diagram either. **`/devloop:backl
 
 ---
 
+## A third way in — `/devloop:vibe`
+
+Everything above assumes you're a developer with a repo, issues and a sprint. **`/devloop:vibe` is for the other case**: someone who wants a small app to exist, and isn't going to write it.
+
+It is not the sprint loop with the tests switched off. It's a separate, lighter track that borrows the same agents:
+
+```
+  /devloop:vibe          ┌──────────────────────────────────────────┐
+        │                │ 1. what are we building?  (a BA, not a   │
+        ▼                │    technical interview — it drafts, you  │
+   discovery ────────────┤    correct)                              │
+        │                │ 2. the technical decisions — proposed,   │
+        ▼                │    each with why, and whether it can be  │
+   decisions ────────────┤    changed later. You get a veto.        │
+        │                │ 3. a plan written as things you'll SEE   │
+        ▼                └──────────────────────────────────────────┘
+     plan
+        │
+        ▼
+   ┌─► build to the next demo ──► "here's how to try it" ──► your feedback ─┐
+   │                                                                        │
+   └────────────────── run /devloop:vibe again ◄────────────────────────────┘
+                                    │
+                                    ▼
+                      harden — real tests + a security pass,
+                      before anyone else can use it
+```
+
+**No arguments, ever.** Run `/devloop:vibe` and it picks up wherever you left off.
+
+**What makes it different from just asking an AI to build you an app:**
+
+- **The plan is a list of things you'll see running**, not a list of tasks you'd have to pretend to understand. *"You can add a task" → "your tasks are still there after you close the browser" → "only you can see yours."* You approve an order you can actually judge.
+- **You run the demo, not the AI.** Every step ends with a recipe — exact commands, real values, what you should see **and what wrong looks like** — and then it asks what you saw. An AI reporting "✓ it works" is a self-report; it's not evidence, and it's not how you end up trusting your own app.
+- **Every technical decision comes with whether it can be undone.** Nobody tells non-technical people this, and it's the single most useful thing to know: it's what tells you which choices are worth arguing about.
+- **Your feedback gets classified out loud** — a *fix*, a *follow-up*, or a *new idea that isn't in what we agreed to build*. That last one is why small projects never finish, and it's invisible unless someone names it.
+- **Every demo is a tag you can go back to.** "I don't like this" is a supported operation.
+- **No TDD, but not "no tests".** Each step records what still needs proving; before the app is shared with anyone, that ledger is harvested into real unit, integration and e2e tests — written from the demo recipes, so the suite proves what you were actually shown. A deploy with an unproven ledger is refused.
+- **Secrets are scanned on every single commit.** A leaked key is the one mistake you can't undo later, so it's checked mechanically every time rather than at review.
+- **Demo data stays out of the app.** The demo needs something to show, and with no test suite yet the easy place to put it is the shipped code. So the preference is that *you* type the data in through the app itself; when that isn't possible it lives in its own directory with its own command, and the boundary is checked before every commit. Anything faked outright — a sign-in that doesn't check a password — is listed, said out loud at the demo, and replaced before you can share it.
+
+Greenfield projects, git required (it's the undo button), no GitHub needed. When it outgrows itself — more than six milestones, or you start wanting proper reviews and staged releases — it says so and hands you to the full loop, keeping everything already built.
+
+---
+
 ## Install
 
 devloop is a Claude Code plugin (not an npm package). Install it from your plugin marketplace or point Claude Code at the plugin directory.
@@ -169,6 +216,12 @@ Skills are what you invoke. The conversational ones pause at every human gate; t
 | **`/devloop:roadmap [topic]`** | Initialize or update the project **master plan** (vision, sprint themes, goals) from your conversation. Also bootstraps the **project profile** (`.context/devloop-profile.md`) — the build/test commands `plan` and `run` rely on. Run this first on a new project. |
 | **`/devloop:backlog [topic]`** | Distill a brainstorm into GitHub **backlog issues** (`type:backlog`). Proposes candidates, you confirm/edit, it creates the approved ones. |
 
+### Build something small *(a separate, lighter track)*
+
+| Skill | What it's for |
+|---|---|
+| **`/devloop:vibe`** | Build a **small app with someone who isn't a developer**. Starts with a business-analyst conversation to find out what they actually want, proposes each technical decision with its reasoning and **whether it can be undone later**, then plans the work as a **sequence of things they'll get to see running**. Each invocation builds up to the next demo and hands over a recipe to try it; feedback becomes a patch, a follow-up, or a deliberate change of scope. No TDD — what's unproven is tracked and harvested into real tests before the app is shared. Secrets scanned every commit. **Takes no arguments**; it resumes where you left off. Greenfield, no GitHub. |
+
 ### Plan & steer *(outer loop — slow)*
 
 | Skill | What it's for |
@@ -208,8 +261,9 @@ Agents are the workers behind the skills — you don't invoke them directly. Eac
 | **planner** | sonnet | Turns context (and an approved design) into an ordered task list (`plan.md`) and a test strategy (`test-plan.md`), and **sizes the process to the task** via a rung (EXPRESS / STANDARD / REFACTOR). Can raise `NEEDS-CONTEXT`, `NEEDS-DESIGN`, or `MANUAL`. |
 | **designer** | sonnet | Design/architecture specialist. Authors an implementation guide (`design.md`); a fresh instance critiques it against named criteria. Designs **within** your recorded architecture decisions — if an issue can't be built without breaking one, it stops and says so rather than quietly designing around it. Overturning a decision you made is your call, in `/devloop:architect`, not a side effect of a run. |
 | **test-writer** | sonnet | Writes the specified **failing** tests (unit + E2E), or a **regression** test reproducing a bug before it's fixed. Never runs them, never writes production code. When a clean test is impossible without an unsafe cast, it **stops** — that's the production interface being too narrow, not a test that needs a hack. |
-| **coder** | sonnet | Implements one task to make its failing tests pass, runs the project's checks, commits only when green (*green* = no **new** failures). For a trivial or behavior-preserving change it applies the change **without a test-first step** (the checks still gate it). Also runs throwaway spikes. Its green is provisional — the test-runner has the last word. |
+| **coder** | sonnet | Implements one task to make its failing tests pass, runs the project's checks, commits only when green (*green* = no **new** failures). For a trivial or behavior-preserving change it applies the change **without a test-first step** (the checks still gate it), and in `vibe` mode builds new behavior the same way, with proof deferred to that track's hardening pass. Also runs throwaway spikes. Its green is provisional — the test-runner has the last word. |
 | **test-runner** | sonnet | The **independent verifier** — it didn't write the code, and it can't edit it. Runs tests and classifies every failure as **new / accepted / pre-existing** (using the baseline allowlist). Also verifies the **red** step: that a fresh test really fails, and fails for the right reason, rather than erroring on a broken import or passing vacuously. |
+| **ba-critic** | sonnet | Reads a drafted **product brief** and reports what a non-technical owner could read, be wrong about, and not notice — a capability nobody could fail, a domain word doing real work but never defined, a missing "what it does NOT do" list. Returns the plain question that settles each. The check on a comfortable conversation producing a comfortable, wrong brief. |
 | **pr-triage** | haiku | Classifies a PR's review intensity (light/full) from the nature of the diff. Used by `pr-review`. |
 | **reviewer** | sonnet | Reviews a diff and surfaces concrete `file:line` findings. Modes: review / pr-review / critique / fix-review. Carries a **test-pass-insufficient** rubric for the bug class a green suite can't rule out (concurrency, resource scoping, ordering, idempotency, reversibility) — those are argued from the code, and "the tests pass" is not a rebuttal. Reasons only — never posts to GitHub. |
 | **scaffolder** | sonnet | Creates the repo (if needed) and bootstraps project structure, build tooling, and test setup, committing to the base branch. |
@@ -222,12 +276,14 @@ devloop keeps its state under `.context/` so work resumes across sessions:
 
 | Path | Role | Purpose |
 |---|---|---|
+| `.context/product-brief.md` | shared record | What the product **is**, in the owner's words — the domain terms as they use them, who actually uses it, one day in the life, and **what it does not do**. Deliberately free of technology, so it stays their document. Written by `vibe` and `roadmap`. |
 | `.context/devloop-profile.md` | shared record | Build/test commands and test layout. The single source `run` uses — it never guesses a command. |
 | `.context/devloop-baseline.md` | shared record | Accepted-failure allowlist — checks known to fail, so the green gate means "no *new* failures." |
 | `.context/decisions/` | shared record | Architecture decision records from `/devloop:architect`, plus an `index.md` the loop scans to find the ones bearing on a task. Append-only: a changed decision is a new record superseding the old, so the reasoning you can go back and read is the reasoning that was actually used. |
 | `.context/sprints/master-plan.md` | shared record | Project sprint map: vision, themes, goals, statuses. |
 | `.context/sprints/sprint-N.md` | shared record | Per-sprint execution checklist. Each issue line tracks execution (`[x]`, by `run`) and human acceptance (`✓accepted`, by `review`) separately. |
 | `.context/sprints/sprint-N-review.md` | shared record | Sprint retrospective — including **loop calibration**: which of devloop's own gates caught the sprint's defects, and which never fired. |
+| `.context/vibe/` | `vibe` track | The whole state of a `vibe` project in one readable file — goal, the technical decisions with their reasoning and reversibility, the demo-shaped plan and its tags, what hasn't been proved yet, and what's been parked. |
 | `.context/sprints/state/` | working area | Lock + per-issue control plane (lets `run`/`sprint` resume). |
 | `.context/sprints/work/` | working area | Per-issue working files (`context.md` with its logged decision timeline, `plan.md`, `test-plan.md`, …) plus `logs/` — the raw test output behind each logged failure, kept out of the timeline and opened on demand at review. |
 

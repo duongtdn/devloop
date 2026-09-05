@@ -1,6 +1,6 @@
 {
   "name": "devloop",
-  "description": "Sprint lifecycle automation: plan, execute, review, and close sprints with TDD workflows and human-gated decisions.",
+  "description": "Sprint lifecycle automation: plan, execute, review, and close sprints with TDD workflows and human-gated decisions. Plus /devloop:vibe \u2014 a lighter track for building a small app with a non-technical owner.",
   "version": "0.1.0",
   "author": {
     "name": "Duong Nguyen"

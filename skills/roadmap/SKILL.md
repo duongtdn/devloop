@@ -76,7 +76,19 @@ If `$ARGUMENTS` is non-empty, apply it as a filter: only surface roadmap content
 - Sprints with `Status: planned` — may be updated with new theme, refined goal, or refined demo from the conversation.
 - New sprints — append after existing entries.
 
-If the conversation contains no roadmap-relevant content (no vision, no sprint themes):
+**If the conversation has no product understanding in it yet**, do not guess a vision from a thin
+conversation — find out. **Read `skills/vibe/ba-spec.md` and enact it**: it is the shared discovery
+contract (also used by `/devloop:vibe`), and it owns the method, the brief format, and the `ba-critic`
+check. Two or three questions, then a whole drafted brief the user corrects, written to
+`.context/product-brief.md`. Its prohibitions, restated here because this is a write site: **never ask
+a technical question**, **never invent a fact and present it as theirs** (drafted specifics carry `⚑`
+until confirmed), **never present a menu**, **never write the brief without an explicit yes**.
+
+Then distil the Vision from the confirmed brief rather than from the conversation. If a brief already
+exists, read it first — it is the better source for the Vision than a conversation that skirted the
+product, and a Vision that contradicts it is a drift signal worth raising.
+
+If the user declines to go through discovery:
 
 > No roadmap content found in this conversation — nothing to update on the master plan.
 
