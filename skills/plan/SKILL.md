@@ -122,6 +122,20 @@ This file is the single source for project commands. Do not read commands from a
 
 On **y**, set both `$HAS_UNIT_TESTS` and `$HAS_E2E` to `unknown` and proceed; the Definition of Done will omit test-specific lines. On **n**, exit so the user can run roadmap.
 
+### Read what the last sprint learned
+
+Two records that already exist and that nothing has ever read back. Both are cheap, both feed Step 2's goal and Step 4's selection, and neither is a gate.
+
+**1 · The previous sprint's retrospective.** `.context/sprints/sprint-[N-1]-review.md`, if it exists. Read its **What to improve** and **Process feedback** — that section is where the human said what went wrong last time, and until now it was written and never opened again, so the next sprint was planned as though the last one had taught nothing. Carry anything actionable into the goal conversation as a *suggestion*, attributed and in one line ("last sprint's retro says two issues carried over — worth scoping smaller?"). **Never treat it as a constraint**: it is the human's own note to themselves, and they are entitled to ignore it.
+
+**2 · Behaviour shipped without proof.** `.context/devloop-unproven.md`, if it exists — rows written when someone in a `/devloop:tinker` session or a `vibe` build explicitly chose to ship a change with no test. Any row with no tracking issue in its `Source` column is unscheduled work that nothing is watching. Surface them once, at Step 4, as **selection candidates** alongside the backlog:
+
+> [n] change(s) are running in production with no test proving they still work: [area — what it does]. Pull any into this sprint? (list / skip)
+
+They are candidates, not obligations. A row the user skips stays in the ledger and gets offered again at sprint close — the point is that it is never silently forgotten, not that it must be done now.
+
+If the journal `.context/devloop-journal.md` exists, its lines since the last sprint's close are the fastest read there is of what actually happened to this project between sprints — including tinker sessions and architect decisions that no issue covers. Skim it before Step 2; do not summarise it at the user unless something in it bears on the goal.
+
 ---
 
 ## Step 2 — Sprint goal and demo

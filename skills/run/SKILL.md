@@ -115,9 +115,11 @@ A manual *acceptance criterion* (at gate-validation) is **not** a hard stop: aut
 | `.context/sprints/work/issue-N/logs/` | issue | `coder`, `test-runner` | raw test/check output — the evidence behind a Zone 2 entry. Never loaded by default; cited under **Artifacts** and opened on demand |
 | `.context/sprints/work/issue-N/run-state-final.md` | issue | **run** (at cleanup) | the archived state file — its `## Log`, plan, and tasks kept for post-mortem after the issue is done |
 | `.context/sprints/state/issue-N.md` | issue | **run only** | phase, position, branch, pr, plan, tasks, log — **while in progress**; archived to `work/` at cleanup |
-| `.context/sprints/state/.lock` | global | **run** + `pr-fix` | `holder` (`run`/`pr-fix`), issue or PR number, PID, start time |
+| `.context/sprints/state/.lock` | global | **run** + `pr-fix` + `tinker` + `vibe` | `holder` (`run`/`pr-fix`/`tinker`/`vibe`), issue or PR number, PID, start time |
 | `.context/devloop-profile.md` | project | roadmap; **run write-back** | build/test commands + test layout |
 | `.context/devloop-baseline.md` | project | **run** (on user decision) | accepted-failing tests |
+| `.context/devloop-journal.md` | project | **run**, `tinker`, `vibe`, `review`, `architect`, `abort` | one line per finished episode of work — the retrieval surface the `context` agent scans (see [The project journal](#the-project-journal--one-line-per-episode)) |
+| `.context/devloop-unproven.md` | project | `tinker` | behaviour shipped without a test, by explicit decision — read by `review` at sprint close and by `plan` when scoping |
 
 `work/` and `state/` are run's working area for one issue; `profile`, `baseline`, `master-plan`, and `sprint-N` are shared project records. Whether any of these are version-controlled is the user's choice — run neither assumes nor enforces a gitignore policy.
 
@@ -135,6 +137,38 @@ Zone 2 is an **append-only timeline**: agents and gates add entries in execution
 
 Agents are not limited to the standard files — a step may create its own supplementary artifact (a generated schema, a scratch analysis, a data sample). When it does, it lists the path under **Artifacts** with a one-line "load this if…" hint, so a later agent (or run) chooses whether to read it instead of everyone loading everything.
 
+### The project journal — one line per episode
+
+`context.md` Zone 2 is a *per-issue* record, and nothing outside `/devloop:review` ever reads it
+again. `.context/devloop-journal.md` is the project-level surface that does get read: the `context`
+agent scans it on **every** issue and pulls the entries whose code areas intersect the work at hand,
+into Zone 1 under **What happened here before**. It is how issue #52 finds out that a value in the
+file it is about to edit was tuned by hand while a human watched the app — and therefore is not a
+mistake to clean up.
+
+The format is `skills/tinker/journal-spec.md`. run writes a line at exactly two moments:
+
+| Moment | Outcome |
+|---|---|
+| the issue completes ([Issue-complete cleanup](#issue-complete-cleanup), step 4) | `shipped` |
+| an auto-mode **stop-the-line** halts the run | `blocked` |
+
+```
+- YYYY-MM-DD · run #[ISSUE] · shipped · `src/auth/**` · [what it did, and why anything non-obvious is that way] → `sprints/work/issue-[ISSUE]/`
+```
+
+**Restated here because this is the write site:** append with `cat >> .context/devloop-journal.md`,
+**never `Edit`** (an `Edit` lands wherever its anchor matched — in a file of near-identical lines that
+is routinely the wrong one; `>>` cannot). The date is **script-derived**
+(`node -e "console.log(new Date().toISOString().slice(0,10))"`). The **areas come from
+`git diff --name-only $base...<branch tip>` collapsed to directory globs — derived mechanically, never
+composed**: a fluent, plausible, wrong area poisons retrieval for every future issue and fails
+silently, exactly the way a guessed MCP tool name fails. One line only; the detail already lives in
+the work dir this line points at. Never rewrite an earlier line — a correction is a new line.
+
+If the file does not exist, create it with the header from the spec and append. An absent file is not
+a reason to skip the record.
+
 ### Detection provenance — `Caught by:` and the log trail
 
 **Record how each defect was found, not just that it was fixed.** Any Zone 2 entry that records a defect carries a **`Caught by:`** field naming the gate that detected it: `test-red` · `typecheck` · `lint` · `reviewer` · `critique` · `validation` · `spike` · `demo` · `human`. (`demo` and `human` are written by `/devloop:review` in the outer loop, not by run — `demo` when running the change through the real entry point surfaces a defect every inner-loop gate passed.) Without it the history is unreconstructable — `/devloop:review` cannot tell a human whether a bug was caught by a failing test or by someone reading the code, and neither can you tell, across many issues, **which gates are actually load-bearing and which never fire**. That is the only way to find out that (say) the test suite has never once caught a real bug while the critique catches most of them.
@@ -151,6 +185,8 @@ Pass `$LOG_DIR` = `$WORK_DIR/logs/` (absolute, per [S1](#s1--resolve-the-active-
 **Who appends:**
 - `designer`, `planner`, `test-writer`, `coder`, `reviewer` — one entry each when they finish (per their contracts).
 - **run** — one entry at each gate decision (a human's in human-mode, run's own reasoned decision in **auto**-mode, attributed to `run (auto)`) and whenever it changes shared state: a plan reshaped/accepted at gate-plan, findings accepted/declined at gate-review, manual ACs confirmed or flagged at gate-validation, a failure baselined, or an auto-mode blocker that halts the run. At gate-review run sets **`Caught by:`** per finding — `reviewer` for pass 1, `critique` for a finding pass 1 missed.
+
+  **An auto-mode stop-the-line writes a journal line too**, alongside its Zone 2 entry, with outcome `blocked` — *"tried, stopped deliberately, state on disk"* is the single most expensive fact in a project to rediscover, and it costs one line here. Same rules as everywhere: `cat >>`, never `Edit`; script-derived date; areas from `git diff --name-only`, mechanically. Do this before exiting, not after — there is no after.
 - `context` owns Zone 1 and writes **one seed entry** in Zone 2 recording the depth tier it chose — the first entry in the timeline, and the correctly formatted example every later appender sees at the write site. `test-runner` **never writes to Zone 2** — it returns its buckets (and its log path) to run, which records any baselining and cites the log. Writing its own run log to `$LOG_DIR` is not an exception to that: it is capturing evidence, not mutating state, and its `disallowedTools` still bar it from touching code or tests.
 
 **Timestamps must be script-derived — never the session clock.** Before invoking an appending agent, and before writing your own gate entry, derive a fresh timestamp and use it as `$NOW`:
@@ -240,6 +276,8 @@ Read `.context/sprints/state/.lock` if it exists. Determine PID liveness with `k
 |---|---|
 | live PID, `holder: run` | `⚙ run is already in progress for #M (PID alive). Finish or /devloop:abort it first.` → **exit**. (A live process owns the run regardless of `$ISSUE`.) |
 | live PID, `holder: pr-fix` | `⚙ pr-fix is working the tree on PR #[pr] (PID alive). Let it finish before starting a run.` → **exit**. |
+| live PID, `holder: tinker` | `⚙ a tinker session is working the tree (PID alive). Close it (/devloop:tinker → "done") before starting a run.` → **exit**. |
+| live PID, `holder: vibe` | `⚙ vibe is building in this tree (PID alive). Let it reach its next demo point first.` → **exit**. |
 | dead PID | **Read the file's fields before deleting it** — `holder` (missing predates the field; treat as `run`) and, on a `run` lock, `issue:` captured as **`$LOCK_ISSUE`**. Then `⚠ Found a stale lock from a previous run on #[issue] — clearing it.` → delete `.lock`, proceed. |
 | absent | proceed |
 
@@ -990,8 +1028,15 @@ The terminal cleanup every workflow ends with — referenced by the design termi
    - **No-PR variant** (design, manual, scaffold — workflows that produced no PR) **or a direct merge to a non-default base** (no auto-close): **offer to close the issue** (`Close #[ISSUE] on GitHub? (y/n)`; on **y**, close via GitHub MCP with a comment noting how it was completed).
 2. Tick the issue's checkbox `[x]` in `$SPRINT_FILE`. Touch only the checkbox. Neighboring lines may already carry a trailing `✓accepted YYYY-MM-DD` from a prior `review` — do not copy that annotation onto this line or any other; it is `review`'s marker alone, and `run` writing it here would make an unreviewed, auto-merged issue look human-accepted.
 3. **Archive the state file, then release the lock.** Move `.context/sprints/state/issue-N.md` → `.context/sprints/work/issue-N/run-state-final.md` (this preserves its `## Log` — the script-timestamped run history — plus the confirmed plan and tasks, for post-mortem reference), then delete `.context/sprints/state/.lock`. Do **not** leave `issue-N.md` in `state/`: a completed issue's file lingering there would read as *in-progress* to a future `run` (Startup S4).
-4. Leave `work/issue-N/` in place (useful for reference) — it now also holds `run-state-final.md`.
-5. Print the terminal's one-line ✅ report (each terminal supplies its own wording — the delivery variants above supply the merge-path wording), then ask **"Move to the next issue? (y/n)"** — on **y**, return to **Startup S4** as the no-arg case (pick the next unchecked issue); on **n**, exit cleanly. **Auto mode skips this prompt** and exits cleanly after the report — one invocation handles one issue; sprint-level sequencing belongs to `/devloop:sprint`, not to run.
+4. **Append the journal line** — one line to `.context/devloop-journal.md`, per [The project journal](#the-project-journal--one-line-per-episode) and `skills/tinker/journal-spec.md`:
+
+   ```
+   - YYYY-MM-DD · run #[ISSUE] · shipped · `<areas>` · [what shipped, and why anything non-obvious is that way] → `sprints/work/issue-[ISSUE]/`
+   ```
+
+   Append with `cat >>`, **never `Edit`**. Script-derive the date. Take the areas from `git diff --name-only` over the issue's own range and collapse to globs — **mechanically, never composed**. This is the only record a *later* issue will read; the work dir is read by `review` and by nothing else.
+5. Leave `work/issue-N/` in place (useful for reference) — it now also holds `run-state-final.md`.
+6. Print the terminal's one-line ✅ report (each terminal supplies its own wording — the delivery variants above supply the merge-path wording), then ask **"Move to the next issue? (y/n)"** — on **y**, return to **Startup S4** as the no-arg case (pick the next unchecked issue); on **n**, exit cleanly. **Auto mode skips this prompt** and exits cleanly after the report — one invocation handles one issue; sprint-level sequencing belongs to `/devloop:sprint`, not to run.
 
 ---
 

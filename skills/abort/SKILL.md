@@ -118,7 +118,9 @@ Record the confirmed branch action; Step 4 carries it out.
 
 ## Step 4 — Cleanup
 
-Carry out the recorded decisions in this order, so the only forced branch switch is the one delete genuinely requires and the lock is always released last:
+**First, capture the branch's areas** — `git diff --name-only <base>...<branch>`, collapsed to directory globs — and hold them for step 4. A **delete** decision destroys the only thing that could answer that question, and after it the areas are unrecoverable; capture before the delete, not after, for the same reason S2 of `run` captures a stale lock's `issue:` before removing the file.
+
+Then carry out the recorded decisions in this order, so the only forced branch switch is the one delete genuinely requires and the lock is always released last:
 
 1. **Execute the branch decision** from Step 3:
    - **keep** — do nothing; leave the user on their current branch.
@@ -134,7 +136,16 @@ Carry out the recorded decisions in this order, so the only forced branch switch
    On **delete**, remove `.context/sprints/state/issue-N.md`. On **keep**, leave it and append a `## Log` line recording the abort with a script-derived timestamp (`node -e "console.log(new Date().toISOString())"`) so the resume point is dated, e.g. `- <ISO> aborted by user at phase [phase]`.
 
 3. **Release the lock.** Delete `.context/sprints/state/.lock` if it exists and it belongs to the issue being aborted (or is stale) — without it, `run` refuses to start (`⚙ run is already in progress`). The one exception: a **live** lock for a *different* issue belongs to another active run — leave it (see [Exception handling](#exception-handling)).
-4. **Leave `work/issue-N/` untouched** — its context/plan/design artifacts are harmless and useful for reference.
+4. **Append the journal line.** One line to `.context/devloop-journal.md`, per `skills/tinker/journal-spec.md`:
+
+   ```
+   - YYYY-MM-DD · abort #[N] · abandoned · `<areas>` · [what was being attempted, and how far it got before it was torn down] → `sprints/work/issue-[N]/`
+   ```
+
+   **This is the most valuable line the journal ever gets, and it is the one most likely to be skipped** — an aborted run leaves no merge commit, no closed issue, and (on a **delete** state decision, with the branch deleted) very nearly no trace at all. *Somebody already tried this and it did not work* is otherwise the single most expensive fact in a project to rediscover, and six months later the next attempt starts from zero. Write it even when the abort was routine.
+
+   Restated because this is the write site: append with `cat >>`, **never `Edit`**; script-derive the date (`node -e "console.log(new Date().toISOString().slice(0,10))"`); take the areas from `git diff --name-only $base...<branch>` **before** any branch delete in step 1 — mechanically, never composed — and where the branch is already gone or never had commits, write `—` rather than a guess.
+5. **Leave `work/issue-N/` untouched** — its context/plan/design artifacts are harmless and useful for reference.
 
 ---
 

@@ -175,6 +175,16 @@ git log <merge-commit>..HEAD --oneline -- <the task's files>
 
 Reach for it whenever a task's behavior matters and other issues merged after it. If a later commit touched this task's files, read it before you vouch for anything.
 
+**Then ask the journal *why* it was touched.** `.context/devloop-journal.md` holds one line per episode of work — every mode, not just `run` (format: `skills/tinker/journal-spec.md`). Scan it for entries whose areas cover this task's files and whose date falls after the merge commit. It is what separates two findings that look identical in a `git log`:
+
+| The journal says | What it means |
+|---|---|
+| `run #46 · shipped · src/auth/**` | a later issue rewired this — a real defect, and the rework goes against **#46**, not this task |
+| `tinker · hand-tuned · src/auth/**` — with a reason | somebody sat and watched the running app and changed it deliberately. Read the reason before you call it a regression |
+| nothing | say so. An unexplained later commit is worth opening, not worth a guess |
+
+Without this, a hand-tuned value and a regression are indistinguishable at review, and the safe-looking call — "something changed this, raise it" — sends a rework issue at a change a human made on purpose.
+
 ### 2 · Open
 
 Orient the human, then hand them the wheel. The first few lines decide where their scarce attention lands, so lead with what matters, rank it, and stop — don't pour out everything the record holds. What an opening needs to do — not a template to fill:
@@ -250,7 +260,7 @@ src/auth/session.ts:88 is the line that makes step 4 do that.
 
 Both outcome lines earn their place. Without the second one they only look for what you told them to look for, which tests your reading of the code rather than the code. Real values, not placeholders — a real seeded user, a real route.
 
-**Write it so a stranger could follow it** — plain steps, no devloop words, no code-level names unless the human uses them. *What should happen* describes what they will **see on the screen**, not what the code does internally. If a step needs a term they may not know, gloss it in the step. If `.context/devloop-profile.md` has a `dev-server` or `e2e-test` command, use it; the e2e rig usually already knows how to stand the system up.
+**Write it so a stranger could follow it** — plain steps, no devloop words, no code-level names unless the human uses them. *What should happen* describes what they will **see on the screen**, not what the code does internally. If a step needs a term they may not know, gloss it in the step. If `.context/devloop-profile.md` has a `dev-server` or `e2e-test` command, use it; the e2e rig usually already knows how to stand the system up. Its `logs` and `db-console` commands belong in a recipe too, where seeing the effect needs more than the screen — *"then run `[db-console]` and check the row is there"* — and they are what you reach for when you are **probing** rather than writing a recipe.
 
 **An AC marked `needs manual verification` is the first thing to put in a recipe.** That flag is the run explicitly deferring a check to this conversation and to this person.
 
@@ -302,17 +312,18 @@ Wait for an explicit yes. A question, a "hmm, maybe", more discussion — none o
 
 #### Applying it
 
-1. Derive `$NOW` (`node -e "console.log(new Date().toISOString())"`).
-2. Invoke the **`coder`** agent with `$MODE: express` and **`$NO_COMMIT` set**, `$WORK_DIR` and `$LOG_DIR` as **absolute** paths under `.context/sprints/work/issue-N/`, `$CHECKS` from `.context/devloop-profile.md`, `$ACCEPTED` from `.context/devloop-baseline.md`, and `$TASK` as the fix stated inline — there is no `plan.md` entry for it — naming the exact files it may touch.
-3. It runs the checks and leaves the change **uncommitted**.
-4. **Show the real diff** — `git diff` as it printed, not your description of it — plus which checks passed.
-5. Confirm:
+**Follow `skills/tinker/tweak-spec.md`** — it owns the commissioned-edit mechanism, shared with `/devloop:tinker` and `/devloop:vibe`. Derive `$NOW` first (`node -e "console.log(new Date().toISOString())"`), and invoke the `coder` with `$MODE: express`, `$WORK_DIR`/`$LOG_DIR` **absolute** under `.context/sprints/work/issue-N/`, `$CHECKS` from the profile, `$ACCEPTED` from the baseline, and `$TASK` as the fix stated inline — there is no `plan.md` entry for it.
 
-   > Commit this to `[base]`? (commit / retry: [what to change] / discard)
+The spec's rules, restated because this is the write site and the nearest wording always wins:
 
-**retry** — re-invoke the coder with the correction. **Two coder attempts in total, no more**; after that, discard and escalate.
+- **`$NO_COMMIT` is set.** The coder never commits here. "Diff after" is what makes the gate real — a commit made before the human looks turns their "no" into a history rewrite on the base branch.
+- **`$TASK` names the exact files it may touch.** A file in the diff that nobody named is an escalation, not a surprise to absorb.
+- **Show the real diff** — `git diff` as it printed, not your description of it — plus which checks passed. Then confirm:
 
-**discard** — restore the tracked files the coder listed (`git checkout -- <files>`) and delete the ones it marked as new. Nothing was committed, so there is nothing to revert. **Never `git clean` broadly and never `git reset`** — touch only the files the coder named. Anything wider is the patch reaching outside its own scope, on a branch other people's work sits on.
+  > Commit this to `[base]`? (commit / retry: [what to change] / discard)
+
+- **Two coder attempts in total, no more.** After that, discard and escalate.
+- **discard** restores only the tracked files **the coder listed** (`git checkout -- <files>`) and deletes the ones it marked as new. **Never `git clean` broadly and never `git reset`** — anything wider is the patch reaching outside its own scope, on a branch other people's work sits on.
 
 #### Escalate instead
 
@@ -324,6 +335,8 @@ Stop the patch and go to **rework** (§6) the moment any of these shows up. Do n
 - a design or architecture question appears — that belongs to `/devloop:architect` or a planned issue, never to a gate in a conversation
 
 Say plainly what happened, then offer the alternative: "this turned out bigger than a patch — [why]. Make it an issue?"
+
+**When there are several of them, that is a different tool.** A handful of small things found while clicking through the running app is `/devloop:tinker` — a session with the app in front of you, one commit per change, on its own branch. The patch is for the one thing you noticed mid-review; say so and hand over rather than running six patches through this gate.
 
 #### Recording it
 
@@ -339,6 +352,13 @@ Only after the human says commit, and all three:
 
 2. **Zone 2** — append one entry to `work/issue-N/context.md` stamped `$NOW`: what was wrong, what changed, the SHA, and **`Caught by: human`** (or `Caught by: demo` if a demo turned it up). A patch is a detection event like any other, and this is what puts it in the retro's Loop calibration.
 3. **Comment on the issue** on GitHub: what was patched, and the SHA. The issue is usually closed by now, and this comment is the only thing that makes the second touch visible to someone reading GitHub instead of this repo's `.context/`. In the project's language, not the conversation's.
+4. **Append the journal line** — `.context/devloop-journal.md`, per `skills/tinker/journal-spec.md`:
+
+   ```
+   - YYYY-MM-DD · review patch #[N] · hand-tuned · `<areas>` · [what was wrong, and what it now does] → `sprints/work/issue-[N]/`
+   ```
+
+   This is what stops the *next* review — or the next `run` — reading your deliberate change as an unexplained later commit (see [Two timeframes](#1--sources)). Restated because this is the write site: append with `cat >>`, **never `Edit`**; script-derive the date; take the areas from `git diff --name-only` on the patch commit and collapse to globs — **mechanically, never composed**; and carry the **why**, since a line without it is a changelog and git already has one.
 
 Then carry on. A patched task is still **un-accepted** — the human gives the verdict as usual, and `✓accepted` still only fires at §6.
 
@@ -360,6 +380,7 @@ Everything above is judgment. These are not.
   - "we should also…" (new scope) → offer `/devloop:backlog`.
   - "the plan/roadmap should change" → `/devloop:replan` (sprint composition) or `/devloop:roadmap` (vision).
   - "review the code itself" → `/devloop:pr-review`.
+  - **a list of small things they noticed while using it** → `/devloop:tinker`. One of them is a patch (§4.5); six of them is a session with the app open in front of them, one commit per change. Running six patches through this gate one at a time is the slow way to do that, and it leaves the review conversation half-finished.
   - **"the *process* should change"** — feedback about devloop's own loop rather than the product: a gate that fired too late, an agent that trusted something it shouldn't have, a check that never earns its keep. This is the most valuable thing the outer loop produces and it has nowhere else to go, so **capture it verbatim** rather than reasoning it away — at sprint scope it lands in the retro's **Loop calibration** section; at task scope, record it in Zone 2 and carry it to the sprint retro. Never silently convert it into a code change.
 
 ### 6 · Resolve
@@ -447,6 +468,11 @@ On **local**, set `$GITHUB_UNAVAILABLE = true` and skip every GitHub/milestone c
 **Active-run guard.** Read `.context/sprints/state/.lock` if it exists. Read its `holder` field (a missing field predates it — treat as `run`) and determine PID liveness with `kill -0 <pid> 2>/dev/null` (exit 0 = alive).
 
 - **Live PID, `holder: pr-fix`** — a pr-fix is editing a PR's tree. It doesn't execute a sprint issue, so it doesn't block the close, but a PR is mid-edit: note it (`⚙ pr-fix is active on PR #[pr] — proceeding; review won't touch it. Its fixes won't be reflected until it pushes.`) and continue.
+- **Live PID, `holder: tinker` or `holder: vibe`** — something is changing the tree right now, on a branch this review would then be reading against a moving `HEAD`:
+
+  > ⚙ A tinker session is live in this tree. Close it (`/devloop:tinker` → "done") before the sprint review, so what I read is what shipped.
+
+  Stop. The patch gate (§4.5) also requires no live lock, so continuing would give a review that can neither trust `HEAD` nor fix anything it finds.
 - **Live PID, `holder: run`, locked issue is in this sprint** — a run is mid-flight:
 
   > ⚙ `run` is active on #[N] (PID alive). A sprint can't be reviewed and closed while an issue is still executing. Finish that run, or `/devloop:abort` it, then re-run `/devloop:review`.
@@ -462,6 +488,10 @@ On **local**, set `$GITHUB_UNAVAILABLE = true` and skip every GitHub/milestone c
 - Read milestone `$MILESTONE_NUMBER` via the **bundled github-extras MCP's milestone-listing operation** (`owner`, `repo`, `state: all` — it may already be closed by an earlier run of this skill), taking the entry with that number: `$MILESTONE_DUE` (from `due_on` — the ISO date, or `no due date` when null), `$MILESTONE_OPEN` (`open_issues`), `$MILESTONE_CLOSED` (`closed_issues`), and its current `state` (`open`/`closed`). The **official** GitHub MCP has no milestone tools — don't look for one there. If the read fails or returns no such milestone, treat these as `unknown` and say so in the header; never fill them in from the sprint file or from memory.
 
 **Read the baseline.** Read `.context/devloop-baseline.md` if it exists — the accepted-failing allowlist. Collect entries whose `tracking:` issue is still open (carry-over debt) and any `added-by: issue #X` where X is in this sprint (debt this sprint introduced).
+
+**Read the unproven ledger.** Read `.context/devloop-unproven.md` if it exists — behaviour that shipped **without a test, by an explicit decision**, almost always from a `/devloop:tinker` session where somebody watching the app said "not now". Collect the open rows. These are different from baseline entries and the difference matters when you put it to the human: a baselined check is *a test that fails on purpose*; an unproven row is *behaviour with no test at all*, so nothing will tell anyone when it stops working. Step 5 offers each row as a backlog issue.
+
+**Read the journal.** Scan `.context/devloop-journal.md` for lines dated inside this sprint. It is the only record of work that happened outside the issue list — tinker sessions, patches, architect decisions — and without it the snapshot below silently claims the sprint was only its issues.
 
 **Look for halted runs.** List `.context/sprints/state/issue-*.md`. A state file still sitting in `state/` means that issue is **mid-flight**: `run` archives that file to `work/run-state-final.md` on completion, so its presence means completion never happened. With no live lock, that is a run that stopped — almost always an auto-mode **stop-the-line** (coder stuck, an unfixable failure, a design still `needs-work`, a conflict, a manual task). Read its `## Log` for the blocker reason and its `phase:` for how far it got.
 
@@ -506,6 +536,8 @@ Present a read-only snapshot (no gate yet):
 
 > **[K] shipped · [B] blocked · [M] unfinished · [D] done ⚠** ([X] of [T] complete) · **[A] accepted · [P] awaiting review**
 > Known-failing debt still open: [count] ([list tracking issues] — or "none")
+> Shipped with no test proving it: [count] ([the areas] — or "none")
+> Also changed this sprint, outside the issue list: [n] hand-tuning session(s) — [areas]   ← omit if the journal has none
 >
 > **Worth your attention:** #43 [and …] — the rest ran clean.   ← omit if no issue carries a ⚠
 
@@ -645,6 +677,18 @@ Use it as `$CLOSED_DATE`. Build the draft from observable data — shipped issue
 - [check] [test] — tracking #[issue]    ← baseline entries still open
 (— "None" —)
 
+## Shipped without proof
+Behaviour that went out with no test, by an explicit decision at the time. From
+`.context/devloop-unproven.md`. Different from the debt above: a known-failing test still
+runs and still reports; these have nothing watching them at all.
+- [area] — [what it does] · [what would prove it] · from [source]  → [tracked as #[M] / not tracked]
+(— "None" —)
+
+## Changed outside the issue list
+From `.context/devloop-journal.md` — work this sprint that no issue covers.
+- YYYY-MM-DD · [mode] — [what and why] ([areas])
+(— "None" —)
+
 ## Loop calibration
 Which gates actually caught the defects this sprint — tallied from the `Caught by:` fields in each
 issue's Zone 2 timeline. A gate that never fires is either unnecessary or not working; a gate that
@@ -731,6 +775,26 @@ On **n**, stop here — the retro, verdicts, and tag are already saved; the spri
    > These known-failing entries track issues that are now closed: [list]. Remove them from the baseline? (y/n)
 
    On **y**, drop those entries. Leave entries with still-open tracking issues — they're real carry-over debt and already appear in the retro.
+
+4. **Offer each open unproven row as an issue.** For every row in `.context/devloop-unproven.md` not already tracked:
+
+   > [n] change(s) shipped this sprint with nothing proving they keep working:
+   >
+   > - dates render in the viewer's local zone (`src/lib/format.ts`) — proof: render a known timestamp in two zones and assert both
+   >
+   > Want these tracked so they get scheduled? (all / pick / skip)
+
+   On **all** or a pick, create a `type:backlog` issue per row via GitHub MCP — title from *what it does*, body carrying *what would prove it* and the source — then write the issue number into the row's `Source` column so it is never offered twice. On **skip**, leave the rows and let the retro name them.
+
+   **This is a nudge, not a gate.** Nothing here blocks the close: a sprint close is a ceremony, not a release gate, and the project already has the right shape for accepted debt — record it against a tracking issue and move on. (The `vibe` track is the exception, and it is deliberate: there an uncovered row still blocks the *share*, because that is the one moment the rationale lands on its own.)
+
+5. **Append the journal line** — `.context/devloop-journal.md`, per `skills/tinker/journal-spec.md`:
+
+   ```
+   - YYYY-MM-DD · review s[N] · closed · — · sprint [N] closed; [K] shipped, [n] unproven rows open → `sprints/sprint-[N]-review.md`
+   ```
+
+   Small, and it does one specific job: the retrospective is currently written for nobody, and this line is what makes it reachable — `/devloop:plan` reads the previous sprint's retro when scoping the next one. Restated because this is the write site: append with `cat >>`, **never `Edit`**, and script-derive the date.
 
 ### Completion report
 

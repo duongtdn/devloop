@@ -301,6 +301,31 @@ Numbering: next `NNN` from `index.md` (zero-padded, global — not per sprint).
 
 Maintain it in the same confirmed write as the ADR: append the new line, never let index and files disagree. Reasoning stays in the ADR; the index line stays one line.
 
+### The journal line
+
+The same confirmed write also appends one line to `.context/devloop-journal.md` — the project's
+episode record, format in `skills/tinker/journal-spec.md`:
+
+```
+- YYYY-MM-DD · architect · decided · `src/api/**` · ADR-007 — database access confined to `api/` → `decisions/adr-007-db-in-api.md`
+```
+
+`superseded` instead of `decided` when the ADR replaces an earlier one — and then **two** lines, since
+the supersession is its own event and the earlier decision's line must not be rewritten.
+
+Two records, deliberately, because they answer different questions and are read by different things.
+The index is the **law**: the `context` agent puts a matching ADR into Zone 1 under **Constraints**,
+where it binds the work and is checked at `gate-plan`. The journal is the **timeline**: it is how
+someone reading back through what happened to this project finds the decision sitting in sequence
+beside the runs and the tuning sessions that preceded it, which is usually the only way to see *what
+pressure produced it*.
+
+Restated because this is the write site: append with `cat >> .context/devloop-journal.md`, **never
+`Edit`**; the date is script-derived
+(`node -e "console.log(new Date().toISOString().slice(0,10))"`); the areas are the ones the ADR
+governs — the same ones already in the index hook, so copy them rather than composing a second answer.
+Never rewrite an earlier journal line.
+
 ### Supersession
 
 When a settled conversation contradicts an accepted ADR:

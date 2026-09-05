@@ -50,7 +50,7 @@ Extract from the sprint file:
 - Issue list — all `- [ ]` and `- [x]` lines, in order. Each line may carry trailing annotations per the sprint-file line grammar (`plan-spec.md` in the plan skill): strip `⚠ unassigned` before parsing, and capture `✓accepted YYYY-MM-DD` (written by `/devloop:review` when a human accepted the task) as `$ACCEPTED[N] = date` before stripping it too. Then extract the issue number, title, and labels.
 
 **Lock detection.** If `.lock` exists:
-- Read `$LOCK_HOLDER` (`run` or `pr-fix`; a missing field predates the `holder` field — treat as `run`), `$LOCK_PID` (PID), and `$LOCK_START` (start time). When `$LOCK_HOLDER` is `run`, read `$LOCKED_ISSUE` from `issue:`; when it is `pr-fix`, read `$LOCKED_PR` from `pr:` and leave `$LOCKED_ISSUE` unset (a pr-fix lock holds the tree but is not a sprint run).
+- Read `$LOCK_HOLDER` (`run`, `pr-fix`, `tinker` or `vibe`; a missing field predates the `holder` field — treat as `run`), `$LOCK_PID` (PID), and `$LOCK_START` (start time). When `$LOCK_HOLDER` is `run`, read `$LOCKED_ISSUE` from `issue:`; when it is `pr-fix`, read `$LOCKED_PR` from `pr:`; when it is `tinker`, read `$LOCKED_SESSION` from `session:`. In every case but `run`, leave `$LOCKED_ISSUE` unset — those holders own the tree but are not a sprint run, so no sprint issue is in flight.
 - Determine PID liveness by running `kill -0 $LOCK_PID 2>/dev/null`. Exit code 0 means the process is alive; non-zero means it is gone. If the shell call cannot be made, treat the lock as live (safe default).
 - Set `$LOCK_STATE`:
   - `live` — lock file exists and process is running
@@ -128,6 +128,10 @@ If the master plan shows this sprint with `- **Status:** completed`:
 |---|---------------|-------------------------------|------------------------|--------|
 | `pr-fix` | `live` | — | — | `⚙ pr-fix is working PR #[LOCKED_PR] on the working tree (not a sprint run).` |
 | `pr-fix` | `stale` | — | — | `⚠ Stale pr-fix lock (PR #[LOCKED_PR]) — exited uncleanly. The next /devloop:run or /devloop:pr-fix will clear it.` |
+| `tinker` | `live` | — | — | `⚙ A tinker session ([LOCKED_SESSION]) is changing the working tree (not a sprint run).` |
+| `tinker` | `stale` | — | — | `⚠ Stale tinker lock ([LOCKED_SESSION]) — exited uncleanly. /devloop:tinker will offer to resume or close that session.` |
+| `vibe` | `live` | — | — | `⚙ vibe is building in this tree (not a sprint run).` |
+| `vibe` | `stale` | — | — | `⚠ Stale vibe lock — exited uncleanly. The next /devloop:vibe will clear it.` |
 | `run` | `live` | yes | false | `⚙ In progress: #[N] — [title] (since [start time])` |
 | `run` | `live` | yes | true | `⚙ #[N] was closed on GitHub while run is still active — it may be wrapping up.` |
 | `run` | `live` | no | — | `⚙ run is active on #[N] (a different sprint) — this snapshot is for Sprint [current sprint].` |

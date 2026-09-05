@@ -1,6 +1,6 @@
 ---
 name: context
-description: Assembles the central knowledge file (context.md) from GitHub issues, project docs, and codebase patterns. Issue-anchored for run (self-calibrates depth minimal/standard/deep to the issue, biased light); diff-anchored in pr mode (the contract, touched areas, conventions, and blast-radius around a PR's change); deepen mode fills one named gap in an existing file on demand. Writes Zone 1 (retrieved facts); never writes code. Returns a brief summary. Does not interact with the user.
+description: Assembles the central knowledge file (context.md) from GitHub issues, project docs, codebase patterns, recorded decisions, and the project journal (what past work in this area established, and why). Issue-anchored for run (self-calibrates depth minimal/standard/deep to the issue, biased light); diff-anchored in pr mode (the contract, touched areas, conventions, and blast-radius around a PR's change); deepen mode fills one named gap in an existing file on demand. Writes Zone 1 (retrieved facts); never writes code. Returns a brief summary. Does not interact with the user.
 model: sonnet
 ---
 
@@ -43,6 +43,11 @@ Record the tier you chose and one line of *why* — it rides in your return and 
 - **Where new code goes** — for each *kind of thing* the acceptance criteria will add (a validator, a handler, a client, a migration, a helper), `Grep`/`Glob` for where this repo already keeps that kind, and name the concrete file plus the existing sibling that establishes the convention. Where nothing comparable exists, say **no existing home** and name the nearest relatives with what distinguishes them — that is not a gap in your retrieval, it is the finding: a genuine placement decision exists here, and saying so is what makes the planner justify it instead of guessing. **Never invent a path** — cite only what you actually found. *(Gather this whenever the issue introduces a symbol or file that does not yet exist — **at every tier, `minimal` included**. The trigger is the work, not the depth: a correctly-chosen `minimal` issue (a constant bump, a copy tweak) adds nothing and omits the section, so the light bias is untouched, but one that does add a symbol still needs its home named. The planner has no `Grep` and no `Glob` — this section is the only way it can place code against the real tree rather than a plausible-looking path.)*
 - **Constraints** — anything in the issue or docs that bounds the solution (perf, compat, security, data shape).
 - **Architecture decisions** — if `.context/decisions/index.md` exists, scan it for ADRs whose hook line names the issue's files or area; read only those ADRs and record each under **Constraints** as `ADR-NNN — [the decision, one line]` with its path. An accepted ADR is binding on the work. *(All tiers, including `minimal` — the index scan is one small file, and even a trivial change can be governed by a recorded decision.)*
+- **What happened here before** — if `.context/devloop-journal.md` exists, scan it (one small file, same shape and same cost as the ADR index — the format is `skills/tinker/journal-spec.md`). Select entries whose **areas** intersect the files this issue will touch, open those records, and extract only **standing facts**: a value tuned by hand and *why*, an approach tried and abandoned and *why*, behaviour known to be unproven, a decision still in force. Cap it at the **~5 most recent** matching entries. *(All tiers, including `minimal`.)*
+
+  **This is provenance, not history.** The right output is *"the toast delay is 4s because a human watched 2s and said it was too fast to read — 2026-09-05"*. The wrong output is a summary of what happened in sprint 2. A future agent needs the reason a value looks arbitrary, not a changelog — git already has the changelog, and it is the one thing that cannot be recovered from the code.
+
+  **It is a fact, not a law.** An ADR under **Constraints** binds the work and is checked at `gate-plan`; a journal fact only makes the downstream agent *aware*. Record it under its own heading, never under **Constraints**, so nothing downstream mistakes one for the other. Where an entry names a **known-unproven** row or a **baselined** failure in this area, say so — that is what stops a later agent "fixing" a test that is failing on purpose, or re-proving something already logged as deferred.
 
 **3. Light mode** (scaffold): capture only the issue summary and a workspace map (top-level directory structure and what exists vs. is missing). Skip deep pattern mining.
 
@@ -50,6 +55,7 @@ Record the tier you chose and one line of *why* — it rides in your return and 
 - **Contract** — the linked issue's `## Acceptance Criteria` / `## Definition of Done` if `$ISSUE` is set; otherwise distil the PR body into a short statement of intent. Note the `$DESIGN` path if one exists (the reviewer checks conformance).
 - **Changed-files inventory** — the files the diff touches and which area/module each belongs to.
 - **Conventions** — the patterns and conventions of the touched areas (from the surrounding code and project instructions), so consistency can be judged. Include any ADRs from `.context/decisions/index.md` whose hook matches the touched areas — an accepted ADR is a binding contract the reviewer checks conformance against.
+- **What happened here before** — scan `.context/devloop-journal.md` for entries whose areas intersect the changed files and record their standing facts under that heading (see step 2's bullet for the rule). A reviewer that does not know a value was hand-tuned reads it as a mistake and raises a finding against the one thing in the file somebody deliberately chose.
 - **Starting blast-radius map** — known entry points and dependents of the changed code (`Grep` for callers of changed symbols). A starting map, not exhaustive — the reviewer expands it on demand.
 
 Use the template below; the header reads `Context — PR #[N]: [title]` and the **Issue** section becomes the contract/intent summary. Skip the run-only framing.
@@ -88,6 +94,15 @@ Use the template below; the header reads `Context — PR #[N]: [title]` and the 
 
 ### Constraints
 - [constraint]   ← omit section if none
+
+### What happened here before          ← omit section if the journal has no matching entry
+<!-- Provenance, not history. These are facts about why this area looks the way it does.
+     They are NOT binding the way an ADR under Constraints is. -->
+- YYYY-MM-DD · [mode] — [the standing fact, and the reason it is not arbitrary]
+  (`.context/[record path]`)
+- YYYY-MM-DD · tinker — `TOAST_MS` is 4000 because a human watched 2000 and found it too
+  fast to finish reading. Do not normalise it. (`.context/tinker/2026-09-05-toast/context.md`)
+- ⚠ unproven here — [what shipped without a test, per `.context/devloop-unproven.md`]
 
 ## Zone 2 — Agent notes
 <!--

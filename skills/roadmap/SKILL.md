@@ -178,11 +178,15 @@ e2e-test:   <command>
 typecheck:  <command>
 lint:       <command>
 dev-server: <command>
+logs:       <command>
+db-console: <command>
 
 unit-tests:  <glob for unit test files>
 e2e-tests:   <glob for e2e test files>
 frameworks:  <comma-separated, e.g. vitest, playwright>
 ```
+
+**`dev-server`, `logs` and `db-console` are the observation commands** — not checks, never run as part of a gate. They are how `/devloop:tinker` probes a running system and how `/devloop:review` writes a demo recipe a human can actually follow. `logs` is whatever tails this project's output (`docker compose logs -f app`, `tail -f var/log/dev.log`, `npm run dev` itself when it logs to the foreground); `db-console` is whatever opens a query prompt against the dev database (`psql $DATABASE_URL`, `sqlite3 dev.db`). Leave either blank when the project has no such thing — a blank field is an answer, and a guessed command that fails in front of the user is worse than none.
 
 List only the checks `run` should execute **locally**. A heavy check the project's CI owns (a full e2e matrix, integration, a security scan) is simply left out — in `--pr` mode branch protection still gates the merge on CI, and `direct` mode has no CI, so the listed checks are the whole gate.
 
@@ -204,6 +208,7 @@ Scan the working directory for build/test tooling and infer commands. Do not gue
 | Signal file | Infer from |
 |---|---|
 | `package.json` | `scripts` (build, test, lint, typecheck, dev/start); frameworks from dependencies (vitest, jest, mocha, playwright, cypress) |
+| `docker-compose.yml` / `compose.yaml` | `logs:` (`docker compose logs -f <app service>`) and `db-console:` (`docker compose exec <db service> psql -U <user> <db>`) — only when the service names are actually in the file |
 | `pyproject.toml` / `setup.cfg` / `tox.ini` | pytest, ruff/flake8, mypy, build backend |
 | `Cargo.toml` | `cargo build` / `cargo test` / `cargo clippy` |
 | `go.mod` | `go build ./...` / `go test ./...` / `go vet ./...` |
@@ -228,7 +233,7 @@ If nothing is found (greenfield / not yet scaffolded):
 > frameworks: vitest
 > ```
 >
-> Inferred from `package.json`. Couldn't determine: `e2e-test`, `e2e-tests`. Fill these in, correct anything, or confirm:
+> Inferred from `package.json`. Couldn't determine: `e2e-test`, `e2e-tests`, `logs`, `db-console`. Fill these in, correct anything, or confirm:
 
 Wait for the user's response. Apply edits and re-present until confirmed. On confirmation, write `.context/devloop-profile.md` using the canonical format — omit any field left blank. Report:
 

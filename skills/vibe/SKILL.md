@@ -116,6 +116,13 @@ That readability is a design goal, not a side effect.
 | `.context/devloop-profile.md` | this skill, after scaffold | build/test commands — shared with the rest of devloop |
 | `.context/vibe/work/m<N>/context.md` | this skill (Zone 1); `coder`/`reviewer` (Zone 2) | what the agents read and the decision trail |
 | `.context/vibe/work/m<N>/logs/` | `coder`, `test-runner` | raw failure output — cited, never pasted into the conversation |
+| `.context/devloop-journal.md` | this skill (at each demo point), `tinker` | one line per episode of work — the record that survives graduation, and the surface the full loop's `context` agent scans. Spec: `skills/tinker/journal-spec.md` |
+
+**The ledger stays in `vibe.md`.** The rest of devloop keeps deferred-proof rows in
+`.context/devloop-unproven.md`; vibe does not, and `tinker` running in a vibe project writes to
+*What we haven't proved yet* here instead. The manifest is the file the owner can open and read, and
+splitting their own record in half — some of it in a machine file they will never see — would make the
+one document written for them incomplete. One reader, one file.
 
 **`$WORK_DIR` and `$LOG_DIR` are always passed to agents as absolute paths**, anchored to a
 `$REPO_ROOT` captured once at startup. A check command may `cd` into a subdirectory, and that `cd`
@@ -406,8 +413,22 @@ When the milestone's last task is committed:
    fix it, then demo.
 4. **Tag it** — `git tag -a vibe-demo-<N> -m "<the demo, in one line>"`. This is the undo point, and a
    real tag rather than a hidden ref precisely so the user can be told it exists.
-5. Write `Tagged:` in the manifest, set `Status: awaiting-feedback` and `At: -`, release the lock.
-6. Go to **5 · Feedback**.
+5. **Append the journal line** — one line to `.context/devloop-journal.md`, per
+   `skills/tinker/journal-spec.md`:
+
+   ```
+   - YYYY-MM-DD · vibe m<N> · shipped · `<areas>` · [what the milestone made possible, and why anything non-obvious is that way] → `vibe/work/m<N>/context.md`
+   ```
+
+   This is what survives **graduation**: if the project outgrows vibe, the journal is the one record
+   that carries across, so the full loop's agents inherit a real history rather than a brief and some
+   prose. Restated because this is the write site: append with `cat >> .context/devloop-journal.md`,
+   **never `Edit`** (an `Edit` lands wherever its anchor matched; `>>` cannot). Script-derive the date.
+   Take the areas from `git diff --name-only <previous tag>...HEAD` and collapse to directory globs —
+   **derived mechanically, never composed**. One line; the detail is in the record it points at. Write
+   it in the repo's language, not the conversation's.
+6. Write `Tagged:` in the manifest, set `Status: awaiting-feedback` and `At: -`, release the lock.
+7. Go to **5 · Feedback**.
 
 ---
 
@@ -574,15 +595,17 @@ the moment they have the most context they will ever have: they have just watche
 
 ### The patch — for a fix that changes no behaviour
 
-A wrong message, a stale label, a missing guard. **Follow `skills/review/SKILL.md` § 4.5** — it owns
-this gate, and it applies here unchanged except that vibe's preconditions are simpler (no sprint file,
-no issue).
+A wrong message, a stale label, a missing guard. **Follow `skills/tinker/tweak-spec.md`** — it owns
+this gate, shared with `/devloop:review` and `/devloop:tinker`, and it applies here unchanged except
+that vibe's preconditions are simpler (no sprint file, no issue).
 
 Preconditions, all of them: **the change adds no behaviour** — ask it out loud and get an answer, never
 settle it from how small the diff looks; the working tree is clean; the task shipped.
 
-Then: `coder` (`mode: express`, `$NO_COMMIT`) → **show the real `git diff` as it printed**, not your
-description of it → secret scan → explicit *commit* → you commit. Two coder attempts, no more.
+Then: `coder` (`mode: express`, **`$NO_COMMIT`**) → **show the real `git diff` as it printed**, not your
+description of it → secret scan **and** seed-boundary grep → explicit *commit* → you commit. **Two
+coder attempts, no more.** On discard, restore only the files the coder named — **never `git reset`,
+never a broad `git clean`.**
 
 **Escalate to a follow-up task** the moment the coder returns `blocked` or `not-trivial`, the checks
 fail twice, it needs a file nobody named, or a design question appears. Say what happened, then offer
@@ -590,6 +613,26 @@ the alternative.
 
 Anything that **adds behaviour** is not a patch. It is a follow-up task and it goes through stage 4 —
 with its own ledger row, because it is new behaviour and nothing has proved it.
+
+### When there are several of them — hand over to tinker
+
+One small thing is a patch. **Half a dozen** small things — which is the normal harvest from someone
+who has just spent ten minutes clicking around their own app — is a different shape of work, and
+running them through this gate one at a time makes the person wait on a full cycle for each.
+
+`/devloop:tinker` is built for exactly that: it opens a session on its own branch with the app running
+in front of them, takes one instruction at a time, commits each change separately so any one of them
+can be backed out cleanly, and merges the lot after an independent test run and a review pass. It
+detects this is a vibe project on its own and speaks the way you do — no flag, no setup.
+
+Say it plainly and let them choose:
+
+> That's six things rather than one. I can go through them one at a time here, or we can open a
+> working session where you keep the app open and we go through the whole list — you'll see each
+> change as we make it. (one at a time / working session)
+
+Its ledger rows land in **this manifest**, not in a separate file — see below. Anything it can't do as
+a small change comes back here as a follow-up task.
 
 ### Then
 
@@ -680,7 +723,10 @@ vibe is for small apps. When it stops being one, say so — and never hard-block
 > Want to keep going as we are, or move over? We'd keep everything that's built.
 
 The brief carries over unchanged. Decisions carry over as prose that `/devloop:architect` can promote
-into real decision records.
+into real decision records. **And `.context/devloop-journal.md` carries over as-is** — it is
+mode-agnostic by design, so the full loop's `context` agent starts with a real history of what was
+built here and why, rather than having to re-derive it from the code. Say that when you offer the
+move: nothing they have watched being built gets forgotten.
 
 ---
 
@@ -700,5 +746,7 @@ into real decision records.
 - Never demos a stand-in without naming it, or ships one without retiring it.
 - Never lets a deploy or a share happen with an uncovered ledger or an unretired stand-in.
 - Never runs `git reset` or `git clean` without an explicit yes to that exact action.
+- Never reaches a demo point without appending its journal line — that line is what survives
+  graduation, and there is no later moment to write it.
 - Never touches GitHub, sprint files, milestones, or issues.
 - Never fabricates a result: if it cannot tell whether something worked, it says so.
