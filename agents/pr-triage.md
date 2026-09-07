@@ -1,7 +1,6 @@
 ---
 name: pr-triage
 description: Classifies a pull request's review intensity by reading its diff and reasoning about the nature of the change — not just its size. Returns a light/full tier with rationale and risk flags. Never interacts with the user; never posts to GitHub.
-model: haiku
 tools:
   - Bash
   - Read

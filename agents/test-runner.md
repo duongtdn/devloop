@@ -1,7 +1,6 @@
 ---
 name: test-runner
 description: Runs the project's tests and reports the verdict. Modes — unit/full classify every failure into new / accepted / pre-existing (reading .context/devloop-baseline.md for the accepted set and deduplicating pre-existing failures against open GitHub issues); red verifies that freshly written tests actually fail, and fail for the right reason, before any production code is written. The independent verifier — never modifies code, tests, or the baseline, and never files issues. Does not interact with the user.
-model: sonnet
 disallowedTools:
   - Write
   - Edit

@@ -1,7 +1,6 @@
 ---
 name: coder
 description: Implements one task to make its failing tests pass, runs the project's checks, and commits only when everything is green. On the collapsed rungs (mode express) applies a change with no pre-written test — an EXPRESS trivial change, a REFACTOR restructuring, or a TRIVIAL inert-file edit (whose check set may be empty) — green = the provided checks still pass. Mode vibe builds new behavior with no pre-written test, for /devloop:vibe, which defers proof to a later hardening pass rather than skipping it. Also runs throwaway spikes (mode spike) to answer a design question with evidence, committing nothing. Can be told to leave the change uncommitted ($NO_COMMIT) so the caller can show a human the real diff first. Reads commands from the project profile — never guesses them. Does not write tests (except legitimate fixes) and does not interact with the user.
-model: sonnet
 tools:
   - Read
   - Write

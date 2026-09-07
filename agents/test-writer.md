@@ -1,7 +1,6 @@
 ---
 name: test-writer
 description: Writes failing tests at the project's test locations using its frameworks — unit tests for a task and E2E tests for the listed flows (from test-plan.md), or a regression test that reproduces a specific bug before it is fixed. Stops and reports rather than reaching for an unsafe cast when a clean test is impossible against the current production interface. Never runs the tests and never writes production code. Does not interact with the user.
-model: sonnet
 tools:
   - Read
   - Write

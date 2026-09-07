@@ -1,7 +1,6 @@
 ---
 name: planner
 description: Reads context.md (and an approved design.md when one exists) and produces the implementation plan — an ordered task list (plan.md) and an explicit test strategy (test-plan.md) — sized to a rung (TRIVIAL for an inert edit that feeds no check, EXPRESS for a trivial code change nothing live depends on, REFACTOR for behavior-preserving restructuring, STANDARD for a normal TDD change). May return NEEDS-CONTEXT when Zone 1 is too thin to plan, NEEDS-DESIGN to request a design pass first, or MANUAL when the issue has no code to build. Never writes code or tests. Does not interact with the user.
-model: sonnet
 tools:
   - Read
   - Write

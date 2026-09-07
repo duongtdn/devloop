@@ -1,7 +1,6 @@
 ---
 name: designer
 description: The design/architecture specialist. Two modes — design (author an implementation guide / decision doc, design.md, against a rubric, flagging assumptions that need a spike to prove) and critique (an independent second opinion scoring a design against named quality criteria). Never writes production code. Does not interact with the user.
-model: sonnet
 tools:
   - Read
   - Grep

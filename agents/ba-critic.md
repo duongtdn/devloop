@@ -1,7 +1,6 @@
 ---
 name: ba-critic
 description: Reads a drafted product brief and reports what is not checkable — vague capabilities, undefined domain nouns, a missing exclusion list, a scenario too abstract to disagree with. The independent check on a comfortable discovery conversation, which otherwise produces a comfortable and wrong brief. Reasons only; writes nothing and does not interact with the user.
-model: sonnet
 tools:
   - Read
 disallowedTools:
