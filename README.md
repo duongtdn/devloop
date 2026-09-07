@@ -145,6 +145,8 @@ It is not the sprint loop with the tests switched off. It's a separate, lighter 
         │
         ▼
    ┌─► build to the next demo ──► "here's how to try it" ──► your feedback ─┐
+   │            ▲                                                           │
+   │            └── "change something first" ──► the plan changes           │
    │                                                                        │
    └────────────────── run /devloop:vibe again ◄────────────────────────────┘
                                     │
@@ -153,7 +155,10 @@ It is not the sprint loop with the tests switched off. It's a separate, lighter 
                       before anyone else can use it
 ```
 
-**No arguments, ever.** Run `/devloop:vibe` and it picks up wherever you left off.
+**No flags, ever.** Run `/devloop:vibe` and it picks up wherever you left off. If you want something
+else, just say it after the command — `/devloop:vibe I want to add a screen for the monthly report`, in
+whatever language you speak. That is read as what you meant, not parsed as an option, and it never
+starts building anything: it opens a conversation.
 
 **What makes it different from just asking an AI to build you an app:**
 
@@ -162,6 +167,8 @@ It is not the sprint loop with the tests switched off. It's a separate, lighter 
 - **Every technical decision comes with whether it can be undone.** Nobody tells non-technical people this, and it's the single most useful thing to know: it's what tells you which choices are worth arguing about.
 - **Your feedback gets classified out loud** — a *fix*, a *follow-up*, or a *new idea that isn't in what we agreed to build*. That last one is why small projects never finish, and it's invisible unless someone names it.
 - **Every demo is a tag you can go back to.** "I don't like this" is a supported operation.
+- **The plan is not a contract you signed at the start.** You change your mind *because* you've seen it running — that's the whole point of building it this way — so changing the plan is as ordinary as giving feedback. Every milestone starts by telling you what's coming and waiting (*"go / change something first"*), and you can say so at any other moment too. What's already built and running stays built: if you want it gone, that's a real change you get told about, not a quiet edit to the plan that pretends it never happened.
+- **It remembers which language to talk in.** You can be talked to in Vietnamese while the code is written in English, or have both in Vietnamese — two separate settings, decided once and kept across sessions, so it doesn't quietly switch back the next time you open it. When the two differ, the words *you* use for things get one recorded translation into the code, so the same thing isn't called three different names in three different places. And you're told which parts of a technical decision can be undone later — the language inside the code is one of the ones that can't, easily.
 - **No TDD, but not "no tests".** Each step records what still needs proving; before the app is shared with anyone, that ledger is harvested into real unit, integration and e2e tests — written from the demo recipes, so the suite proves what you were actually shown. A deploy with an unproven ledger is refused.
 - **Secrets are scanned on every single commit.** A leaked key is the one mistake you can't undo later, so it's checked mechanically every time rather than at review.
 - **Demo data stays out of the app.** The demo needs something to show, and with no test suite yet the easy place to put it is the shipped code. So the preference is that *you* type the data in through the app itself; when that isn't possible it lives in its own directory with its own command, and the boundary is checked before every commit. Anything faked outright — a sign-in that doesn't check a password — is listed, said out loud at the demo, and replaced before you can share it.
@@ -220,7 +227,7 @@ Skills are what you invoke. The conversational ones pause at every human gate; t
 
 | Skill | What it's for |
 |---|---|
-| **`/devloop:vibe`** | Build a **small app with someone who isn't a developer**. Starts with a business-analyst conversation to find out what they actually want, proposes each technical decision with its reasoning and **whether it can be undone later**, then plans the work as a **sequence of things they'll get to see running**. Each invocation builds up to the next demo and hands over a recipe to try it; feedback becomes a patch, a follow-up, or a deliberate change of scope. No TDD — what's unproven is tracked and harvested into real tests before the app is shared. Secrets scanned every commit. **Takes no arguments**; it resumes where you left off. Greenfield, no GitHub. |
+| **`/devloop:vibe`** | Build a **small app with someone who isn't a developer**. Starts with a business-analyst conversation to find out what they actually want, proposes each technical decision with its reasoning and **whether it can be undone later**, then plans the work as a **sequence of things they'll get to see running**. Each invocation builds up to the next demo and hands over a recipe to try it; feedback becomes a patch, a follow-up, or a deliberate change of scope. **The plan can be changed whenever they say so** — every milestone starts by asking, and shipped work is never quietly edited out of it. **Remembers which language to talk in and which to write code in**, across sessions. No TDD — what's unproven is tracked and harvested into real tests before the app is shared. Secrets scanned every commit. **No flags**: run it bare to carry on, or just say what you want. Greenfield, no GitHub. |
 
 ### Plan & steer *(outer loop — slow)*
 
@@ -276,14 +283,14 @@ devloop keeps its state under `.context/` so work resumes across sessions:
 
 | Path | Role | Purpose |
 |---|---|---|
-| `.context/product-brief.md` | shared record | What the product **is**, in the owner's words — the domain terms as they use them, who actually uses it, one day in the life, and **what it does not do**. Deliberately free of technology, so it stays their document. Written by `vibe` and `roadmap`. |
+| `.context/product-brief.md` | shared record | What the product **is**, in the owner's words — the domain terms as they use them, who actually uses it, one day in the life, and **what it does not do**. Deliberately free of technology, and written in their language, so it stays their document: it's confirmed by them correcting it, which only works if they can read it. Written by `vibe` and `roadmap`. |
 | `.context/devloop-profile.md` | shared record | Build/test commands and test layout. The single source `run` uses — it never guesses a command. |
 | `.context/devloop-baseline.md` | shared record | Accepted-failure allowlist — checks known to fail, so the green gate means "no *new* failures." |
 | `.context/decisions/` | shared record | Architecture decision records from `/devloop:architect`, plus an `index.md` the loop scans to find the ones bearing on a task. Append-only: a changed decision is a new record superseding the old, so the reasoning you can go back and read is the reasoning that was actually used. |
 | `.context/sprints/master-plan.md` | shared record | Project sprint map: vision, themes, goals, statuses. |
 | `.context/sprints/sprint-N.md` | shared record | Per-sprint execution checklist. Each issue line tracks execution (`[x]`, by `run`) and human acceptance (`✓accepted`, by `review`) separately. |
 | `.context/sprints/sprint-N-review.md` | shared record | Sprint retrospective — including **loop calibration**: which of devloop's own gates caught the sprint's defects, and which never fired. |
-| `.context/vibe/` | `vibe` track | The whole state of a `vibe` project in one readable file — goal, the technical decisions with their reasoning and reversibility, the demo-shaped plan and its tags, what hasn't been proved yet, and what's been parked. |
+| `.context/vibe/` | `vibe` track | The whole state of a `vibe` project in one readable file — goal, which language to talk and write in, the technical decisions with their reasoning and reversibility, the demo-shaped plan with its tags and a marker for where the work has got to, what hasn't been proved yet, what's been parked, and every plan change with the reason for it. Written in the owner's language throughout: a state file they can't read isn't doing its job. |
 | `.context/sprints/state/` | working area | Lock + per-issue control plane (lets `run`/`sprint` resume). |
 | `.context/sprints/work/` | working area | Per-issue working files (`context.md` with its logged decision timeline, `plan.md`, `test-plan.md`, …) plus `logs/` — the raw test output behind each logged failure, kept out of the timeline and opened on demand at review. |
 

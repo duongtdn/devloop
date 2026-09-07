@@ -50,7 +50,8 @@ its place by being something a person can say a flat *no* to.
 [What it is and who it is for. Plain. No adjectives that could describe anything.]
 
 ## Words we're using
-- **[noun]** — [what it means *here*, in the user's own words]
+- **[noun]** — [what it means *here*, in the user's own words] · `[identifier]` ⚑
+  ← the identifier column only when the code is written in another language; see below
 
 ## Who uses it
 - **[Name], [what they do]** — [when and where they touch this]
@@ -86,6 +87,27 @@ detection with it:
 **The nouns pay for themselves twice.** They are the product's vocabulary, so they become the code's
 vocabulary — `vibe` passes them to the `coder` in its per-iteration context, and the app's internals
 end up speaking the user's language instead of ours.
+
+### When the code is written in another language
+
+That second payment is the one that breaks when the conversation and the code are in different
+languages, because the noun now has to be **translated** before it can become an identifier — and a
+translation made silently is made again, differently, on the next task. `congViec`, then `task`, then
+`job`: three names, one thing, and the domain model has forked without anyone deciding to fork it.
+
+So the mapping is written down **once, here**, as a third column, and every other reader copies it
+rather than re-deriving it. Two rules:
+
+- **`⚑` every identifier you chose rather than they did.** It is a guess about their domain like any
+  other drafted specific, and the flag is what invites the correction. Cleared when they confirm it.
+- **Where there is no clean word in the writing language, keep theirs** (romanized if the identifier
+  rules require it). Substituting the nearest available word does not rename a thing, it changes what
+  the thing is — *chứng từ* rendered as `document` has quietly become a different concept, and every
+  later reader will reason about the one in the name. A borrowed word that stays theirs is honest and
+  costs a comment.
+
+**Omit the column entirely when both languages are the same.** There is nothing to map, and an identity
+column is noise in the one document that has to stay readable.
 
 ---
 
@@ -128,10 +150,22 @@ diffs on a document they have not internalised yet. Repeat until they stop corre
 say so — it is much cheaper to fix here than after we've built it."* A user who cannot cheaply say
 "I'm lost" keeps nodding, and every later confirmation is worth less than it looks.
 
-### Follow the user's language
+### Follow the user's language — and write the brief in it
 
-Talk to them in whatever language they are writing in. The **brief on disk stays in the repo's
-language**, with their exact words preserved in *Words we're using* — those are data, not prose.
+Talk to them in whatever language they are writing in, and **write the brief on disk in that same
+language**. This document is not a record *about* the user, it is a document *for* them: the whole
+method is drafting a thing they correct, `Last confirmed:` is their signature on it, and *What it does
+NOT do* is called the most falsifiable section here — a section is only falsifiable by someone who can
+read it. A brief confirmed in conversation but stored in another language is two documents that can
+drift with nothing to catch it.
+
+In `vibe` this is the manifest's **`Talking:`** field (`skills/vibe/SKILL.md` § *Which language*), read
+at startup and stable across sessions. In `roadmap` it is simply the conversation's language, which for
+a developer audience is usually the repo's, so nothing changes there.
+
+**Code is a separate question and it is not settled here.** vibe settles it in § 2 · Decisions
+(`Writing:`); `roadmap` reads it off the existing code. See *Words we're using* below for what happens
+when the two differ.
 
 ---
 

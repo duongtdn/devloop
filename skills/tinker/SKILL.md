@@ -41,7 +41,7 @@ tinker runs in both tracks. Detect, don't ask:
 
 | Found | Track | Register |
 |---|---|---|
-| `.context/vibe/vibe.md` | **vibe** | vibe's voice — see below |
+| `.context/vibe/vibe.md` | **vibe** | vibe's voice — see below; and its `Talking:`/`Writing:` languages |
 | `.context/sprints/master-plan.md` | **sprint** | peer voice — technical, terse |
 | neither, but a git repo with `.context/devloop-profile.md` | **sprint** (degraded: no sprint file) | peer voice |
 | neither, and no profile | stop — see Startup 4 | — |
@@ -63,6 +63,15 @@ one thing per message, "I'm lost" is free. Restated here because this is a write
 
 Follow the user's language in conversation. **Everything written to disk follows the repo's language**
 — the journal, the session file, Zone 2, commit messages.
+
+**In a vibe project, both of those are recorded and you read them rather than infer them.** You already
+detect `.context/vibe/vibe.md` to pick your register; read its **`Talking:`** and **`Writing:`** fields
+in the same breath, before your first word, and follow them (`skills/vibe/SKILL.md` § *Which language*).
+`Talking:` is the conversation and anything written for the owner — including the ledger rows you add to
+that manifest. `Writing:` is the journal, the session file, Zone 2 and commit messages. The recorded
+value wins over the language of the message in front of you; a switch is asked for, never drifted into.
+And when the two differ, the owner's nouns have one recorded translation — the brief's *Words we're
+using* — so look an identifier up there rather than coining a second name for a thing that has one.
 
 ---
 
@@ -502,7 +511,8 @@ stays short and stays honest.
 
 **In the vibe track**, rows go to `vibe.md`'s *What we haven't proved yet* instead — the owner reads
 that file, and splitting their ledger in half would make their own manifest incomplete. Write there,
-not here.
+not here, **in that manifest's `Talking:` language** — a ledger row is written for them, and it is what
+they are shown when a share is refused.
 
 Nothing blocks on this file in the sprint track. `review` surfaces every open row at sprint close and
 offers each as a backlog issue; anything left unactioned is named in the retro. In the **vibe** track
@@ -575,7 +585,9 @@ after the merge lands.
   Restated because this is the write site: **append with `cat >> .context/devloop-journal.md`, never
   `Edit`**; the date is script-derived; the areas are **`$AREAS` from step 3 — derived mechanically,
   never composed**; and the line carries the **why**, not just the what, because a line without it is
-  a changelog and git already has one. Write it in the repo's language, not the conversation's.
+  a changelog and git already has one. Write it in the repo's language, not the conversation's — in a
+  vibe project that is the manifest's **`Writing:`** field, which may not be the language you have been
+  talking in.
 
 **5 — Release the lock** and report:
 
