@@ -21,6 +21,8 @@ Devloop's bet is that you can keep **both** — AI's speed *and* your grip on th
 
 The slow part never disappears — it just moves depending on how you work. And because everything the AI does on the fast path is **logged with its reasoning**, the slow review is genuine understanding, not archaeology. You come out the other side having shipped quickly *and* knowing what you shipped and why.
 
+There's one thing the slow path can't fix on its own: the model you refresh at review lives in **your** head. It drifts as the system moves, and someone joining the team never had it. That's what [`/devloop:docs`](#when-the-humans-get-lost--devloopdocs) is for — the standing description of the system, written for people, and checked against the code rather than trusted.
+
 That log records more than decisions. For every bug the run hit, it records **which gate caught it** — a failing test, the type checker, the code review, the second-opinion pass — and keeps the raw failing output on disk. So at review you can ask *"how did you catch this?"* and get an answer with the evidence attached, rather than a plausible story. It also means the loop can tell you, over a sprint, **which of its own checks are actually earning their keep** and which have never once caught anything.
 
 ---
@@ -31,7 +33,7 @@ Both workflows share the same setup and the same close — they differ in **wher
 
 The diagrams below show the two ends of that spectrum — full control at every gate, and full autonomy across a whole sprint. They're illustrations, not the only shapes available; see [Mix and match](#mix-and-match-these-are-primitives-not-pipelines) below for how to run something in between.
 
-### 🧑‍💻 Human-*in*-the-loop — you ride every step
+### Human-*in*-the-loop — you ride every step
 
 The AI does the work, but `/devloop:run` **pauses at each gate and waits for you** — approve the plan, the review findings, the PR. Slow and deliberate: you understand each decision because you make it *with* the AI. This is the default (plain `/devloop:run`, no flags).
 
@@ -59,7 +61,7 @@ The AI does the work, but `/devloop:run` **pauses at each gate and waits for you
 
 **Best for:** when you want **control and early steering** — catching a wrong turn while it's still cheap to redirect, rather than after it's already built.
 
-### 🛰️ Human-*on*-the-loop — you watch from above
+### Human-*on*-the-loop — you watch from above
 
 `/devloop:sprint` (and `/devloop:run --auto`) **run without stopping** — at every point that would be a gate, the AI reasons to the best decision, applies it, and **logs it with the reasoning**. If it can't decide something safely (a stuck task, a conflict, work needing a human hand), it halts and tells you rather than guessing. **Picking a halted issue back up: re-run it without `--auto`** — `/devloop:run 42` resumes exactly where it stopped, in gated mode, and puts the decision in front of you. (Re-running *with* `--auto` resumes as autonomous and stops at the same wall — it was waiting for you, not for another attempt.) You meet the finished work at `/devloop:review`: it explains what it built and why, you demo and probe it, then **accept** or send it back as **rework**.
 
@@ -121,7 +123,74 @@ The two diagrams above show the ends of a spectrum for clarity, but every skill 
 
 That's on-the-loop working at **task granularity** — a tighter feedback loop than `/devloop:sprint`, with a smaller, fresher batch to review each time, and still no gates slowing execution down. You can go further still and mix the two workflows within one sprint: gate the one issue you're unsure about with plain `/devloop:run`, and `--auto` the rest.
 
-The conversational skills aren't locked to any diagram either. **`/devloop:backlog` can be dropped into any conversation, any time** — the moment an idea or a bug surfaces mid-discussion, capture it as an issue without leaving the chat. Same for `/devloop:roadmap` when the direction shifts, and for **`/devloop:architect`** when you hit a design question worth settling before code gets written — the one kind of decision that's most expensive to discover after the fact, and the one you least want to outsource. And because each of these skills works by *talking through* the decision with you — explaining trade-offs, asking what you want, showing you what it found — **the conversation itself is how you learn the system**, whether that conversation happens at a gate, at `review`, or mid-brainstorm. That's the study time that keeps the mental model yours.
+The conversational skills aren't locked to any diagram either. **`/devloop:backlog` can be dropped into any conversation, any time** — the moment an idea or a bug surfaces mid-discussion, capture it as an issue without leaving the chat. Same for `/devloop:roadmap` when the direction shifts, for **`/devloop:docs`** when somebody new joins and needs to be brought up to speed, and for **`/devloop:architect`** when you hit a design question worth settling before code gets written — the one kind of decision that's most expensive to discover after the fact, and the one you least want to outsource. And because each of these skills works by *talking through* the decision with you — explaining trade-offs, asking what you want, showing you what it found — **the conversation itself is how you learn the system**, whether that conversation happens at a gate, at `review`, or mid-brainstorm. That's the study time that keeps the mental model yours.
+
+---
+
+## The tight loop — `/devloop:tinker`
+
+Both workflows above are anchored to a **plan** — an issue, a sprint. There's a third mode that isn't: you at the keyboard with the app running, deciding what to build next by looking at it, and the AI writing the code on your behalf. It can be a one-line value or a whole feature — the size is yours to decide.
+
+```
+  inner loop   run --auto, sprint   AI executes, you're away      anchored to an issue
+  outer loop   review               you judge what shipped        anchored to an issue or sprint
+  tight loop   tinker          ←    you and the AI, app running   anchored to nothing but
+                                    seconds per turn              the running system
+```
+
+`/devloop:tinker I want to refactor the sign-in page` opens a session, reads up on that part of the code, and waits for instructions. *Add a Sign in with Google button. Now make the sign-in button green. Commit.* You watch the UI, the logs, the database; it does the work, and keeps the project from drifting while it does.
+
+**It isn't `run` with the tests turned off.** Every instruction gets the same question asked out loud — *does this change behaviour?* — and when it does, the test comes first and is checked to actually fail before any code is written. You can overrule that in two seconds. Then the override is what gets written down: it lands in a short list of things running with nothing proving they work, which `review` offers back to you as issues at sprint close. That's the difference between **deferring** proof and skipping it.
+
+A few other things it holds while you move fast:
+
+- **One tweak, one commit** — not ceremony. After three changes and *"it's still wrong"*, it's the only thing that makes the undo precise.
+- **Bigger instructions get planned, not refused.** When an instruction is several pieces, it plans it the way `run` does — tasks, where each piece of code goes in *your* repo, a design when there's a real choice to make, tests written first — and asks you before building only when the plan holds a decision that's yours (a new dependency, a new place for code, anything touching sign-in or permissions). It runs every check before showing you the result.
+- **Small changes stay fast.** A colour or a label runs only the quick checks your profile has that can actually see that file — or none, if it has none. The rest wait for session close.
+- **A session branch**, merged at the end only after every check passes, the diff is checked against your recorded decisions, and the whole session is reviewed. That's what stops a long session drifting from your architecture.
+- **Decisions still bind.** An instruction that contradicts one of your ADRs gets the rule quoted back at you and a question, not a silent edit.
+
+### What the project remembers
+
+Every session leaves one line in the project journal:
+
+```
+- 2026-09-05 · tinker · hand-tuned · `src/ui/toast/**` · toast 2s→4s (you watched it, 2s too fast to read) → …
+```
+
+That line is why the value survives. Without it, the next agent to open that file sees a `4` where a `2` would look tidier — and tidying it up is the cheapest thing in the world. The journal is the project's memory **across** sessions: before every issue, the loop reads the entries touching the code it's about to change, so something you decided by hand while watching the app is still known about three sprints later.
+
+---
+
+## Docs for Human — `/devloop:docs`
+
+Everything devloop records is written for the **next run**: the journal is a list of episodes, the decision records are case law, each issue keeps its own timeline. All useful, and none of it answers the question a person actually asks.
+
+> *What is this system, right now?*
+
+You can't get that by reading the history, because history is **additive** — you'd have to replay every episode and apply the changes in your head. The AI never notices, because it rebuilds exactly the slice it needs on every task and throws it away afterwards. **You can't.** So after six sprints the mental model you refreshed at each review has quietly drifted from the system you actually have, and a developer joining the team has nothing to join.
+
+`/devloop:docs` writes the missing half — the documentation humans read. Architecture, onboarding, a development guide, a page per component. The **structure is reasoned from your system**, not poured into a template, and every claim carries the file it came from.
+
+**And it keeps it honest.** Each page records the commit it was written against, so the skill can tell you exactly what has moved underneath it:
+
+```
+$ /devloop:docs
+
+docs/backend/auth.md       ⚠ 9 commits under src/auth/** since this was written
+                             incl. "replaced session store with JWT"
+                             nobody has read this one
+docs/backend/payments.md   ⚠ ADR-007 says only payments/ touches the database.
+                             src/workers/sync.ts:31 imports the client directly.
+src/notifications/**       ⚠ new since the last survey; no page covers it
+docs/data/model.md         ok
+```
+
+The second finding is the interesting one. Nothing else in devloop asks whether a decision you recorded is **still true of the code** — the code review sees one change at a time, and the planning gate checks a plan before the code exists. This is the one place the standing rules get measured against the standing system.
+
+Findings are **routed, never quietly resolved**: the page is wrong → refresh it. The code is wrong → file it. The rule is wrong → that's a conversation for `/devloop:architect`. It will not rewrite a page to agree with code that broke a decision you made.
+
+Run it bare and it **audits** — cheap, writes nothing, safe at any time. On a project with no docs yet it surveys the repository and **proposes a tree for you to confirm** before writing a word. Small project, small tree: it won't pad out four files to look thorough, and it says so when the honest answer is two.
 
 ---
 
@@ -245,6 +314,13 @@ Skills are what you invoke. The conversational ones pause at every human gate; t
 | **`/devloop:sprint`** | Execute the **whole** active sprint autonomously. A thin orchestrator over `run --auto` that works every issue in order, merging each locally as it lands (**PR-less**), and **stops the moment it hits a blocker it can't resolve** (never skipping ahead). Hands off to `review` when done. Re-invoke to resume after an interruption. |
 | **`/devloop:status [sprint-N]`** | Read-only snapshot — issue statuses, the in-progress step, milestone progress, and which shipped issues are **accepted vs. awaiting review**. No gates, no changes. |
 | **`/devloop:abort [issue]`** | The escape hatch for `run`. Cleanly stops an in-progress run: releases the lock, hands you the branch (delete / keep / park as draft PR) and run state (delete or keep to resume). Doesn't close the issue or touch the milestone. |
+| **`/devloop:tinker`** | The **tight loop** — you and the AI at the keyboard with the app running, one instruction at a time. It classifies each change (*does this alter behaviour?*) and writes the test first when it does, raises anything that contradicts a recorded decision, runs your checks, then stops with a short summary, the files it touched and a proposed commit message — you review the change in your editor, try it in the app, and it commits **one tweak at a time**, only when you say so. Works on a session branch, merged at the end after an independent test run and a review pass. Every session leaves a line in the project journal, so the next sprint knows why that value is 4 seconds and not 2. Runs in both tracks. **Optional goal** — `/devloop:tinker I want to refactor the sign-in page`. |
+
+### Understand & onboard *(any time)*
+
+| Skill | What it's for |
+|---|---|
+| **`/devloop:docs [path]`** | Write and maintain the documentation **humans** read — architecture, onboarding, development guide, a page per component. Structure is reasoned from your actual system rather than a template, and every claim cites the file it came from. Run it **bare to audit**: each page records the commit it was written against, so it reports what the code has moved out from under, what nothing covers, and where the code no longer obeys a decision you recorded. Findings are routed (refresh the page / file the bug / take the rule to `architect`), never silently patched over. Nothing is written or committed without your yes. |
 
 ### Review & close *(outer loop — slow)*
 
@@ -273,6 +349,9 @@ Agents are the workers behind the skills — you don't invoke them directly. Eac
 | **ba-critic** | Reads a drafted **product brief** and reports what a non-technical owner could read, be wrong about, and not notice — a capability nobody could fail, a domain word doing real work but never defined, a missing "what it does NOT do" list. Returns the plain question that settles each. The check on a comfortable conversation producing a comfortable, wrong brief. |
 | **pr-triage** | Classifies a PR's review intensity (light/full) from the nature of the diff. Used by `pr-review`. |
 | **reviewer** | Reviews a diff and surfaces concrete `file:line` findings. Modes: review / pr-review / critique / fix-review. Carries a **test-pass-insufficient** rubric for the bug class a green suite can't rule out (concurrency, resource scoping, ordering, idempotency, reversibility) — those are argued from the code, and "the tests pass" is not a rebuttal. Reasons only — never posts to GitHub. |
+| **surveyor** | Reads the codebase and reports what is actually there — entry points, the real components, what owns which data, which way the dependencies point, what changes every sprint. Cites what it finds and never invents a path. Used by `docs`. |
+| **doc-writer** | Writes one page of the documentation tree from that survey and the architecture page. It has **no shell access**, so it can't commit — you see the real diff first and the skill commits. |
+| **doc-critic** | Reads a drafted page as the developer it was written for, and reports where they'd still be stuck: a claim with no source, a term used before it's explained, a wall of prose, a hedge. A fresh reader every time, which is the whole point. |
 | **scaffolder** | Creates the repo (if needed) and bootstraps project structure, build tooling, and test setup, committing to the base branch. |
 
 ---
@@ -286,13 +365,18 @@ devloop keeps its state under `.context/` so work resumes across sessions:
 | `.context/product-brief.md` | shared record | What the product **is**, in the owner's words — the domain terms as they use them, who actually uses it, one day in the life, and **what it does not do**. Deliberately free of technology, and written in their language, so it stays their document: it's confirmed by them correcting it, which only works if they can read it. Written by `vibe` and `roadmap`. |
 | `.context/devloop-profile.md` | shared record | Build/test commands and test layout. The single source `run` uses — it never guesses a command. |
 | `.context/devloop-baseline.md` | shared record | Accepted-failure allowlist — checks known to fail, so the green gate means "no *new* failures." |
+| `.context/devloop-journal.md` | shared record | **The project's memory across sessions** — one line per finished piece of work, in any mode: what changed, in which areas, and **why**. Read by the loop before every issue, so a value you tuned by hand while watching the app is still known about three sprints later. Append-only, and never rewritten — history that gets edited isn't evidence. |
+| `.context/devloop-unproven.md` | shared record | Behaviour that shipped **without a test because you said "not now"** — what it does, and what would prove it. Offered back as issues at sprint close and as candidates when the next sprint is scoped, so *we'll test it later* doesn't quietly become *we never did*. |
 | `.context/decisions/` | shared record | Architecture decision records from `/devloop:architect`, plus an `index.md` the loop scans to find the ones bearing on a task. Append-only: a changed decision is a new record superseding the old, so the reasoning you can go back and read is the reasoning that was actually used. |
 | `.context/sprints/master-plan.md` | shared record | Project sprint map: vision, themes, goals, statuses. |
 | `.context/sprints/sprint-N.md` | shared record | Per-sprint execution checklist. Each issue line tracks execution (`[x]`, by `run`) and human acceptance (`✓accepted`, by `review`) separately. |
 | `.context/sprints/sprint-N-review.md` | shared record | Sprint retrospective — including **loop calibration**: which of devloop's own gates caught the sprint's defects, and which never fired. |
 | `.context/vibe/` | `vibe` track | The whole state of a `vibe` project in one readable file — goal, which language to talk and write in, the technical decisions with their reasoning and reversibility, the demo-shaped plan with its tags and a marker for where the work has got to, what hasn't been proved yet, what's been parked, and every plan change with the reason for it. Written in the owner's language throughout: a state file they can't read isn't doing its job. |
+| `docs/` (or wherever you put it) | shared record | **The documentation humans read** — architecture, onboarding, development guide, per-component pages. Plain prose and diagrams, with no devloop bookkeeping in them: it's a document tree, not a machine file. Version-controlled, for whoever clones the repo. |
+| `.context/docs-map.md` | shared record | Which pages exist, what code each one covers, who each is for, and **the commit each was written against** — which is what turns "have the docs gone stale?" into a question with a real answer. The last drift report sits beside it in `docs-audit.md`, and `plan` reads it when scoping the next sprint. |
 | `.context/sprints/state/` | working area | Lock + per-issue control plane (lets `run`/`sprint` resume). |
 | `.context/sprints/work/` | working area | Per-issue working files (`context.md` with its logged decision timeline, `plan.md`, `test-plan.md`, …) plus `logs/` — the raw test output behind each logged failure, kept out of the timeline and opened on demand at review. |
+| `.context/tinker/` | working area | One folder per `tinker` session — what it looked up about the area you were working in, and one entry per tweak: what changed, **why**, how it was proved, and the commit. |
 
 Whether any of `.context/` is version-controlled is your choice.
 
