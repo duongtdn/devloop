@@ -24,7 +24,9 @@ In `regression` mode, ignore the Task section below and follow **Mode: regressio
 
 ## Task (`unit` / `e2e`)
 
-**1. Read the scenarios.** If `$SCENARIOS` is given, those are the scenarios — take exactly them and do not look for `test-plan.md`. Otherwise, from `$WORK_DIR/test-plan.md`, take exactly the scenarios for `$TASK` (unit mode) or every E2E flow (e2e mode). Read `context.md` Zone 1 for the relevant code paths and conventions.
+**1. Read the scenarios.** If `$SCENARIOS` is given, those are the scenarios — take exactly them and do not look for `test-plan.md`. Otherwise, from `$WORK_DIR/test-plan.md`, take exactly the scenarios under the behaviors marked **`Proof: test`** for `$TASK` (unit mode), or every E2E flow marked **`Proof: test`** (e2e mode) — its `happy:` / `edge:` / `error:` lines. Read `context.md` Zone 1 for the relevant code paths and conventions.
+
+**Never write a test for a behavior marked `Proof: observe` or `Proof: none`, or for an edge listed under `Not tested`.** Each of those is a recorded decision that a test is not the right proof — a person's eyes are, or nothing we own is. A test written there anyway is exactly the low-value test the plan was critiqued to remove, and nothing downstream will take it back out. (The reasoning is `skills/run/test-strategy-spec.md`.)
 
 **2. Write the tests** at the location implied by `$TEST_GLOBS`, matching the existing test layout and the `$FRAMEWORKS` idioms (imports, helpers, naming). Mirror the structure of neighbouring test files — read one first if any exist. **If `design.md` exists, assert its interfaces** (signatures, types, endpoints) — the tests must encode the approved API, since the coder implements to that same design.
 
@@ -42,7 +44,7 @@ So: write nothing, and return `BLOCKED: narrow-interface` naming the production 
 
 (This applies only where the *production* code blocks a clean test. Ordinary test-side setup — fixtures, fakes, builders, harness helpers — is your job; write it.)
 
-**4. Cover only what the plan lists** — or what `$SCENARIOS` states. Do not add extra scenarios, snapshots, or speculative cases. The test plan (or the inline scenarios) is the contract.
+**4. Cover only what the plan lists** — or what `$SCENARIOS` states. Do not add extra scenarios, snapshots, or speculative cases. The test plan (or the inline scenarios) is the contract — it has already been through a critique for missing edges, so an edge that is not listed was either judged not to apply or recorded under `Not tested`. If you believe a listed scenario cannot fail for a reason our code owns, write the rest and say so under **For next** rather than inventing a replacement.
 
 **5. Record.** Append **one** entry to `context.md` **Zone 2**, opening with exactly this header — `###`, never `##` (a `##` starts a new section and drops the author `run`'s resume matches on):
 
@@ -103,5 +105,5 @@ MODE: [unit task N | e2e | regression]
   ```
 - In `regression` mode, if the finding cannot honestly be pinned by a test, return `NOT-REPRODUCIBLE: [why]`.
 - If any test you wrote seeds state outside the production write path, add one `FIXTURE-BYPASS:` line per bypass (format above) after `MODE:`.
-- If the test plan has no scenarios for the requested task/mode, return `NONE: no scenarios for [task/mode]`.
+- If the test plan has no `Proof: test` scenarios for the requested task/mode (every behavior is `observe` / `none`), return `NONE: no scenarios for [task/mode]` — write nothing.
 - If `test-plan.md` is missing (`unit`/`e2e` modes) **and no `$SCENARIOS` was given**, return `ERROR: [message]`.

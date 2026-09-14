@@ -53,7 +53,8 @@ brief's *Words we're using* rather than coining a second name.
 - Never let the `coder` commit — `$NO_COMMIT` on every invocation, without exception.
 - Never commit without an explicit yes to the commit question — a new instruction, "nice" or silence is not one.
 - Never commit a change that moved after its checks ran.
-- Never commit a behaviour change without a test, a recorded reason no honest test exists (§ 3), or an explicit override.
+- Never commit a behaviour change without its proof: a test, an `observe` check they ran, a recorded `none` reason (§ 3), or an explicit override.
+- Never write a test to fill a slot, and never mark data, money, auth, secrets, an irreversible step or a consumed contract `observe` or `none`.
 - Never reverse an ADR prohibition silently.
 - Never claim a change works — the human watched it, or nobody did.
 - Never run a check the profile does not list, or invent one.
@@ -226,28 +227,46 @@ Say something only when one of these trips:
 On one-off: apply it, and write Zone 2 **as an override** quoting the prohibition and their answer — never
 a reason that makes it sound permitted. It goes in the close report.
 
-### 3 · Test first — decide the test, then micro-TDD
+### 3 · Test first — decide the proof, then micro-TDD
 
-Walk in order; the first row that fits decides:
+The reasoning is `skills/run/test-strategy-spec.md`; restated here because this is the write site.
 
-| The change | Test |
+**Purpose first — reason, never match a word list.** Read what this is for from the session goal, the
+instruction's words, the track, and the Zone 1 *Purpose signals*: **durable** (other code or users will
+rely on it) or a **trial** (built to try and react to). The project says it in its own words — reason
+about them. No signal → durable.
+
+Then walk in order; the first row that fits decides:
+
+| The change | Proof |
 |---|---|
+| a mistake costs something **trying it would not show** — data, money, auth or permission, secrets, irreversible, a contract other code consumes | **test** — whatever the purpose; go on to the rows below only to pick *which* test |
 | a tuned value, look or wording — any assertion would only restate the value | **none** — it is triviality (§ 1); the Zone 2 *Why* is the record |
 | an **existing test pins the old behaviour** (grep tests for the symbol, route, old value) | **update that test** — it must then fail on current code |
+| correctness is judged **by looking** (a flow's feel, what a demo path shows), or a **trial** rule that is cheap and visible when tried | **observe** — they try it at the § 6 gate; Zone 2 records the check |
 | **new behaviour our code decides** — a rule, a branch, a response, a state change | **write one** |
 | behaviour a **library decides**; our code only configures it | **at our boundary** (this input reaches that handler, gets that response); no boundary → **none**, and Zone 2 names whose decision it is |
-| no test command in the profile reaches it | **cannot test first** — say so; offer to set up testing (a planned instruction) or an override |
-| more than one scenario | it is more than one behaviour → **planned** |
+| no test command in the profile reaches it | **cannot test first** — say so; offer **observe**, setting up testing (a planned instruction), or an override |
 
-**Write the scenario yourself** — you hold the context; a direct change has no `test-plan.md` and gets
-none. One line, given / when / then, in behaviour terms. **Vet it: would it still pass if the code this
-change adds were deleted?** If yes it asserts the language, a library, or a mock's own setup — rewrite it at
-our boundary, or take the *none* row honestly. **Put it in the clause that states the call** so they can
-correct it: *"that changes behaviour — test first: an expired invite link returns 410."*
+**Write the scenarios yourself** — you hold the context; a direct change has no `test-plan.md` and gets
+none. Given / when / then, in behaviour terms: the happy path, then only the edges this behaviour
+really has — a boundary, absent input, a failing call our code handles, another user, a repeat or an
+already-used state. One scenario per distinct outcome; three values down the same branch are one.
+**Vet each: would it still pass if the code this change adds were deleted?** If yes it asserts the
+language, a library, or a mock's own setup — rewrite it at our boundary, or take the *none* row
+honestly. **Put them in the clause that states the call** so they can correct it: *"that changes
+behaviour — test first: an expired invite link returns 410; a used one returns 410 too."* — or *"this is
+a look you'll judge — check by eye: open sign-in, the button is green."*
+
+**A behaviour with many edges is still one behaviour.** More than one *behaviour* is planned (§ *Planned*);
+several scenarios for one behaviour stay direct.
 
 The micro-loop:
 
-1. `test-writer` — `mode: unit`, `$WORK_DIR`, `$SCENARIOS` = your line (update row: *"update
+An **observe** or **none** call skips this loop: `coder` (`implement`, `$NO_COMMIT`, all of `$CHECKS`) builds
+it, and the § 6 gate names the check they should run. Otherwise:
+
+1. `test-writer` — `mode: unit`, `$WORK_DIR`, `$SCENARIOS` = your lines (update row: *"update
    `accept.test.ts` :: signs in with a valid link — an expired link now returns 410"*), `$TEST_GLOBS`,
    `$FRAMEWORKS`, `$NOW`.
 2. `test-runner` — `mode: red`, `$TASK_FILES` = the test-writer's files, the unit/e2e command, `$BASELINE`,
@@ -307,6 +326,9 @@ Review it in your editor and try it — commit / retry: [what to change] / disca
 Restated because this is the write site:
 
 - **Summary** — one to three lines on what changed; never "fixed" or "works now".
+- **Check by eye** — for an **observe** proof, the check itself (*open sign-in → the button is green*). Their
+  commit is the record that they ran it; Zone 2 writes `Proof: observe — <the check>`. Never the unproven
+  ledger — that is for a test that was due and overridden.
 - **Files** — `git status --porcelain`, status letters as git prints them (it shows new untracked files).
   Never a list composed from the coder's report. A path nobody named → do not present it: a direct
   instruction moves to the planned path; a planned task stops and asks.
@@ -366,7 +388,14 @@ code goes* line for every kind of thing it adds:
 ### Current instruction — <ref>
 - **Asked:** <their words, verbatim>
 - **Acceptance:** <what will be observably true when done — your draft>
+
+### Purpose signals
+- Session goal: "<verbatim>" · Track: <sprint | vibe>
+- "<any words of theirs about what this is for — 'just to try', 'for the demo Friday'>"   ← omit if none
+- Sprint goal / Demo: "<verbatim from the active sprint>"   ← sprint track, when one is active
 ```
+
+Purpose signals are **copied, never judged** — the planner reads them (`skills/run/test-strategy-spec.md` § 1).
 
 ### P2 · Plan — the `planner`, never you
 
@@ -374,13 +403,21 @@ code goes* line for every kind of thing it adds:
 
 | Returns | You do |
 |---|---|
-| `PLAN:` | P4 |
+| `PLAN:` at `STANDARD` | test critique (below), then P4 |
+| `PLAN:` at any other rung | P4 |
 | `NEEDS-CONTEXT: <fact>` | retrieve it yourself (`Grep`/`Glob`), append to Zone 1, re-invoke — twice at most, then with `$CONTEXT_FINAL: true` |
 | `NEEDS-DESIGN: <why>` | P3; if they decline, re-invoke with `$DESIGN_DECLINED: true` |
 | `MANUAL: <why>` | say there is nothing to build, and why |
 
 Never write or amend `plan.md` — a rung is a flag plus the proof that licenses it, and only the planner
 writes both. If they reshape the rung, re-invoke with `$RUNG`.
+
+**Test critique** — every `test-plan.md` the planner writes, before it is used. A fresh `test-critic` with
+`$WORK_DIR`, `$SPEC` (absolute path of `skills/run/test-strategy-spec.md`), `$TEST_GLOBS`, `$NOW`. It
+judges both directions — missing edge, error and permission cases; filler, restated values, library
+checks, and tests where a look is the better proof. `revise` → the planner again with `$TEST_CRITIQUE`;
+it revises in place and returns any `DECLINED:`. **One critique, one revision, never a second critique** —
+it would find something new in the new text and never converge. Never edit `test-plan.md` yourself.
 
 ### P3 · Design — only when asked for
 
@@ -392,16 +429,19 @@ load-bearing `needs-proof` assumption. `CONFLICT: ADR-NNN` → the ADR raise. No
 ### P4 · Stop for a decision — otherwise build
 
 First, silently — everything after this measures against the plan, so a defect that survives here is
-built, tested and committed consistently: **every `STANDARD` task has a `test-plan.md` scenario** (none → back to the planner to fold
-it in; never invent one: a filler test proves nothing and is trusted forever) · **no task reverses a Zone 1 ADR prohibition** (→ the ADR raise).
+built, tested and committed consistently: **every `STANDARD` task has a proof** — a behaviour with a `Proof:` line in `test-plan.md` (none → back to the planner to fold
+it in; never ask for a scenario to fill the slot: a task that is all `observe` / `none` is a legitimate plan, and a filler test proves nothing and is trusted forever) · **no task reverses a Zone 1 ADR prohibition** (→ the ADR raise).
 
 **Stop and show the plan only if it holds a decision that is theirs and costs a rebuild to change:** a new
 home (`+ new home`, or a `Placement:` where Zone 1 said *no existing home*) · a new dependency or migration
-· a security-relevant seam · `Coverage: THIN` · a departure from the approved design.
+· a security-relevant seam · `Coverage: THIN` · a departure from the approved design · **the critique moved a
+behaviour between tested and by-eye, or the planner declined a critique finding** — how much proof is enough
+is theirs to settle.
 
-**No decision → one line, and build.** They can interrupt before any task:
+**No decision → one line, and build.** Name the proof in it, so they can interrupt before any task:
 
-> Planning invite by email — 3 tasks, test first. Done when: an invited address gets a link; the link
+> Planning invite by email — 3 tasks. Tested: the link signs in once, a used or expired link is rejected
+> (5 cases). By eye: the invite email reads right. Done when: an invited address gets a link; the link
 > signs them in once; a used link is rejected. Building.
 
 **A decision → the plan, ending on that decision:**
@@ -427,11 +467,15 @@ explicit go starts building.**
 
 Per task, no gate, no commit:
 
-- **`STANDARD`** — `test-writer` (`unit`, `$TASK`) → `test-runner` (`red`) → `coder` (`implement`,
-  `$NO_COMMIT`, all of `$CHECKS`).
+- **`STANDARD`**, a task with any `Proof: test` behaviour — `test-writer` (`unit`, `$TASK`) → `test-runner` (`red`)
+  → `coder` (`implement`, `$NO_COMMIT`, all of `$CHECKS`).
+- **`STANDARD`**, a task whose behaviours are all `observe` / `none` — `coder` (`implement`, `$NO_COMMIT`, all of
+  `$CHECKS`) only. Never send the test-writer "just in case".
 - **`REFACTOR` / `EXPRESS` / `TRIVIAL`** — `coder` (`express`, `$NO_COMMIT`) with the plan's proof: coverage
   confirmed before, the triviality grep before, inertness on the diff after.
-- **After the last task**, end-to-end flows in `test-plan.md` → `test-writer` (`e2e`) → `test-runner` (`red`) → `coder`.
+- **After the last task**, end-to-end flows marked `Proof: test` → `test-writer` (`e2e`) → `test-runner` (`full`);
+  a failure → `coder` (`fix`, `$NO_COMMIT`). **No `red` here**: the flows are written after the code exists, so
+  `red` would return `GREEN` on every good test and bounce it. Flows marked `observe` go to the P6 gate as checks.
 
 Keep every file the coders reported, marking created ones (discard needs them). A task needing a file
 outside its `Touches:` → stop, show it, ask: add it to the plan (logged) or rethink.
@@ -442,8 +486,8 @@ outside its `Touches:` → stop, show it, ask: add it to the plan (logged) or re
    (`fix`, `$NO_COMMIT`), two attempts, then stop and talk.
 2. **Trace each acceptance line to a production caller** — real entry point → the symbol the tests assert
    against. Nothing calls it → not done: add the wiring as a task, back to P5.
-3. **The § 6 gate, once** — summary lists the tasks, one line each; **one** commit whose body lists what
-   they did.
+3. **The § 6 gate, once** — summary lists the tasks, one line each, then every `Proof: observe` check from
+   `test-plan.md` for them to run; **one** commit whose body lists what they did.
 4. **Commit on their yes**; one Zone 2 entry.
 
 The review runs at close, over committed code.
@@ -545,5 +589,5 @@ Conflict → stop, session stays open. Delete the branch only after the merge la
 
 > **Session closed** — `tinker/2026-09-14-sign-in`, merged to `main`.
 > 6 commits · `src/pages/**`, `src/auth/**`
-> All checks green (4 new tests) · ADRs: no violations · Review: 1 blocker fixed, 2 suggestions → backlog
+> All checks green (4 new tests · 3 checked by eye) · ADRs: no violations · Review: 1 blocker fixed, 2 suggestions → backlog
 > 1 change shipped unproven — `.context/devloop-unproven.md` · [1 override of ADR-007 — worth `/devloop:architect`]

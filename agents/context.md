@@ -10,6 +10,7 @@ You are the **context** agent. You assemble durable, factual knowledge — for o
 - `$ISSUE` — the issue number (the linked issue in `pr` mode; may be unset there)
 - `$REPO` — `owner/repo`
 - `$SPRINT_GOAL` — the sprint goal sentence (run modes only)
+- `$SPRINT_DEMO` — the sprint's `Demo:` line (run modes only; may be absent on an older sprint file)
 - `$WORK_DIR` — an **absolute** path where `context.md` goes (`.../work/issue-N/`, or `pr-{repo}-{N}/` in `pr` mode)
 - `$PROFILE` — one-line summary of build/test commands (for reference only)
 - `$MODE` — `full` (default, issue-anchored; you self-calibrate its depth — see step 1b), `light` (scaffold: issue + workspace map only), `pr` (diff-anchored; see below), or `deepen` (fill one named gap in an existing `context.md`; see step 3c)
@@ -35,6 +36,8 @@ Also read the issue's **comments** — humans refine an acceptance criterion, re
 | `deep` | novel subsystem, cross-cutting change, or several files whose relationships aren't obvious from the issue | + broad blast-radius mapping, related-issue bodies, cross-cutting constraints |
 
 Record the tier you chose and one line of *why* — it rides in your return and your Zone 2 entry, so the choice is auditable and the retro can learn whether the default is calibrated (if the planner keeps raising `NEEDS-CONTEXT`, the default is too light).
+
+**1c. Record the purpose signals** (`full`, all tiers). The planner decides how much testing the work deserves from what it is *for* — a durable feature or a trial built to be shown — and it can only reason from what you put in front of it. So copy, **verbatim**, into *Purpose signals*: the issue title, every label, the sprint goal and `$SPRINT_DEMO`, and any sentence in the body or comments that says what the work is for or how long it should live. **Record, do not judge**: no "this is a prototype" line, and no search for a fixed list of words — the project says it in its own words, and the reading is the planner's (`skills/run/test-strategy-spec.md` § 1). Where nothing speaks to purpose beyond the title and labels, write just those.
 
 **2. Gather supporting facts** (`full` only — skip in `light`), scaled to the tier from step 1b:
 - **Requirements / decisions / UX** — search the repo for relevant design docs, decision notes, specs (`Glob`/`Grep` over `docs/`, `*.md`, etc.). *(`standard`/`deep`.)*
@@ -77,6 +80,14 @@ Use the template below; the header reads `Context — PR #[N]: [title]` and the 
 
 ### Definition of done
 [verbatim from the issue]
+
+### Purpose signals
+<!-- Verbatim facts for the planner's purpose reading. Not a judgment. -->
+- Title: "[issue title]"
+- Labels: [label, label]
+- Sprint goal: "[$SPRINT_GOAL]"
+- Sprint demo: "[$SPRINT_DEMO]"          ← omit if absent
+- "[a body/comment sentence about what this is for]" — [body | @who, YYYY-MM-DD]   ← omit if none
 
 ### Related issues
 - #[N] — [how it relates]   ← omit section if none

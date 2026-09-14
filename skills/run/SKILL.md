@@ -110,7 +110,7 @@ A manual *acceptance criterion* (at gate-validation) is **not** a hard stop: aut
 | `.context/sprints/work/issue-N/context.md` | issue | `context` (Zone 1); `designer`/`planner`/`test-writer`/`coder`/`reviewer` + run append Zone 2 | retrieved facts + decision timeline |
 | `.context/sprints/work/issue-N/design.md` | issue | `designer` | implementation guide / decision doc (when a design phase ran) |
 | `.context/sprints/work/issue-N/plan.md` | issue | `planner` | `Rung:` (EXPRESS/STANDARD/REFACTOR) + ordered tasks + acceptance per task; EXPRESS carries a `Triviality proof` section, REFACTOR a `Coverage` section |
-| `.context/sprints/work/issue-N/test-plan.md` | issue | `planner` | unit scenarios per task + e2e scenarios (STANDARD only; EXPRESS/REFACTOR write none — see the planner's `Triviality proof` / `Coverage` section instead) |
+| `.context/sprints/work/issue-N/test-plan.md` | issue | `planner` (critiqued by `test-critic`) | the purpose reading, then per task each behavior's **proof** — `test` (happy/edge/error scenarios), `observe` (a check a person runs), or `none` — plus e2e flows. Format and reasoning: `skills/run/test-strategy-spec.md` (STANDARD only; EXPRESS/REFACTOR write none — see the planner's `Triviality proof` / `Coverage` section instead) |
 | `.context/sprints/work/issue-N/spike/` | issue | `coder` (spike mode) | throwaway proof-of-concept; reference only, safe to delete |
 | `.context/sprints/work/issue-N/logs/` | issue | `coder`, `test-runner` | raw test/check output — the evidence behind a Zone 2 entry. Never loaded by default; cited under **Artifacts** and opened on demand |
 | `.context/sprints/work/issue-N/run-state-final.md` | issue | **run** (at cleanup) | the archived state file — its `## Log`, plan, and tasks kept for post-mortem after the issue is done |
@@ -183,7 +183,7 @@ a reason to skip the record.
 Pass `$LOG_DIR` = `$WORK_DIR/logs/` (absolute, per [S1](#s1--resolve-the-active-sprint)) to the `coder` and the `test-runner`; each writes its own output there and returns the path, which run (or the agent itself) cites under **Artifacts**. Nobody loads a log by default; `review` opens one on demand when the human says "show me the failure."
 
 **Who appends:**
-- `designer`, `planner`, `test-writer`, `coder`, `reviewer` — one entry each when they finish (per their contracts).
+- `designer`, `planner`, `test-critic`, `test-writer`, `coder`, `reviewer` — one entry each when they finish (per their contracts).
 - **run** — one entry at each gate decision (a human's in human-mode, run's own reasoned decision in **auto**-mode, attributed to `run (auto)`) and whenever it changes shared state: a plan reshaped/accepted at gate-plan, findings accepted/declined at gate-review, manual ACs confirmed or flagged at gate-validation, a failure baselined, or an auto-mode blocker that halts the run. At gate-review run sets **`Caught by:`** per finding — `reviewer` for pass 1, `critique` for a finding pass 1 missed.
 
   **An auto-mode stop-the-line writes a journal line too**, alongside its Zone 2 entry, with outcome `blocked` — *"tried, stopped deliberately, state on disk"* is the single most expensive fact in a project to rediscover, and it costs one line here. Same rules as everywhere: `cat >>`, never `Edit`; script-derived date; areas from `git diff --name-only`, mechanically. Do this before exiting, not after — there is no after.
@@ -211,7 +211,7 @@ autonomy: human | auto           # set at S6 from $AUTONOMY; rewritten to 'human
 delivery: direct | pr            # set at S6 from $DELIVERY; never rewritten
                                  # both govern on resume — a resume flag cannot switch them, downgrade excepted
 phase: <phase name>
-phase_step: -        # multi-pass phases (design/review/validate): the last step COMPLETED, written after
+phase_step: -        # multi-pass phases (design/plan/review/validate): the last step COMPLETED, written after
                      #   that step's agent returns; '-' = nothing completed yet / not a multi-pass phase
 task_index: -        # build-loop position, 0-based: the next task to run, incremented after one completes; '-' otherwise
 branch: <branch>     # '-' until created
@@ -266,7 +266,7 @@ If no sprint file can be found:
 
 > No active sprint found — run `/devloop:plan` first.
 
-Stop. Otherwise read the sprint file and extract `$SPRINT_N`, `$SPRINT_FILE`, `$SPRINT_GOAL`, `$REPO`, and the ordered issue checklist.
+Stop. Otherwise read the sprint file and extract `$SPRINT_N`, `$SPRINT_FILE`, `$SPRINT_GOAL`, `$SPRINT_DEMO` (the `**Demo:**` line — absent on an older sprint file, and then simply unset), `$REPO`, and the ordered issue checklist.
 
 ### S2 — Concurrency guard
 
@@ -368,7 +368,7 @@ Compute the relative time from scripts, not the session clock: read the build ti
 
 On **n**, keep the existing file and continue. On **y** (or on a fresh start), invoke `context`.
 
-Invoke **`context`**, passing: `$ISSUE`, `$REPO`, `$SPRINT_GOAL`, `$WORK_DIR` = `$REPO_ROOT/.context/sprints/work/issue-N/` (absolute — see [S1](#s1--resolve-the-active-sprint)), a one-line profile summary, and `$NOW` (script-derived) for its Zone 2 seed entry. For **scaffold**, request the `light` variant (issue + workspace map only); otherwise `full`, in which the agent **self-calibrates depth** (`minimal`/`standard`/`deep`) to the issue and biases light — run does **not** dictate the depth, exactly as it does not assess complexity for a design decision. It writes `context.md` Zone 1 and returns the `TIER` it chose. Record the build time (`$NOW`) **and the tier** in the state log so a later resume can compute the relative age and the retro can see whether the default is calibrated.
+Invoke **`context`**, passing: `$ISSUE`, `$REPO`, `$SPRINT_GOAL`, `$SPRINT_DEMO` (the planner reads both, verbatim, to decide how much testing the work deserves), `$WORK_DIR` = `$REPO_ROOT/.context/sprints/work/issue-N/` (absolute — see [S1](#s1--resolve-the-active-sprint)), a one-line profile summary, and `$NOW` (script-derived) for its Zone 2 seed entry. For **scaffold**, request the `light` variant (issue + workspace map only); otherwise `full`, in which the agent **self-calibrates depth** (`minimal`/`standard`/`deep`) to the issue and biases light — run does **not** dictate the depth, exactly as it does not assess complexity for a design decision. It writes `context.md` Zone 1 and returns the `TIER` it chose. Record the build time (`$NOW`) **and the tier** in the state log so a later resume can compute the relative age and the retro can see whether the default is calibrated.
 
 **A light default is safe because context is reachable on demand.** If a later agent finds Zone 1 too thin, it raises `NEEDS-CONTEXT` (the planner does today; see [plan](#phase-plan)), and run re-invokes `context` in `deepen` mode to fill exactly that gap — appending to Zone 1, not rebuilding. This is the escape hatch; it is what lets the agent bias light without starving the planner.
 
@@ -457,15 +457,25 @@ Then present it as **three beats, one message each**, waiting for a reply betwee
 
 ## Phase: plan
 
-**Active in:** feature, bugfix.
+**Active in:** feature, bugfix. Multi-pass at `STANDARD` — `phase_step`: `planned → test-critiqued → [revised]`.
 
-Invoke **`planner`**, passing `context.md`, the issue's acceptance criteria and Definition of Done, the profile flags (`$HAS_UNIT_TESTS`, `$HAS_E2E`), `$NOW`, and the `design.md` path **if a design phase ran**. It writes `plan.md` (ordered tasks + per-task acceptance, headed by a **`Rung:`** — `EXPRESS`, `STANDARD`, or `REFACTOR`) and, for `STANDARD`, `test-plan.md` (unit scenarios per task, e2e per flow; bugfix is root-cause first). The collapsed rungs write no test-plan; each writes the one artifact that licenses it instead — a `## Triviality proof` section for `EXPRESS`, a `## Coverage` section for `REFACTOR`. If a design guide was provided, the tasks realise that approved approach.
+Invoke **`planner`**, passing `context.md`, the issue's acceptance criteria and Definition of Done, the profile flags (`$HAS_UNIT_TESTS`, `$HAS_E2E`), `$NOW`, and the `design.md` path **if a design phase ran**. It writes `plan.md` (ordered tasks + per-task acceptance, headed by a **`Rung:`** — `EXPRESS`, `STANDARD`, or `REFACTOR`) and, for `STANDARD`, `test-plan.md` (a purpose reading, then each behavior's proof — `test` scenarios, an `observe` check, or `none` — and e2e flows; bugfix is root-cause first). The collapsed rungs write no test-plan; each writes the one artifact that licenses it instead — a `## Triviality proof` section for `EXPRESS`, a `## Coverage` section for `REFACTOR`. If a design guide was provided, the tasks realise that approved approach.
 
 **Context detour.** Zone 1 is sized light by the `context` agent. If the planner finds it too thin to plan responsibly, it returns `NEEDS-CONTEXT: [the specific fact it needs]` instead of a plan. run reacts by re-invoking **`context`** in `deepen` mode (`$MODE: deepen`, `$GAP:` the requested fact, `$NOW`) — which appends the fact to Zone 1 — then re-invokes the planner. **Capped at 2 deepens** (see [Bounds](#bounds--every-loop-in-this-cycle-is-capped)): if the planner still can't plan after two, the *issue* is underspecified, not the context — re-invoke it one last time with `$CONTEXT_FINAL: true` so it plans best-effort and records the residual uncertainty (human mode surfaces that at gate-plan; auto-mode proceeds and logs it, or stops-the-line if it instead escalates to `NEEDS-DESIGN`). A `deepen` that returns `unresolved` (the fact doesn't exist) counts against the cap and is itself signal — the planner may be assuming something absent.
 
 **Design detour.** The decision to design is the **planner's**, not run's: if it judges it cannot responsibly break the work into tasks without an architecture/approach decision first, it returns `NEEDS-DESIGN: [why]` instead of a plan. run does not assess this itself — it simply reacts to the signal: activate the **design** phase above (draft → [spike] → critique → gate-design), and after approval return here and re-invoke the planner with the approved `design.md`. If the user declines at gate-design ("skip design"), run re-invokes with `$DESIGN_DECLINED: true` — the planner then plans best-effort and must not return `NEEDS-DESIGN` again (no loop).
 
 **Manual detour.** Likewise the planner decides an issue has no code to build: it returns `MANUAL: [why]` instead of a plan. run reacts by switching the workflow to **manual** (`workflow: manual` in the state file), recording `phase: gate-manual`, and jumping there — it does **not** write a plan, create a branch, or run any build/test/review/PR phase. (This bypasses gate-plan entirely; the only gate for a manual issue is gate-manual.) Continue to [gate-manual](#gate-gate-manual).
+
+**Test critique** (`STANDARD` only). The planner wrote the test plan and judged it sufficient — nobody else has read it, and everything after this builds, red-verifies and trusts exactly what it says. A missing edge here is never added later (the `test-writer` covers only what the plan lists); a filler test here is written, reviewed and kept forever. So, once `planner` returns `PLAN:` at `STANDARD` (write `phase_step: planned`):
+
+1. Derive a fresh `$NOW` and invoke **`test-critic`** — a **fresh instance** — with `$WORK_DIR`, `$SPEC` = the absolute path of `skills/run/test-strategy-spec.md`, `$TEST_GLOBS` from the profile, and `$NOW`. It judges the plan in **both** directions: behaviors missing edge, error or permission cases, and scenarios that are filler, restate a value, re-check a library, or test what a person's eyes prove better — and whether the purpose reading behind each decision matches the evidence. Write `phase_step: test-critiqued` and the findings into `## Pending gate` the moment it returns.
+2. **`VERDICT: sound`** → continue. **`VERDICT: revise`** → re-invoke **`planner`** with `$TEST_CRITIQUE` = the findings and a fresh `$NOW`; it revises `test-plan.md` in place and returns any `DECLINED:` finding with its reason. Write `phase_step: revised`.
+3. **No second critique.** One pass, one revision: a critique of the revision would find something new in the new text, and the loop would never converge. What the critic changed and what the planner declined go in front of the human at gate-plan beat 3 — that is the check on the revision.
+
+**Whenever the planner writes a new `test-plan.md` later** — a rung changed to `STANDARD` at gate-plan, an `EXPRESS`→`STANDARD` auto-bump in build — run this critique again before the plan is used. It is a new plan, and nothing has read it.
+
+Auto-mode runs the same steps, with no stop: the critic's findings are applied by the planner, and the Zone 2 entries record both.
 
 Record `phase: gate-plan`. Continue.
 
@@ -484,7 +494,7 @@ run owns the phase list. Start from the workflow default (the table in [How this
 - **`TRIVIAL`** — the lightest [collapsed path](#the-collapsed-path): the `build` phase applies the inert edit and verifies inertness on the diff (only the checks a target feeds — usually none); **no review, no validate, no e2e**. The only gates are `gate-plan` (now) and the delivery gate. The ACs are prose outcomes the human confirms from the diff at the delivery gate.
 
 Then adjust for what the planner produced:
-- `test-plan.md` has e2e scenarios **and** the profile has an `e2e-test` command → include **e2e**. Otherwise drop it. (`TRIVIAL`/`EXPRESS`/`REFACTOR` write no `test-plan.md`; `TRIVIAL` never runs e2e.)
+- `test-plan.md` has e2e flows marked `Proof: test` **and** the profile has an `e2e-test` command → include **e2e**. (A flow marked `Proof: observe` does not activate the phase — its check goes to validate.) Otherwise drop it. (`TRIVIAL`/`EXPRESS`/`REFACTOR` write no `test-plan.md`; `TRIVIAL` never runs e2e.)
 - DoD includes "Code reviewed" → include **review** (single-pass for `EXPRESS`/`REFACTOR`, two-pass for `STANDARD`; **never** for `TRIVIAL` — an inert edit has no executable surface for the code-review rubric). The issue has acceptance criteria → include **validate** (**except `TRIVIAL`**, whose ACs carry no symbol to trace — they are confirmed at the delivery gate).
 - Count build tasks from `plan.md`.
 
@@ -496,9 +506,9 @@ Then compute which **gates** will fire: `gate-plan` (now), `gate-review` (if rev
 
 Both read files you already have open. Both are cheap, and both catch a defect that is enormously more expensive one phase later.
 
-**1 · Every `STANDARD` task has a scenario.** Cross-check `plan.md`'s task list against `test-plan.md`'s `## Unit` sections: each task must have at least one scenario. The build phase runs the [TDD micro-loop](#the-tdd-micro-loop) once *per task*, so a task with no scenario seeds the `test-writer` with nothing — the red check returns `GREEN` (vacuous) or `RED-SETUP`, it bounces twice, and the run escalates or stop-the-lines on the smallest item in the plan. Catching it here costs one comparison; catching it there costs three agent invocations and a halt.
+**1 · Every `STANDARD` task has a proof.** Cross-check `plan.md`'s task list against `test-plan.md`: each task must have at least one behavior with a `Proof:` line — `test` with at least one scenario, `observe` with a check, or `none` with a reason. The build phase runs once *per task*, so a task with no behavior at all has nothing to build against — seeded as a test it returns `GREEN` (vacuous) or `RED-SETUP`, bounces twice, and escalates on the smallest item in the plan. Catching it here costs one comparison.
 
-A scenario-less task is a **planning defect**, not a rung question — re-invoke the `planner` to fold it into the task it serves (see its contract: a task is a unit of behavior, not a step). Note it at the gate so the human sees the plan changed shape. *(Skipped when `$HAS_UNIT_TESTS` is false, and at every rung but `STANDARD` — the collapsed rungs author no scenarios by design.)*
+A task with no proof is a **planning defect**, not a rung question — re-invoke the `planner` to fold it into the task it serves (a task is a unit of behavior, not a step). **Never ask for a scenario to fill the slot**: a task whose behaviors are all `observe` / `none` is a legitimate plan, and a filler test proves nothing and is trusted forever. Note any reshaping at the gate so the human sees the plan changed. *(At every rung but `STANDARD` this check is skipped — the collapsed rungs write no test plan by design.)*
 
 **2 · No plan task reverses a binding prohibition.** For each accepted ADR or `design.md` Zone 1 lists as bearing on this issue, extract its **explicit negative constraints verbatim** — the sentences containing *never*, *must not*, *cannot*, *is not*, *may not*. There are few of them, they are the load-bearing ones, and they are exactly the sentences a plan is most damaging to contradict. Put each beside the plan task that touches the same surface and confirm the task does not reverse it.
 
@@ -574,7 +584,23 @@ The human can cut the pacing short at any beat ("just go", "approve"). Honor it 
 
 If the human moves something, re-invoke the `planner` with the destination as a constraint and re-present this beat — run does not rewrite `plan.md` itself, for the same reason it never writes a rung's licensing artifact. Log the move to Zone 2 with the **user as author**.
 
-**Beat 3 · How it gets proven, and where you'll be asked again.** The stage table and gate list from the panel above, then the approve/reshape line. By this point the human has settled the shape and the placement, so this beat is about process depth only — and it is the beat to keep short.
+**Beat 3 · How it gets proven, and where you'll be asked again.** Lead with the proof — this is the one moment the human can say *"that's too much for a demo"* or *"you missed the expired-link case"* before any test exists. All of it is read from `test-plan.md` and the critique return in `## Pending gate`; never compose a scenario here.
+
+> **What this is for:** [the Purpose reading, in plain words] — because [the quoted evidence]
+>
+> **Tested** — [k] behaviors, [s] cases
+> - [behavior] — [happy · edge · error, one short line each]
+>
+> **You'll check by eye** — [m]   ← omit if none
+> - [the check: do this → see that]
+>
+> **Not tested, on purpose** — [the edges and `none` behaviors, each with its one-line reason]   ← omit if none
+>
+> **The second look changed:** [what the critique added, cut, or moved between tested and by-eye] · **kept as planned, against it:** [each declined finding + the planner's reason]   ← omit if the critique was sound
+>
+> Is that the right amount of proof for what this is? (or: not sure — I'll show you the case)
+
+Then the stage table and gate list from the panel above, and the approve/reshape line. Reshaping proof — *"just check the page by eye"*, *"test the permission case too"* — re-invokes the `planner` with the request as a `$TEST_CRITIQUE` finding authored by the user, then re-presents this beat; the planner's decline rule does not apply to a user's finding, except that a request to drop the test on a behavior touching data, money, auth, secrets, an irreversible operation or a consumed contract is said back once, plainly, before it is honored. Log proof changes to Zone 2 with the **user as author**.
 
 Apply any reshaping the user asks for (drop/add a stage, switch workflow, **change the rung**). The user has final say on the rung too — and on the rung, saying so is not the same as being able to run it:
 
@@ -640,7 +666,7 @@ The cycle that turns one unit of intent into committed, verified code — four s
 
 | Caller | `$SEED` | `test-writer` mode | `coder` mode |
 |---|---|---|---|
-| build phase (per task) | the task's scenarios in `test-plan.md` | `unit` | `implement` |
+| build phase (per task) | the task's `Proof: test` scenarios in `test-plan.md` | `unit` | `implement` |
 | gate-review (per blocker) | the review finding | `regression` | `fix` |
 
 Defining it once is deliberate: the two callers must never drift apart, because a blocker fix that skipped the red check would be exactly as untrustworthy as a task that did.
@@ -704,7 +730,12 @@ Four different signals can send the micro-loop round again. They are **not** int
 
 [The TDD micro-loop](#the-tdd-micro-loop), repeated per task in `plan.md`. `task_index` is the 0-based position.
 
-For the task at `task_index`: run the micro-loop with `$SEED` = the task (test-writer `unit`, coder `implement`). Then mark the task `[x]`, increment `task_index`, and append a log line.
+For the task at `task_index`, branch on its behaviors' proofs in `test-plan.md`:
+
+- **Any `Proof: test` behavior** → run the micro-loop with `$SEED` = the task (test-writer `unit`, coder `implement`). The test-writer takes only the `test` scenarios; the coder builds the task's `observe` / `none` behaviors alongside.
+- **Every behavior `observe` / `none`** → skip steps 1–2 (there is no test to author, by recorded decision): `coder` (`implement`) builds the task to its acceptance, then step 4's `test-runner` verdict. Do **not** send the test-writer "just in case" — that is the test the plan was critiqued to remove.
+
+Then mark the task `[x]`, increment `task_index`, and append a log line.
 
 **Escalation.** If `coder` cannot make the tests pass after **3 attempts** on the same task, stop the loop:
 
@@ -728,7 +759,7 @@ When all tasks are `[x]`, record `phase:` = next active phase (`e2e` if active, 
 
 **EXPRESS and REFACTOR** — per task in `plan.md`, prove *first*, then apply:
 
-1. **Run the rung's proof** (table above), capturing output to `$LOG_DIR`. On EXPRESS the proof failing means the rung was mis-called → **auto-bump to `STANDARD`** (re-invoke the `planner` with **`$RUNG`** = `STANDARD` for a `STANDARD` plan — `test-plan.md` and all — set `rung: standard`, log to Zone 2 `Caught by: validation`, restart this phase on the STANDARD path). The bump is a **one-way ratchet** — a rung only ever moves up — so no cap. On REFACTOR, `THIN` coverage is not a bump but a **surface/stop** as in the table (you don't fix under-coverage by adding ceremony to the refactor; you add coverage first).
+1. **Run the rung's proof** (table above), capturing output to `$LOG_DIR`. On EXPRESS the proof failing means the rung was mis-called → **auto-bump to `STANDARD`** (re-invoke the `planner` with **`$RUNG`** = `STANDARD` for a `STANDARD` plan — `test-plan.md` and all — run the [test critique](#phase-plan) on that new `test-plan.md`, set `rung: standard`, log to Zone 2 `Caught by: validation`, restart this phase on the STANDARD path). The bump is a **one-way ratchet** — a rung only ever moves up — so no cap. On REFACTOR, `THIN` coverage is not a bump but a **surface/stop** as in the table (you don't fix under-coverage by adding ceremony to the refactor; you add coverage first).
 2. **Apply the change.** Invoke **`coder`** (`mode: express` — apply the change; there is no authored test to turn green, so success = the profile's checks pass) with `$SEED` = the task, `plan.md`, `context.md`, `$NOW`, `$LOG_DIR`, **`$CHECKS`**, `$ABSENT`, and **`$ACCEPTED`**. It commits only when all `$CHECKS` pass. (The `MISSING: <check>` round-trip applies here too.)
 3. **Verify — the verdict.** Invoke **`test-runner`** (`mode: unit`) with the profile's test command (`$UNIT_CMD`), the baseline, `$LOG_DIR`, `$NOW`. Three buckets; `new` failures block, and what a `new` failure *means* is the crux of each rung:
    - **EXPRESS** — a new failure means the change touched real behavior after all → **auto-bump to STANDARD** (there *is* something to fix and guard).
@@ -749,13 +780,15 @@ When all tasks are `[x]`, record `phase:` = next active phase. For `EXPRESS`/`RE
 
 ## Phase: e2e
 
-**Active in:** feature, bugfix — only if `test-plan.md` has e2e scenarios. Skipped silently otherwise.
+**Active in:** feature, bugfix — only if `test-plan.md` has e2e flows marked `Proof: test`. Skipped silently otherwise; an e2e flow marked `Proof: observe` is not built here — its check goes to [validate](#phase-validate) with the other by-eye checks.
 
 If the profile has no `e2e-test` command but the plan expects e2e:
 
 > The plan includes E2E scenarios but the profile has no `e2e-test` command. Provide one now (I'll save it), or skip E2E for this issue? (command / skip)
 
-Invoke **`test-writer`** to write the Playwright tests for the scenarios, then **`test-runner`** (full mode) — it starts the `dev-server` from the profile, runs the e2e suite, and returns the three buckets. Handle failures per [Known-failing baseline](#known-failing-baseline).
+Invoke **`test-writer`** (`mode: e2e`, with the profile's e2e framework as `$FRAMEWORKS` — never an assumed one) to write the tests for the `Proof: test` flows, then **`test-runner`** (full mode) — it starts the `dev-server` from the profile, runs the e2e suite, and returns the three buckets. Handle failures per [Known-failing baseline](#known-failing-baseline); a `new` failure goes to the `coder` (`fix`).
+
+**No `red` check here, and that is deliberate.** These tests are written after the build, against code that already exists: `red` would return `GREEN` on every good one and bounce it back. A failing e2e test is a real defect found; a passing one is retained coverage (`skills/run/test-strategy-spec.md` § 6).
 
 Record `phase: review`. Continue.
 
@@ -831,6 +864,7 @@ Record `phase: validate`. Continue.
 Cross-check the issue's acceptance criteria and Definition of Done against what was delivered. `phase_step`: `auto-checked` → `gated`.
 
 - **Automated ACs / DoD** (test-backed): an AC is satisfied when a passing test covers it **and** the behavior it asserts is **reachable from a production entry point**. Both halves are required — see [Reachability](#reachability-a-green-test-is-not-a-satisfied-ac) below. "PR merged to main" cannot be checked yet — leave it.
+- **By-eye checks** — every `Proof: observe` check in `test-plan.md` (unit behaviors and e2e flows). The plan decided a person's check is the right proof for these, so they are presented with the manual ACs below — never automated here, and never written to `.context/devloop-unproven.md` (that ledger is for a test that was due and overridden; a row there comes back as test work at sprint close).
 - **Manual ACs** (user-visible behavior with no test): present at **gate-validation**:
 
   > **Validate — #[ISSUE]**
@@ -845,6 +879,7 @@ Cross-check the issue's acceptance criteria and Definition of Done against what 
   >
   > Please verify manually:
   > - [ ] [criterion — e.g. "error toast appears on wrong password"]
+  > - [ ] [by-eye check from the plan — do this → see that]
   >
   > Confirm each is met (y / list the ones that fail):
 
@@ -881,7 +916,9 @@ If any AC or required DoD item is unmet — including any that **failed the reac
 
 **Auto-mode.** The **trace runs exactly as above, all five steps** — it is mechanical, it needs no human, and auto-mode is where it matters most, because nobody is looking at the diff before it merges. A failed trace is **not** a flag to carry forward: unlike a manual AC that *can't* be automated, each of the four shapes is a **demonstrable defect** — the code was never wired in, the producer cannot emit what the test assumed, the reply is malformed, the return is unreachable. Route it back to **build** as one scoped task (coder → test-runner → review, as any build fix). Attempt this **once per AC**; if the fix can't be made without a decision the run isn't entitled to make — which entry point should call this, whether the producer or the test is the wrong one, whether the design intended this path at all — **stop-the-line**: log the blocker with the failed trace and exit, exactly as anywhere else auto-mode would escalate.
 
-For each **manual** AC, best-effort to remove the human dependency: invoke `test-writer` + `test-runner` to write a test that exercises the behavior. If it passes, the AC is genuinely verified — *and it still needs a reachability trace, for the same reason: a test the loop wrote itself is the loop vouching for the loop.* If the new test *fails* (the behavior is actually broken), that is a `new` failure → handle per the baseline (coder fix; unfixable → **stop-the-line**). If the behavior can't be meaningfully automated, mark the AC **unverified**, log it, and carry it forward as a `needs manual verification` flag — into the PR body when `delivery: pr`, or (direct) recorded in Zone 2 for the human to confirm in the outer-loop review — never waive it silently. Auto-mode does **not** stop at gate-validation; unverifiable ACs travel forward as flags for the human to confirm during review.
+**By-eye checks are not automated.** A `Proof: observe` check — and a manual AC whose behavior the plan marked `observe` or `none` — is carried forward as `needs manual verification` exactly as written in `test-plan.md`. Writing a test for it here would silently reverse a critiqued decision about what proof is enough, which is how a plan sized for a demo grows a suite anyway.
+
+For each **other manual** AC — one the plan made no proof decision about — best-effort to remove the human dependency: invoke `test-writer` + `test-runner` to write a test that exercises the behavior. If it passes, the AC is genuinely verified — *and it still needs a reachability trace, for the same reason: a test the loop wrote itself is the loop vouching for the loop.* If the new test *fails* (the behavior is actually broken), that is a `new` failure → handle per the baseline (coder fix; unfixable → **stop-the-line**). If the behavior can't be meaningfully automated, mark the AC **unverified**, log it, and carry it forward as a `needs manual verification` flag — into the PR body when `delivery: pr`, or (direct) recorded in Zone 2 for the human to confirm in the outer-loop review — never waive it silently. Auto-mode does **not** stop at gate-validation; unverifiable ACs travel forward as flags for the human to confirm during review.
 
 Append a Zone 2 entry (`$NOW`) recording the validation outcome — which criteria were confirmed (and how — auto-test vs already test-backed), **the traced production call path for each automated AC** (verbatim, e.g. `AC1 → src/index.ts → createApp() → src/feature/handler.ts:41 → handleRequest()`), **the producer named at step 4 and the return-path answer from step 5** (including any `N of M` ratio, and any AC resting on a `FIXTURE-BYPASS` value), which the user waived on override, and (auto-mode) which were left `needs manual verification`. Where a step could not be answered — no runnable surface, no producer identifiable — **say so explicitly** rather than omitting it, so the outer loop knows which half of the round trip was never checked instead of reading silence as a pass. A trace that failed at any step is a defect found here: record it with **`Caught by: validation`**, and cite the grep under **Artifacts**. The traces are not bookkeeping — `/devloop:review` reads them at the outer loop, where a human would otherwise reconstruct them by hand, which is how this class of defect gets found late instead of here.
 
