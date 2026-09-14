@@ -21,7 +21,7 @@ Devloop's bet is that you can keep **both** — AI's speed *and* your grip on th
 
 The slow part never disappears — it just moves depending on how you work. And because everything the AI does on the fast path is **logged with its reasoning**, the slow review is genuine understanding, not archaeology. You come out the other side having shipped quickly *and* knowing what you shipped and why.
 
-There's one thing the slow path can't fix on its own: the model you refresh at review lives in **your** head. It drifts as the system moves, and someone joining the team never had it. That's what [`/devloop:docs`](#when-the-humans-get-lost--devloopdocs) is for — the standing description of the system, written for people, and checked against the code rather than trusted.
+There's one thing the slow path can't fix on its own: the model you refresh at review lives in **your** head. It drifts as the system moves, and someone joining the team never had it. That's what [`/devloop:docs`](#docs-for-humans--devloopdocs) is for — the standing description of the system, written for people, and checked against the code rather than trusted.
 
 That log records more than decisions. For every bug the run hit, it records **which gate caught it** — a failing test, the type checker, the code review, the second-opinion pass — and keeps the raw failing output on disk. So at review you can ask *"how did you catch this?"* and get an answer with the evidence attached, rather than a plausible story. It also means the loop can tell you, over a sprint, **which of its own checks are actually earning their keep** and which have never once caught anything.
 
@@ -129,7 +129,7 @@ The conversational skills aren't locked to any diagram either. **`/devloop:backl
 
 ## The tight loop — `/devloop:tinker`
 
-Both workflows above are anchored to a **plan** — an issue, a sprint. There's a third mode that isn't: you at the keyboard with the app running, deciding what to build next by looking at it, and the AI writing the code on your behalf. It can be a one-line value or a whole feature — the size is yours to decide.
+Both workflows above are anchored to a **plan** — an issue, a sprint. There's one more mode that isn't: you at the keyboard with the app running, deciding what to build next by looking at it, and the AI writing the code on your behalf. It can be a one-line value or a whole feature — the size is yours to decide.
 
 ```
   inner loop   run --auto, sprint   AI executes, you're away      anchored to an issue
@@ -140,11 +140,12 @@ Both workflows above are anchored to a **plan** — an issue, a sprint. There's 
 
 `/devloop:tinker I want to refactor the sign-in page` opens a session, reads up on that part of the code, and waits for instructions. *Add a Sign in with Google button. Now make the sign-in button green. Commit.* You watch the UI, the logs, the database; it does the work, and keeps the project from drifting while it does.
 
-**It isn't `run` with the tests turned off.** Every instruction gets the same question asked out loud — *does this change behaviour?* — and when it does, the test comes first and is checked to actually fail before any code is written. You can overrule that in two seconds. Then the override is what gets written down: it lands in a short list of things running with nothing proving they work, which `review` offers back to you as issues at sprint close. That's the difference between **deferring** proof and skipping it.
+**It isn't `run` with the tests turned off.** Every instruction gets the same question asked out loud — *does this change behaviour?* — and when it does, and an honest test exists, the test comes first and is checked to actually fail before any code is written. (A colour, a label or a value you're tuning by eye doesn't get a test that just restates it: you watching it is the proof.) You can overrule that in two seconds. Then the override is what gets written down: it lands in a short list of things running with nothing proving they work, which `review` offers back to you as issues at sprint close. That's the difference between **deferring** proof and skipping it.
 
 A few other things it holds while you move fast:
 
-- **One tweak, one commit** — not ceremony. After three changes and *"it's still wrong"*, it's the only thing that makes the undo precise.
+- **Nothing commits until you say so.** Every change stops with a short summary, the files it touched and a proposed commit message. You read the change in your own editor, try it in the app, then say commit, retry or discard. If you edit the code yourself in between, it notices and re-runs the checks before committing.
+- **One change, one commit** — or one commit per planned instruction. Not ceremony: after three changes and *"it's still wrong"*, it's the only thing that makes the undo precise.
 - **Bigger instructions get planned, not refused.** When an instruction is several pieces, it plans it the way `run` does — tasks, where each piece of code goes in *your* repo, a design when there's a real choice to make, tests written first — and asks you before building only when the plan holds a decision that's yours (a new dependency, a new place for code, anything touching sign-in or permissions). It runs every check before showing you the result.
 - **Small changes stay fast.** A colour or a label runs only the quick checks your profile has that can actually see that file — or none, if it has none. The rest wait for session close.
 - **A session branch**, merged at the end only after every check passes, the diff is checked against your recorded decisions, and the whole session is reviewed. That's what stops a long session drifting from your architecture.
@@ -162,7 +163,7 @@ That line is why the value survives. Without it, the next agent to open that fil
 
 ---
 
-## Docs for Human — `/devloop:docs`
+## Docs for humans — `/devloop:docs`
 
 Everything devloop records is written for the **next run**: the journal is a list of episodes, the decision records are case law, each issue keeps its own timeline. All useful, and none of it answers the question a person actually asks.
 
@@ -196,7 +197,7 @@ Run it bare and it **audits** — cheap, writes nothing, safe at any time. On a 
 
 ## A third way in — `/devloop:vibe`
 
-Everything above assumes you're a developer with a repo, issues and a sprint. **`/devloop:vibe` is for the other case**: someone who wants a small app to exist, and isn't going to write it.
+Everything above assumes you're a developer working in your own codebase. **`/devloop:vibe` is for the other case**: someone who wants a small app to exist, and isn't going to write it.
 
 It is not the sprint loop with the tests switched off. It's a separate, lighter track that borrows the same agents:
 
@@ -314,7 +315,7 @@ Skills are what you invoke. The conversational ones pause at every human gate; t
 | **`/devloop:sprint`** | Execute the **whole** active sprint autonomously. A thin orchestrator over `run --auto` that works every issue in order, merging each locally as it lands (**PR-less**), and **stops the moment it hits a blocker it can't resolve** (never skipping ahead). Hands off to `review` when done. Re-invoke to resume after an interruption. |
 | **`/devloop:status [sprint-N]`** | Read-only snapshot — issue statuses, the in-progress step, milestone progress, and which shipped issues are **accepted vs. awaiting review**. No gates, no changes. |
 | **`/devloop:abort [issue]`** | The escape hatch for `run`. Cleanly stops an in-progress run: releases the lock, hands you the branch (delete / keep / park as draft PR) and run state (delete or keep to resume). Doesn't close the issue or touch the milestone. |
-| **`/devloop:tinker`** | The **tight loop** — you and the AI at the keyboard with the app running, one instruction at a time. It classifies each change (*does this alter behaviour?*) and writes the test first when it does, raises anything that contradicts a recorded decision, runs your checks, then stops with a short summary, the files it touched and a proposed commit message — you review the change in your editor, try it in the app, and it commits **one tweak at a time**, only when you say so. Works on a session branch, merged at the end after an independent test run and a review pass. Every session leaves a line in the project journal, so the next sprint knows why that value is 4 seconds and not 2. Runs in both tracks. **Optional goal** — `/devloop:tinker I want to refactor the sign-in page`. |
+| **`/devloop:tinker [goal]`** | The **tight loop** — you and the AI at the keyboard with the app running, one instruction at a time, from a one-line tweak to a whole feature. Give it a goal (`/devloop:tinker I want to refactor the sign-in page`) and it reads up on that area first. Small changes are applied directly with only the quick checks that can see them; bigger ones are **planned the way `run` plans them** and built test-first with every check, stopping to ask only when the plan holds a decision that's yours. Every change then stops with a short summary, the files touched and a proposed commit message — you review it in your editor, try it in the app, and it commits **only when you say so**. Works on a session branch, merged at close only after every check passes, the diff is checked against your recorded decisions, and the whole session is reviewed. Every session leaves a line in the project journal, so the next sprint knows why that value is 4 seconds and not 2. Runs in both tracks. |
 
 ### Understand & onboard *(any time)*
 
@@ -341,9 +342,9 @@ Agents are the workers behind the skills — you don't invoke them directly. Eac
 | **backlog-triage** | Fetches `type:backlog` issues and classifies each against the sprint goal. Used by `plan`. |
 | **issue-selector** | Fetches sprint-ready issues (no milestone, not backlog) and suggests include/consider/skip. Used by `plan`, `replan`. |
 | **context** | Assembles the central knowledge file (`context.md`) from issues, docs, and codebase patterns. Issue-anchored for `run`, diff-anchored in PR mode. **Sizes retrieval depth to the issue** (light by default) and **deepens a specific gap on demand** when a later agent asks for more. |
-| **planner** | Turns context (and an approved design) into an ordered task list (`plan.md`) and a test strategy (`test-plan.md`), and **sizes the process to the task** via a rung (EXPRESS / STANDARD / REFACTOR). Can raise `NEEDS-CONTEXT`, `NEEDS-DESIGN`, or `MANUAL`. |
+| **planner** | Turns context (and an approved design) into an ordered task list (`plan.md`) and a test strategy (`test-plan.md`), and **sizes the process to the task** via a rung (STANDARD / REFACTOR / EXPRESS / TRIVIAL). Used by `run`, and by `tinker` for its bigger instructions. Can raise `NEEDS-CONTEXT`, `NEEDS-DESIGN`, or `MANUAL`. |
 | **designer** | Design/architecture specialist. Authors an implementation guide (`design.md`); a fresh instance critiques it against named criteria. Designs **within** your recorded architecture decisions — if an issue can't be built without breaking one, it stops and says so rather than quietly designing around it. Overturning a decision you made is your call, in `/devloop:architect`, not a side effect of a run. |
-| **test-writer** | Writes the specified **failing** tests (unit + E2E), or a **regression** test reproducing a bug before it's fixed. Never runs them, never writes production code. When a clean test is impossible without an unsafe cast, it **stops** — that's the production interface being too narrow, not a test that needs a hack. |
+| **test-writer** | Writes the specified **failing** tests (unit + E2E) — from the test plan, or from a scenario handed to it directly when there is no plan (a single `tinker` change, which may also update an existing test) — or a **regression** test reproducing a bug before it's fixed. Never runs them, never writes production code. When a clean test is impossible without an unsafe cast, it **stops** — that's the production interface being too narrow, not a test that needs a hack. |
 | **coder** | Implements one task to make its failing tests pass, runs the project's checks, commits only when green (*green* = no **new** failures). For a trivial or behavior-preserving change it applies the change **without a test-first step** (the checks still gate it), and in `vibe` mode builds new behavior the same way, with proof deferred to that track's hardening pass. Also runs throwaway spikes. Its green is provisional — the test-runner has the last word. |
 | **test-runner** | The **independent verifier** — it didn't write the code, and it can't edit it. Runs tests and classifies every failure as **new / accepted / pre-existing** (using the baseline allowlist). Also verifies the **red** step: that a fresh test really fails, and fails for the right reason, rather than erroring on a broken import or passing vacuously. |
 | **ba-critic** | Reads a drafted **product brief** and reports what a non-technical owner could read, be wrong about, and not notice — a capability nobody could fail, a domain word doing real work but never defined, a missing "what it does NOT do" list. Returns the plain question that settles each. The check on a comfortable conversation producing a comfortable, wrong brief. |
@@ -376,7 +377,7 @@ devloop keeps its state under `.context/` so work resumes across sessions:
 | `.context/docs-map.md` | shared record | Which pages exist, what code each one covers, who each is for, and **the commit each was written against** — which is what turns "have the docs gone stale?" into a question with a real answer. The last drift report sits beside it in `docs-audit.md`, and `plan` reads it when scoping the next sprint. |
 | `.context/sprints/state/` | working area | Lock + per-issue control plane (lets `run`/`sprint` resume). |
 | `.context/sprints/work/` | working area | Per-issue working files (`context.md` with its logged decision timeline, `plan.md`, `test-plan.md`, …) plus `logs/` — the raw test output behind each logged failure, kept out of the timeline and opened on demand at review. |
-| `.context/tinker/` | working area | One folder per `tinker` session — what it looked up about the area you were working in, and one entry per tweak: what changed, **why**, how it was proved, and the commit. |
+| `.context/tinker/` | working area | One folder per `tinker` session — the goal, what it looked up about the area you were working in, the plan for any bigger instruction, and one entry per commit: what changed, **why**, how it was proved, and the SHA. |
 
 Whether any of `.context/` is version-controlled is your choice.
 
