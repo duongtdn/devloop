@@ -312,7 +312,7 @@ Wait for an explicit yes. A question, a "hmm, maybe", more discussion — none o
 
 #### Applying it
 
-**Follow `skills/tinker/tweak-spec.md`** — it owns the commissioned-edit mechanism, shared with `/devloop:tinker` and `/devloop:vibe`. Derive `$NOW` first (`node -e "console.log(new Date().toISOString())"`), and invoke the `coder` with `$MODE: express`, `$WORK_DIR`/`$LOG_DIR` **absolute** under `.context/sprints/work/issue-N/`, `$CHECKS` from the profile, `$ACCEPTED` from the baseline, and `$TASK` as the fix stated inline — there is no `plan.md` entry for it.
+**Follow `skills/tinker/tweak-spec.md`** — it owns the commissioned-edit mechanism, shared with `/devloop:vibe`. Derive `$NOW` first (`node -e "console.log(new Date().toISOString())"`), and invoke the `coder` with `$MODE: express`, `$WORK_DIR`/`$LOG_DIR` **absolute** under `.context/sprints/work/issue-N/`, `$CHECKS` from the profile, `$ACCEPTED` from the baseline, and `$TASK` as the fix stated inline — there is no `plan.md` entry for it.
 
 The spec's rules, restated because this is the write site and the nearest wording always wins:
 
