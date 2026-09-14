@@ -1,7 +1,8 @@
 # Journal spec — `.context/devloop-journal.md`
 
 Shared spec. Read by every skill that finishes an **episode** of work: `run`, `tinker`, `vibe`,
-`review`, `architect`, `abort` — and by the `context` agent, which is the only consumer that matters.
+`review`, `architect`, `abort`, `docs` — and by the `context` agent, which is the only consumer that
+matters.
 
 ---
 
@@ -48,6 +49,7 @@ One line per finished episode, appended in chronological order:
 - 2026-09-05 · tinker · hand-tuned · `src/ui/toast/**`, `src/lib/format.ts` · toast 2s→4s (owner watched it, 2s too fast to read); dates ISO→local → `tinker/2026-09-05-toast-and-dates/context.md`
 - 2026-09-05 · review s3 · closed · — · sprint 3 retro; 2 unproven rows still open → `sprints/sprint-3-review.md`
 - 2026-09-06 · architect · decided · `src/api/**` · ADR-007 — database access confined to `api/` → `decisions/adr-007-db-in-api.md`
+- 2026-09-07 · docs · shipped · `src/auth/**`, `src/payments/**` · doc tree created, 9 nodes; auth and payments documented → `docs-map.md`
 ```
 
 ### The five fields
@@ -55,7 +57,7 @@ One line per finished episode, appended in chronological order:
 | Field | What goes in it |
 |---|---|
 | **date** | `YYYY-MM-DD`, **script-derived** (`node -e "console.log(new Date().toISOString().slice(0,10))"`). Never the session clock. |
-| **mode** | `run #N` · `tinker` · `vibe m<N>` · `review s<N>` · `review patch #N` · `architect` · `abort #N` |
+| **mode** | `run #N` · `tinker` · `vibe m<N>` · `review s<N>` · `review patch #N` · `architect` · `abort #N` · `docs` |
 | **outcome** | one word from the closed set below |
 | **areas** | backtick-quoted globs, comma-separated — **derived mechanically** (see below). `—` when the episode changed no code. |
 | **what and why** | one line. The **why** is the load-bearing half. |
@@ -91,6 +93,10 @@ most expensive thing in the project to rediscover.
   a fluent, plausible, wrong path here poisons retrieval for every future run, and it fails the way a
   guessed MCP tool name fails rather than the way a missing file does: silently, with confident
   output.
+  **The one exception is `docs`**, whose episode changes files under `docs/` but whose *subject* is
+  the code those documents describe: it writes the union of the touched nodes' `Covers:` globs, copied
+  verbatim from `.context/docs-map.md`. Still recorded rather than composed — and it is the point, since
+  areas of `docs/**` would intersect nothing and be retrieved by nobody.
 - **One line.** If the episode needs a paragraph, the paragraph belongs in the record this line points
   at.
 - **The `why` is not optional on anything that will look arbitrary later.** `toast 2s→4s` is a

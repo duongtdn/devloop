@@ -788,7 +788,17 @@ On **n**, stop here — the retro, verdicts, and tag are already saved; the spri
 
    **This is a nudge, not a gate.** Nothing here blocks the close: a sprint close is a ceremony, not a release gate, and the project already has the right shape for accepted debt — record it against a tracking issue and move on. (The `vibe` track is the exception, and it is deliberate: there an uncovered row still blocks the *share*, because that is the one moment the rationale lands on its own.)
 
-5. **Append the journal line** — `.context/devloop-journal.md`, per `skills/tinker/journal-spec.md`:
+5. **Offer a documentation drift check.** Only if `.context/docs-map.md` exists. The human documentation tree describes the system as of some commit, and a sprint boundary is where that stops being true — so this is the moment to look, while somebody is still here.
+
+   Do **not** run the audit yourself; it belongs to `/devloop:docs` and it is a conversation, not a line item. Offer it:
+
+   > The docs were last written against `[sha]` ([date]). This sprint landed [n] commits. Run `/devloop:docs` to see which documents the code has moved out from under? (y/n)
+
+   On **y**, say so and hand over — the human runs `/devloop:docs`; the close is already complete. On **n**, nothing happens.
+
+   **A nudge, not a gate**, for step 4's reason: nothing here blocks the close. Stale documentation is real debt, but it is not a release condition, and a close ceremony that grew a documentation gate would be a close ceremony people learn to skip.
+
+6. **Append the journal line** — `.context/devloop-journal.md`, per `skills/tinker/journal-spec.md`:
 
    ```
    - YYYY-MM-DD · review s[N] · closed · — · sprint [N] closed; [K] shipped, [n] unproven rows open → `sprints/sprint-[N]-review.md`
