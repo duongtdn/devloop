@@ -1,7 +1,7 @@
 # Journal spec — `.context/devloop-journal.md`
 
 Shared spec. Read by every skill that finishes an **episode** of work — `run`, `tinker`, `vibe`, `review`,
-`architect`, `abort`, `docs` — and by the `context` agent, its only real consumer.
+`architect`, `abort`, `docs`, `audit` — and by the `context` agent, its only real consumer.
 
 ---
 
@@ -44,7 +44,7 @@ One line per finished episode, appended in order:
 | Field | What goes in it |
 |---|---|
 | **date** | `YYYY-MM-DD`, **script-derived** (`node -e "console.log(new Date().toISOString().slice(0,10))"`) |
-| **mode** | `run #N` · `tinker` · `vibe m<N>` · `review s<N>` · `review patch #N` · `architect` · `abort #N` · `docs` |
+| **mode** | `run #N` · `tinker` · `vibe m<N>` · `review s<N>` · `review patch #N` · `architect` · `abort #N` · `docs` · `audit` |
 | **outcome** | one word from the closed set below |
 | **areas** | backtick-quoted globs, comma-separated, **derived mechanically**; `—` when no code changed |
 | **what and why** | one line — the **why** is the load-bearing half |
@@ -76,6 +76,10 @@ and it did not work"* is the most expensive fact in a project to rediscover.
   directory globs. A plausible wrong path silently poisons every future retrieval.
   **Exception — `docs`:** the union of the touched nodes' `Covers:` globs, copied from
   `.context/docs-map.md`, since areas of `docs/**` would match nothing.
+  **Exception — `audit`:** the directories the **filed** findings anchor to, collapsed to globs — read off the
+  anchors, still mechanical. Areas of `.context/**` would match nothing, and an audit that changed no code is
+  exactly the episode a future run in that area most needs to hear about. An audit that filed nothing is not an
+  episode and gets no line.
 - **One line.** A paragraph belongs in the record.
 - **Always the why** on anything that will look arbitrary later — `toast 2s→4s` is a changelog;
   `toast 2s→4s (owner watched it, 2s too fast to read)` is the reason this file exists.

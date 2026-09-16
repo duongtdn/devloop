@@ -124,7 +124,7 @@ On **y**, set both `$HAS_UNIT_TESTS` and `$HAS_E2E` to `unknown` and proceed; th
 
 ### Read what the last sprint learned
 
-Three records that already exist and that nothing has ever read back. All are cheap, all feed Step 2's goal and Step 4's selection, and none is a gate.
+Four records that already exist and that nothing has ever read back. All are cheap, all feed Step 2's goal and Step 4's selection, and none is a gate.
 
 **1 · The previous sprint's retrospective.** `.context/sprints/sprint-[N-1]-review.md`, if it exists. Read its **What to improve** and **Process feedback** — that section is where the human said what went wrong last time, and until now it was written and never opened again, so the next sprint was planned as though the last one had taught nothing. Carry anything actionable into the goal conversation as a *suggestion*, attributed and in one line ("last sprint's retro says two issues carried over — worth scoping smaller?"). **Never treat it as a constraint**: it is the human's own note to themselves, and they are entitled to ignore it.
 
@@ -135,6 +135,8 @@ Three records that already exist and that nothing has ever read back. All are ch
 They are candidates, not obligations. A row the user skips stays in the ledger and gets offered again at sprint close — the point is that it is never silently forgotten, not that it must be done now.
 
 **3 · Documentation drift.** `.context/docs-audit.md`, if it exists — the last report from `/devloop:docs`, naming the human documents the code has moved out from under, the code nothing describes, and any recorded rule the code no longer obeys. Read it, but weigh the three findings differently: a **broken rule** ("ADR-007 says only `payments/` touches the database; `workers/sync.ts` imports the client directly") is a real defect and belongs in the goal conversation as one line; **uncovered code** is worth a mention when this sprint is about to build on it; **a stale document** is debt, and it goes to Step 4 as a candidate only if the user asks. **Never scope documentation work the user did not ask for** — the report is a fact about the project, not a claim on the sprint. Say when it is old (`last run [date], [n] commits ago`) rather than treating it as current.
+
+**4 · The last whole-system audit.** The newest report in `.context/audits/`, if the directory exists — `/devloop:audit`'s priced list of what the system has accumulated: design carrying no weight, tests that cannot fail, a failure policy nobody decided, a credential in a tracked file. Its findings were already filed as issues (`source:audit`), so they arrive through normal triage and **must not be re-derived here** — each one carries its own evidence and fix, proven once. What the report adds that the issues cannot is **order**: decide the unowned rules → restore the detector → remove the unsafe → simplify. A sprint that schedules structural refactors ahead of the test repair they hide behind has scheduled a bet. Say when the report is old (`audited [date], [n] commits ago`) rather than treating it as current, and if a `blocker` in it is still open, name it in the goal conversation — it was graded as broken now, not as debt.
 
 If the journal `.context/devloop-journal.md` exists, its lines since the last sprint's close are the fastest read there is of what actually happened to this project between sprints — including tinker sessions and architect decisions that no issue covers. Skim it before Step 2; do not summarise it at the user unless something in it bears on the goal.
 

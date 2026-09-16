@@ -124,8 +124,10 @@ A manual *acceptance criterion* is **not** a stop: auto mode tries to automate i
 | `.context/sprints/state/.lock` | global | **run** + `pr-fix` + `tinker` + `vibe` | `holder`, issue or PR number, `pid`, `start` |
 | `.context/devloop-profile.md` | project | roadmap; **run write-back** | build/test commands + test layout |
 | `.context/devloop-baseline.md` | project | **run** (on user decision) | accepted-failing tests |
-| `.context/devloop-journal.md` | project | **run**, `tinker`, `vibe`, `review`, `architect`, `abort` | one line per finished episode |
+| `.context/devloop-journal.md` | project | **run**, `tinker`, `vibe`, `review`, `architect`, `abort`, `audit` | one line per finished episode |
 | `.context/devloop-unproven.md` | project | `tinker` | behavior shipped without a test by decision — read by `review` and `plan` |
+| `.context/audits/YYYY-MM-DD.md` | project | `audit` | one whole-system audit report, kept — history is what makes its trend real |
+| `.context/devloop-audit-accepted.md` | project | `audit` | audit findings accepted as won't-fix, each with a `reopen when:` |
 
 `work/` and `state/` are run's working area; the rest are shared project records. run neither assumes nor enforces a gitignore policy.
 
