@@ -195,6 +195,32 @@ Run it bare and it **audits** — cheap, writes nothing, safe at any time. On a 
 
 ---
 
+## The periodic physical — `/devloop:audit`
+
+Every quality gate above is scoped to a **change**: the code review sees one diff, the PR review one PR, the test critic one test plan, the sprint review one sprint. Not one of them can see **accumulation** — because each issue added one reasonable abstraction, handled its own errors plausibly, exported one more symbol, and *no single diff was ever wrong*. Twenty issues later there are six layers nobody needs, five different things that happen when a request fails, and a test suite where a fifth of the tests could not fail if the product broke.
+
+`/devloop:audit` is the only pass that reads your system in the **present tense**. It sweeps nine dimensions — design and YAGNI, coupling and cohesion, drift and code smells, test-suite integrity, security, resource and concurrency, failure architecture, data and state, and record-versus-reality — and prices what it finds.
+
+Two things keep it from being a wall of opinions. **Every dimension is written as a sweep, not an adjective** — count the implementations of that interface, grep the callers of that export, tally which files keep changing together, list the handlers with no authorization check — and **every finding carries the sweep's result**, a `file:line`, one named fix, and what the fix costs. No result, no finding. "This violates SRP" is not something it is allowed to say; *"this file has been edited by issues from three unrelated epics, and here they are"* is.
+
+That last one is the trick to auditing the things reviewers usually can't. SRP, cohesion and coupling are where code review turns into taste — so they are deliberately **out** of scope for the diff reviewer. A whole-system pass has what a diff reviewer lacks: the import graph, and your commit history. Against those, "tightly coupled" becomes *"these two files co-changed in 14 of the last 16 commits that touched either"*, and "one reason to change" becomes a count of the epics that keep touching a file.
+
+The dimension most projects need most is **failure**. Nobody ever owns error handling: every issue handles its own, locally and sensibly, and the system ends up with several contradictory policies nobody chose. The audit reconstructs what actually happens to a failure at each layer, and where there is no rule to conform to, it says so — that finding is **`unowned`**, it cannot become a ticket, and it routes to `/devloop:architect` to be decided and recorded as an ADR. After which it is binding, and the ordinary code review enforces it on every diff. The audit doesn't just price the debt; it closes the gap that let it accumulate.
+
+**It is read-only. There is no `--fix`.** It writes a report, walks the findings with you — blockers one at a time, the rest in bundles — and files what you approve as issues, so the work goes through `run` like everything else: planned, tested, reviewed. Two reasons it's built that way, and the second decides it on its own: it would be the one code path in devloop that skipped the whole loop, and a structural refactor is safe only because the test suite catches what it breaks — which is exactly the thing the audit just told you not to trust.
+
+So the report's headline is not a score. It's a question:
+
+```
+Can you refactor behind this suite?    not yet — 23 of 310 tests cannot fail
+```
+
+And the remediation plan is ordered by it: **decide the unowned rules → restore the detector → remove the unsafe → simplify.** A sprint that schedules the refactor before the test repair has scheduled a bet.
+
+**Run it on a cadence, not only when something feels wrong.** Every dimension it sweeps is exactly the kind of drift no other gate can see *while it's still cheap* — the whole reason it exists is that any one sprint's diffs look fine and the accumulation across several doesn't. A sensible rhythm is **once a sprint, at `/devloop:review`** (or every few, on a small or slow-moving project) — cheap enough to be routine, and its findings arrive through the same backlog triage as everything else, so keeping it current costs you one read of a table, not a special occasion.
+
+---
+
 ## A third way in — `/devloop:vibe`
 
 Everything above assumes you're a developer working in your own codebase. **`/devloop:vibe` is for the other case**: someone who wants a small app to exist, and isn't going to write it.
@@ -322,6 +348,7 @@ Skills are what you invoke. The conversational ones pause at every human gate; t
 | Skill | What it's for |
 |---|---|
 | **`/devloop:docs [path]`** | Write and maintain the documentation **humans** read — architecture, onboarding, development guide, a page per component. Structure is reasoned from your actual system rather than a template, and every claim cites the file it came from. Run it **bare to audit**: each page records the commit it was written against, so it reports what the code has moved out from under, what nothing covers, and where the code no longer obeys a decision you recorded. Findings are routed (refresh the page / file the bug / take the rule to `architect`), never silently patched over. Nothing is written or committed without your yes. |
+| **`/devloop:audit [path]`** | Audit the **whole system as it stands**, not a diff — the thing no per-change review can see. Nine dimensions: design and YAGNI, coupling and cohesion (measured from your import graph and commit history, including SRP counted from the epics that keep touching a file), drift and code smells, **test-suite integrity** (tests that cannot fail, tests that only assert their own mocks, tests of the demo), security **including leaked credentials** (tracked `.env` files, keys still in history — rotate first, delete second), resource and concurrency, **failure architecture** (one policy or five, handled where it can be decided, context preserved, retries not stacked, error paths actually tested), data and state, and record-versus-reality (stubs shipped as finished, closed acceptance criteria with no live code path). Every finding carries the sweep result that proves it, a `file:line`, one named fix and a cost — no result, no finding. **Read-only**: it reports, walks the findings with you, and files the work as issues; it never edits code and never takes the lock. Best run **on a cadence** (once a sprint is a sane default) rather than only when something already feels off — that's what keeps drift priced before it's expensive to unwind. |
 
 ### Review & close *(outer loop — slow)*
 
@@ -351,6 +378,7 @@ Agents are the workers behind the skills — you don't invoke them directly. Eac
 | **ba-critic** | Reads a drafted **product brief** and reports what a non-technical owner could read, be wrong about, and not notice — a capability nobody could fail, a domain word doing real work but never defined, a missing "what it does NOT do" list. Returns the plain question that settles each. The check on a comfortable conversation producing a comfortable, wrong brief. |
 | **pr-triage** | Classifies a PR's review intensity (light/full) from the nature of the diff. Used by `pr-review`. |
 | **reviewer** | Reviews a diff and surfaces concrete `file:line` findings. Modes: review / pr-review / critique / fix-review. Carries a **test-pass-insufficient** rubric for the bug class a green suite can't rule out (concurrency, resource scoping, ordering, idempotency, reversibility) — those are argued from the code, and "the tests pass" is not a rebuttal. Reasons only — never posts to GitHub. |
+| **auditor** | Sweeps the **whole codebase** for one group of audit dimensions and returns findings in a fixed grammar — claim, `file:line`, the sweep result that proves it, one named fix, a cost. Modes: structure / drift / tests / security / runtime / data, plus a **critique** pass that upholds, drops, and merges duplicates across dimensions. Read-only: it never writes a file, and never runs your build or your suite — a pass that ran the tests could touch a real database, and six of them would do it six times. Used by `audit`. |
 | **surveyor** | Reads the codebase and reports what is actually there — entry points, the real components, what owns which data, which way the dependencies point, what changes every sprint. Cites what it finds and never invents a path. Used by `docs`. |
 | **doc-writer** | Writes one page of the documentation tree from that survey and the architecture page. It has **no shell access**, so it can't commit — you see the real diff first and the skill commits. |
 | **doc-critic** | Reads a drafted page as the developer it was written for, and reports where they'd still be stuck: a claim with no source, a term used before it's explained, a wall of prose, a hedge. A fresh reader every time, which is the whole point. |
@@ -369,6 +397,8 @@ devloop keeps its state under `.context/` so work resumes across sessions:
 | `.context/devloop-baseline.md` | shared record | Accepted-failure allowlist — checks known to fail, so the green gate means "no *new* failures." |
 | `.context/devloop-journal.md` | shared record | **The project's memory across sessions** — one line per finished piece of work, in any mode: what changed, in which areas, and **why**. Read by the loop before every issue, so a value you tuned by hand while watching the app is still known about three sprints later. Append-only, and never rewritten — history that gets edited isn't evidence. |
 | `.context/devloop-unproven.md` | shared record | Behaviour that shipped **without a test because you said "not now"** — what it does, and what would prove it. Offered back as issues at sprint close and as candidates when the next sprint is scoped, so *we'll test it later* doesn't quietly become *we never did*. |
+| `.context/audits/` | shared record | One report per `/devloop:audit`, kept rather than overwritten — what the system had accumulated on that date, priced, with the sweep result behind every finding. History is what lets the next audit say whether the debt is actually falling, and which findings you already closed. |
+| `.context/devloop-audit-accepted.md` | shared record | Audit findings you looked at and **chose to live with** — each with the reason and a `reopen when:` condition. Without it every audit re-raises the same forty things and you learn to stop reading them; with it, a settled trade-off stays settled until the thing that would change it happens. |
 | `.context/decisions/` | shared record | Architecture decision records from `/devloop:architect`, plus an `index.md` the loop scans to find the ones bearing on a task. Append-only: a changed decision is a new record superseding the old, so the reasoning you can go back and read is the reasoning that was actually used. |
 | `.context/sprints/master-plan.md` | shared record | Project sprint map: vision, themes, goals, statuses. |
 | `.context/sprints/sprint-N.md` | shared record | Per-sprint execution checklist. Each issue line tracks execution (`[x]`, by `run`) and human acceptance (`✓accepted`, by `review`) separately. |
