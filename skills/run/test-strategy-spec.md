@@ -41,6 +41,9 @@ Settle two things:
   its source. A reading nobody can check is a reading nobody can correct.
 - **No signal → `durable`.** Never infer *trial* from the absence of a signal: the cheap mistake is one
   extra test, the expensive one is an untested rule that shipped because nobody said it mattered.
+- **An AC ending in `(manual)`** was marked at sprint planning (`plan-spec.md` §1, *observable in the
+  repo*) as confirmable only by a person or an outside environment. Its outside-the-repo part is
+  `observe`; the part our code owns is still decided by § 2, and row 1 still wins.
 - **Conflicting signals** (a `prototype` label on an issue whose AC is a payment rule) → say so in the
   reading; the risk rule in § 2 wins either way.
 

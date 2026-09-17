@@ -48,9 +48,9 @@ Map the user's intent to one or more operations below. If ambiguous, ask. Multip
 
 ## Operation: add
 
-**Existing issue** (`add #N`): fetch it via GitHub MCP. It must be open and not `type:backlog` (a backlog item needs resolving first — offer to re-scope it into sprint-ready form here, following the spec's template, rather than bouncing the user to `plan`). Check it has an `## Acceptance Criteria` section; if not, draft one per the spec and confirm.
+**Existing issue** (`add #N`): fetch it via GitHub MCP. It must be open and not `type:backlog` (a backlog item needs resolving first — offer to re-scope it into sprint-ready form here, following the spec's template, rather than bouncing the user to `plan`). Check it has an `## Acceptance Criteria` section; if not, draft one per the spec and confirm. Either way, hold its ACs to the spec's four satisfiability checks **at the position it will take** (below) — closed by this issue plus those ordered before it, reachable through a real entry point, observable in the repo (else `(manual)`), fitting the type — and flag any that fail, or that contradict an accepted ADR or another sprint issue's AC, with a proposed fix in the confirmation.
 
-**New issue** (`add: <description>`): draft title, labels (`type:` required; `epic:`/`area:` as applicable), and a body per the spec's template — `## What`, `## Acceptance Criteria`, `## Definition of Done` by type × profile flags.
+**New issue** (`add: <description>`): draft title, labels (`type:` required; `epic:`/`area:` as applicable), and a body per the spec's template — `## What`, `## Acceptance Criteria`, `## Definition of Done` by type × profile flags. Each AC passes the spec's four satisfiability checks for this issue at its proposed position; **never** draft one that needs a later issue, an unobservable outcome without `(manual)`, or code behaviour on a `question`/`decision` issue.
 
 Propose placement in the execution order (the spec's ordering rules: `infra → api → web`, dependencies, then issue number) and present:
 
@@ -100,7 +100,7 @@ Present the issue, the proposed disposition, and the consequence; confirm; apply
 
 ## Operation: reorder
 
-Only **unstarted** issues may move (checked-off work is history; an in-flight issue's position is fixed by the guard above). Accept a full or partial order (`reorder 44 43 42`, "move #45 before #43"). Present the resulting table (old → new), confirm, rewrite the `## Issues` lines in the new order **preserving every line's content verbatim** (checkboxes, labels, annotations).
+Only **unstarted** issues may move (checked-off work is history; an in-flight issue's position is fixed by the guard above). Accept a full or partial order (`reorder 44 43 42`, "move #45 before #43"). Present the resulting table (old → new), confirm, rewrite the `## Issues` lines in the new order **preserving every line's content verbatim** (checkboxes, labels, annotations). Before confirming, re-check the **closed by this issue** rule (spec §1) for every issue that moved: an AC that relied on an issue now ordered *after* it can no longer be satisfied — list each one in the table with a proposed fix (move the AC, or keep the old order for that pair).
 
 > ✔ Sprint [N] execution order updated.
 
@@ -108,9 +108,9 @@ Only **unstarted** issues may move (checked-off work is history; an in-flight is
 
 ## Operation: re-scope / split
 
-**Re-scope** (`rescope #N: <what changed>`): fetch the issue, propose edited `## Acceptance Criteria` (and `## What` if the framing changed) per the spec's AC rules. Confirm, then update the issue body via GitHub MCP — preserve all other sections. If the issue is mid-flight or done, refuse (that's rework or abort territory).
+**Re-scope** (`rescope #N: <what changed>`): fetch the issue, propose edited `## Acceptance Criteria` (and `## What` if the framing changed) per the spec's AC rules — every edited AC passes the four satisfiability checks against the issue's current position, and must not contradict an accepted ADR or another sprint issue's AC. Confirm, then update the issue body via GitHub MCP — preserve all other sections. If the issue is mid-flight or done, refuse (that's rework or abort territory).
 
-**Split** (`split #N`): when an unstarted issue is too big, propose 2+ child issues per the spec's template (each independently executable), present the set, confirm. On approval: create the children, assign each to the milestone, close `#N` with the comment `Resolved into: #[c1], #[c2], ...`, replace `#N`'s sprint-file line with the children's lines at the same position (in dependency order) — each unchecked, no `✓accepted` (they're new, unreviewed work).
+**Split** (`split #N`): when an unstarted issue is too big, propose 2+ child issues per the spec's template (each independently executable), redistributing `#N`'s ACs so each lands on the child that finally makes it true — **never** copy the parent's end-to-end outcome onto every child, since an earlier child cannot satisfy it, present the set, confirm. On approval: create the children, assign each to the milestone, close `#N` with the comment `Resolved into: #[c1], #[c2], ...`, replace `#N`'s sprint-file line with the children's lines at the same position (in dependency order) — each unchecked, no `✓accepted` (they're new, unreviewed work).
 
 > ✔ #[N] split into #[c1], #[c2] — sprint file and milestone updated.
 

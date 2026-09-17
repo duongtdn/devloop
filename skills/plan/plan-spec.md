@@ -16,7 +16,7 @@ Every sprint-ready issue created by a devloop skill uses this body:
 
 ## Acceptance Criteria
 - [ ] [concrete, verifiable outcome]
-- [ ] [concrete, verifiable outcome]
+- [ ] [outcome only a human can confirm] (manual)   ← only when it fails the "observable in the repo" check
 
 ## Definition of Done
 [the lines from the DoD-by-type rule below]
@@ -35,6 +35,45 @@ carries **no** `Derived from` line.
 - Aim for 2–5 per issue. Cover the happy path and the obvious failure/edge cases the item implies.
 - Do not invent scope the source item does not imply. If it is too vague to derive criteria, ask the
   user rather than padding.
+
+**Satisfiability — the four checks.** `run` ticks an AC only when a passing test covers it **and** a
+production call path reaches it; anything else is recorded unmet and the issue cannot close cleanly. An
+AC drafted from what the source item *says*, without asking whether *this issue* can make it true, is
+how a sprint ships issues that can never pass validation. Every AC must pass all four:
+
+1. **Closed by this issue.** This issue's own change — on top of the issues **ordered before it** —
+   makes the AC true. An AC that needs a later issue (the UI that calls this API, the route that mounts
+   this middleware, the job that feeds this table) belongs to that later issue. Move it there, or split.
+   **Never** keep it here with a "wired up later" understanding: `run` validates one issue at a time
+   and will find *nothing calls it*.
+2. **Reachable.** The AC names behaviour observed through a real entry point — an HTTP route, CLI
+   command, exported package API, scheduled job, rendered screen — not a symbol existing in isolation.
+   For a genuine library/infrastructure task, name the caller that exercises it in this issue ("the
+   login handler rejects an expired token via `verifyToken`"), not "`verifyToken` exists".
+3. **Observable in the repo.** A test or code trace can prove it. An outcome only a human or an outside
+   environment can confirm — an email landing in a real inbox, behaviour on staging, production load,
+   third-party credentials, "feels clear" — is legitimate but must be written with a trailing
+   **`(manual)`** so `run` treats it as a manual check from the start instead of failing it as an
+   automated one. **Never** phrase an unobservable outcome as if a test could prove it. Unmeasurable
+   words — *fast*, *secure*, *robust*, *intuitive*, *all errors* — need a concrete threshold or case, or
+   they come out.
+4. **Fits the type.** A `type:question`/`type:decision` issue closes with no PR, so its ACs describe the
+   decision recorded (options compared, choice and reason written down, follow-ups filed) — **never**
+   code behaviour, which no decision can satisfy. A code-behaviour AC on such an issue means it is really
+   a `feature`/`bug`/`chore`, or the AC belongs to the follow-up.
+
+Two more sources of ACs that cannot be met:
+- **Contradicting an accepted ADR.** If `.context/decisions/index.md` exists, scan it before drafting and
+  open any ADR whose hook line touches the issue's area. An AC an ADR forbids is unmeetable without
+  superseding the ADR — raise the conflict to the user; **never** draft around it silently.
+- **A stale premise.** A bug or "change X" item may predate the code. When an AC rests on a named file,
+  symbol, route, or message, one `Grep` confirms it still exists. If it is gone or renamed, ask the user
+  rather than drafting criteria against code that is not there. One check per named thing — this is not
+  a context-gathering phase.
+
+**Across issues.** ACs in one sprint must not contradict each other (#42 "invalid token → 401" vs. #43
+"invalid token → redirect to login"), and no single issue carries the **sprint demo** as its AC — the
+demo is the composition of the sprint's issues, which no one issue can satisfy.
 
 **Right-sizing.** A sprint issue should be a unit of work worth tracking on its own — neither a
 multi-day epic nor a one-line edit. **Split** an item that covers several independently-shippable

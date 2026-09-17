@@ -330,7 +330,7 @@ Skills are what you invoke. The conversational ones pause at every human gate; t
 | Skill | What it's for |
 |---|---|
 | **`/devloop:architect [topic \| path \| issue]`** | Talk a **design decision** through with a senior architect — should this be split, where does it belong, is this over-engineered or overdue. It gives one concrete verdict (not a menu), checks your claims against git history and the callers rather than taking them on faith, and treats "leave it alone" as a real answer — recorded with the trigger that would reopen it. Settled decisions become **ADRs** in `.context/decisions/`, which later runs then treat as binding. |
-| **`/devloop:plan`** | Scope a sprint. Sets the goal and end-of-sprint demo, triages backlog issues, selects sprint-ready ones, ensures each has acceptance criteria and a Definition of Done, creates a GitHub **milestone**, sets execution order, and writes the sprint file. |
+| **`/devloop:plan`** | Scope a sprint. Sets the goal and end-of-sprint demo, triages backlog issues, selects sprint-ready ones, ensures each has acceptance criteria its own change can satisfy (checked against the execution order) and a Definition of Done, creates a GitHub **milestone**, sets execution order, and writes the sprint file. |
 | **`/devloop:replan`** | Amend the **active** sprint mid-flight — **add** an issue, **drop** one, **reorder**, **re-scope/split**, or file **rework** for shipped work as a new issue cross-linked to the original. The transactional sibling of `plan`; both share one spec so amendments stay format-identical. Usually invoked for you from `review`. |
 
 ### Execute *(inner loop — fast, or gated)*

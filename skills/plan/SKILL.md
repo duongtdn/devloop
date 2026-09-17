@@ -1,5 +1,5 @@
 ---
-description: Prepare a sprint iteration. Establishes the sprint goal and end-of-sprint demo through conversation, triages backlog issues into sprint tasks (many-to-many, with per-item disposition), selects sprint-ready issues, assesses whether the selection covers the goal and authors net-new tasks (under an inline architect conversation) to fill any gap, ensures every issue has acceptance criteria and a Definition of Done, creates a GitHub milestone, determines execution order, and writes the sprint file. Conversational — pauses at every step for user confirmation.
+description: Prepare a sprint iteration. Establishes the sprint goal and end-of-sprint demo through conversation, triages backlog issues into sprint tasks (many-to-many, with per-item disposition), selects sprint-ready issues, assesses whether the selection covers the goal and authors net-new tasks (under an inline architect conversation) to fill any gap, ensures every issue has acceptance criteria it can actually satisfy and a Definition of Done, creates a GitHub milestone, determines execution order, and writes the sprint file. Conversational — pauses at every step for user confirmation.
 ---
 
 You are running **devloop:plan**. This skill is fully conversational — pause at every human gate and wait for explicit confirmation before moving to the next step. Never batch steps together.
@@ -281,7 +281,13 @@ Suggest labels for each proposed task:
 - `epic:` — if the task belongs to a recognisable theme
 - `area:` — if the task has a clear technical layer (`area:infra`, `area:api`, `area:web`, etc.)
 
-**Draft acceptance criteria** for each proposed task from the source backlog bodies, following the acceptance-criteria rules in the spec (below).
+**Draft acceptance criteria** for each proposed task from the source backlog bodies, following the acceptance-criteria rules in the spec (below). First scan `.context/decisions/index.md` if it exists and open any ADR whose hook line touches a task's area. A backlog item describes the *whole* outcome; once it is split across tasks, each AC must pass the spec's four satisfiability checks **for the task it lands on** — `run` validates one issue at a time, and an AC it cannot make true stays unmet forever:
+- **Closed by this task** — this task's change, plus the tasks that will run before it (`infra → api → web` unless the bodies say otherwise), makes it true. The user-facing outcome of a split item goes on the task that finally exposes it; **never** copy it onto an earlier layer's task.
+- **Reachable** — behaviour through a real entry point, or the named caller that exercises it in this task; never "the function exists".
+- **Observable in the repo** — else mark it `(manual)`; no *fast*/*secure*/*intuitive* without a threshold.
+- **Fits the type** — a `question`/`decision` task gets decision ACs, never code behaviour.
+
+Do not draft against an ADR's prohibition or a file/symbol that no longer exists (one `Grep` per named thing) — raise it in the proposal instead.
 
 **Per-item disposition.** Once the task set is settled, each resolve item lands in exactly one state, by how much of it the tasks cover — decided *after* the tasks are approved, not per-iteration:
 - **fully subsumed** — every concern it raised became a task → close it.
@@ -409,7 +415,7 @@ Proceed to Step 5.
 
 Architect supplies the judgment and any ADRs; per its own rule it does **not** create issues — `plan` authors them.
 
-**Draft the tasks.** From the architect-informed reasoning, draft each net-new sprint-ready task following the **issue body template** in `plan-spec.md` — `## What`, `## Acceptance Criteria`, and the profile-derived `## Definition of Done` per its `type:`. These tasks carry **no** `Derived from` line (they came from the goal, not a backlog item). Suggest `type:`/`epic:`/`area:` labels as in Step 3.
+**Draft the tasks.** From the architect-informed reasoning, draft each net-new sprint-ready task following the **issue body template** in `plan-spec.md` — `## What`, `## Acceptance Criteria`, and the profile-derived `## Definition of Done` per its `type:`. Gap-fill drafts from the goal and demo, which describe the *sprint's* outcome — so **never** put the demo, or any end-to-end outcome that needs other issues, on one task as its AC. Each AC passes the spec's four satisfiability checks for this task alone: closed by this task plus those ordered before it, reachable through a real entry point, observable in the repo (else `(manual)`), and fitting the type. These tasks carry **no** `Derived from` line (they came from the goal, not a backlog item). Suggest `type:`/`epic:`/`area:` labels as in Step 3.
 
 **Human gate — present the authored tasks, wait for approval:**
 
@@ -501,15 +507,15 @@ Wait for confirmation or adjustment. Apply any reordering the user provides. If 
 
 ## Step 7 — Validate acceptance criteria
 
-Every selected issue must carry acceptance criteria before `run` executes it — they are the contract `run` reads to plan and validate the work. Issues created during Step 3 already have them. Pre-existing sprint-ready issues selected in Step 4 may not.
+Every selected issue must carry acceptance criteria **that its own change can satisfy** before `run` executes it — they are the contract `run` reads to plan and validate the work, and `run` ticks an AC only when a passing test covers it and a production call path reaches it. An AC that fails that bar cannot be fixed by better code; it surfaces mid-run as an unmet criterion or a stop-the-line. This step runs **after** Step 6 on purpose: whether an AC is closable by its issue depends on what runs before it, and that is only known once the order is settled.
 
-You already fetched the full body of each selected issue in Step 6. For each, check whether the body contains an `## Acceptance Criteria` section with at least one checklist item.
+You already fetched the full body of each selected issue in Step 6. If `.context/decisions/index.md` exists, scan it now and open any ADR whose hook line touches a selected issue's area.
 
-If every selected issue has acceptance criteria, report and continue:
+### 7a — Presence
 
-> All selected issues have acceptance criteria.
+Check whether each body contains an `## Acceptance Criteria` section with at least one checklist item.
 
-Otherwise, list the gaps:
+If any are missing, list the gaps:
 
 > These issues have no acceptance criteria:
 >
@@ -520,7 +526,7 @@ Otherwise, list the gaps:
 
 On **n** or `skip`, leave the issue untouched and note it; `run` will prompt for criteria when it reaches the issue.
 
-For each issue to draft, work one at a time: read its current body, then propose the missing sections following the issue body template in **`plan-spec.md`** — the Definition of Done per its DoD-by-type rule (the issue's `type:` label plus `$HAS_UNIT_TESTS` / `$HAS_E2E`).
+For each issue to draft, work one at a time: read its current body, then propose the missing sections following the issue body template in **`plan-spec.md`** — the Definition of Done per its DoD-by-type rule (the issue's `type:` label plus `$HAS_UNIT_TESTS` / `$HAS_E2E`). Each drafted AC must pass the four satisfiability checks below against the confirmed order; **never** draft one that needs a later issue, rests on an unobservable outcome without `(manual)`, or describes code behaviour on a `question`/`decision` issue.
 
 > **#42 — Add login page**
 >
@@ -529,6 +535,40 @@ For each issue to draft, work one at a time: read its current body, then propose
 > Approve to update the issue, or adjust:
 
 On approval, update the GitHub issue body via GitHub MCP — preserve any existing content and append the missing sections. Do not overwrite a body that already has a `## What` or description.
+
+### 7b — Satisfiability
+
+Walk **every** selected issue's ACs — pre-existing ones included, not only those this session wrote (an issue written weeks ago was never held to this bar) — in the confirmed execution order, and apply the four checks from `plan-spec.md` §1:
+
+1. **Closed by this issue** — its change, plus the issues ordered before it, makes the AC true. Flag an AC that needs a later issue (the UI calling this API, the route mounting this middleware).
+2. **Reachable** — behaviour through a real entry point, or a named caller exercised in this issue; not a symbol existing in isolation.
+3. **Observable in the repo** — provable by a test or trace; otherwise it needs `(manual)`. Flag unmeasurable wording (*fast*, *secure*, *intuitive*, *all errors*) with no threshold.
+4. **Fits the type** — no code-behaviour AC on a `type:question`/`type:decision` issue.
+
+And across the set:
+- **ADR conflict** — an AC an accepted ADR forbids.
+- **Stale premise** — an AC resting on a named file, symbol, route, or message: one `Grep` per named thing confirms it still exists.
+- **Contradiction** — two ACs (in one issue or across issues) that demand incompatible behaviour.
+- **Demo as AC** — an issue carrying the sprint demo or an end-to-end outcome that needs other issues.
+
+Judge from the bodies, the order, and those cheap reads — this is not a context-gathering phase.
+
+If nothing is flagged:
+
+> All selected issues have acceptance criteria their own change can satisfy.
+
+Otherwise present every flag with a concrete fix, in one table:
+
+| # | AC | Problem | Proposed fix |
+|---|----|---------|--------------|
+| #44 | User stays logged in after refresh | needs #42's login page (ordered later) | move to #42; #44 gets "a session written by `createSession` is read back by `getSession` after restart" |
+| #45 | Reset email arrives in the user's inbox | not observable in the repo | keep as `(manual)`; add "requesting a reset enqueues one email to the account's address" |
+| #50 | Endpoint returns 403 for non-admins | `type:decision` issue — no PR will satisfy it | drop; record as a follow-up to file once decided |
+| #43 | Invalid token redirects to login | contradicts #42 "invalid token → 401" | ask: which behaviour is intended? |
+
+> Apply these fixes, or tell me what to change (per row, or "skip #N"):
+
+Wait for the response. A **stale premise**, an **ADR conflict**, or a **contradiction** needs the user's call — propose options, **never** resolve it by guessing. An ADR conflict the user wants to override is a supersession: point them to `/devloop:architect`, and leave the AC flagged rather than editing around the ADR. On approval, update each affected issue body via GitHub MCP — edit only the `## Acceptance Criteria` section (and move criteria between issues where the fix says so); preserve every other section. A row the user skips is left as-is and noted in the completion report, so it is a known risk rather than a surprise in `run`.
 
 ---
 
@@ -589,6 +629,9 @@ When done, report:
 >
 > **Gap-fill** _(omit this section entirely if Step 4.5 authored nothing)_
 > [N] tasks authored from the goal (#…) · [N] ADR(s) recorded (ADR-… — [title]) _(omit the ADR clause if none)_
+>
+> **Acceptance criteria** _(omit this section entirely if Step 7 changed and flagged nothing)_
+> [N] ACs fixed across #… · [N] flagged and left as-is by choice: #N — [problem]
 >
 > **Execution order**
 
